@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { presetsFor, sourceLabel, validSources } from "@/lib/answers";
+import { EXCERPTS } from "@/lib/manual";
 import { judge, type Conclusion } from "@/lib/rules";
 import { findVehicle, trendText, vehicles } from "@/lib/vehicles";
 import DecisionCard, { type CardItem } from "./DecisionCard";
@@ -30,6 +31,7 @@ export default async function CardPage(props: PageProps<"/card/[id]">) {
   const keys = validSources(vehicle, [
     "driving",
     ...vehicle.items.flatMap((i) => [`item:${i.id}`, `trend:${i.id}`]),
+    ...EXCERPTS.map((e) => `doc:${e.id}`),
   ]);
   const sourceLabels = Object.fromEntries(keys.map((k) => [k, sourceLabel(vehicle, k)!]));
 
