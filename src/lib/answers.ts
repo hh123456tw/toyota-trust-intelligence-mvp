@@ -26,10 +26,6 @@ export function sourceLabel(vehicle: Vehicle, key: string): string | undefined {
   return undefined;
 }
 
-export function validSources(vehicle: Vehicle, keys: string[]): string[] {
-  return [...new Set(keys)].filter((k) => sourceLabel(vehicle, k) !== undefined);
-}
-
 // 常見問題：預先寫好的回答，AI 出錯時也能用。
 const presets: Record<string, Preset[]> = {
   wang: [
