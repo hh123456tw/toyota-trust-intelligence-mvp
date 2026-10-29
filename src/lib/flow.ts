@@ -16,8 +16,15 @@ const list = (keys: string[], labels: Labels, empty: string) =>
   keys.length ? keys.map((k) => labels[k] ?? k).join("、") : empty;
 
 // status：/api/ask 的 HTTP 狀態；0 代表連線失敗。502 代表已呼叫 AI 但失敗。
-export function askFlow(question: string, status: number, data: AskResult | { error: string }, labels: Labels): FlowEntry {
-  const title = `追問：${question}`;
+// data.simulated：展示用的竄改回答（simulateTampered），沒有呼叫 AI。
+export function askFlow(
+  question: string,
+  status: number,
+  data: (AskResult & { simulated?: true }) | { error: string },
+  labels: Labels,
+): FlowEntry {
+  const simulated = "simulated" in data && data.simulated === true;
+  const title = simulated ? `模擬：AI 回答被竄改（${question}）` : `追問：${question}`;
   if (status !== 200 || "error" in data) {
     return { title, steps: [`失敗：${"error" in data ? data.error : "未知錯誤"}`], aiCalls: status === 502 ? 1 : 0 };
   }
@@ -25,12 +32,13 @@ export function askFlow(question: string, status: number, data: AskResult | { er
   return {
     title,
     steps: [
+      ...(simulated ? ["AI 回答：模擬的竄改回答，沒有呼叫 AI"] : []),
       `理解的問題：${trace.mentionedItems.length ? `提到 ${list(trace.mentionedItems, labels, "")}` : "沒有提到特定項目"}`,
       `用了哪些資料：${list(trace.data, labels, "無")}`,
       `引用的來源：${list(trace.aiSources, labels, "無")}`,
       `答案檢查：${checkResult === "攔下" ? `攔下（${blockedReason}）` : "通過"}`,
     ],
-    aiCalls: 1,
+    aiCalls: simulated ? 0 : 1,
   };
 }
 

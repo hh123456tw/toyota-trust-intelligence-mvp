@@ -11,7 +11,10 @@ describe("量測趨勢：卡片顯示「半年前 → 本次」", () => {
   it("煞車、電瓶、輪胎顯示", () => {
     expect(trendText(item(wang, "brake-pad"))).toBe("半年前 3.5 mm → 本次 2 mm");
     expect(trendText(item(wang, "battery"))).toBe("半年前 72 % → 本次 60 %");
+    expect(trendText(item(wang, "tire"))).toBe("半年前 6 mm → 本次 5.2 mm");
     expect(trendText(item(lin, "tire"))).toBe("半年前 2.5 mm → 本次 1.4 mm");
+    expect(trendText(item(lin, "brake-pad"))).toBe("半年前 7.8 mm → 本次 7 mm");
+    expect(trendText(item(lin, "battery"))).toBe("半年前 94 % → 本次 91 %");
   });
 
   it("空氣濾網、雨刷不顯示", () => {

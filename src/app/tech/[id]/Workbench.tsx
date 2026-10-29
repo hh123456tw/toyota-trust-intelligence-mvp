@@ -75,6 +75,7 @@ export default function Workbench(props: {
         <DecisionCard
           {...props.card}
           items={cardItems(items)}
+          simulate
           onFlow={(e) => setEntries((prev) => [...prev, e])}
         />
       </section>
