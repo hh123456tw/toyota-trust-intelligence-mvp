@@ -32,6 +32,10 @@ export type InspectionItem = {
   previousMeasurement?: Measurement;
   visualOk?: boolean;
   technicianNote: string;
+  // 技師量測或目視檢查的時間（HH:MM）。和規則版本、技師一起當判定依據。
+  measuredAt: string;
+  // 零件使用紀錄，例如電瓶上次更換到現在多久。卡片顯示，AI 也可以引用（來源同 item:<id>）。
+  history?: string;
   photo: string;
   // 示意費用（零件＋工資，NT$）。正式導入時來自服務廠工單報價。
   price: number;
@@ -40,6 +44,7 @@ export type InspectionItem = {
 export type DrivingSummary = {
   period: string;
   shortTripRatio: number;
+  weeklyStarts: number;
   note: string;
 };
 
@@ -52,8 +57,18 @@ export type Vehicle = {
   technician: string;
   inspectedAt: string;
   drivingSummary: DrivingSummary;
+  // 定期保養本來就會做的項目（不經規則引擎），交車說明列在「今天完成」。
+  routine: string[];
+  // 下次定期保養還有幾公里，交車說明的「下次提醒」用。
+  nextServiceKm: number;
+  // 保養進度（示意）。time 沒有值表示還沒到這一步；eta 沒有值時只顯示階段。
+  progress: { stage: string; time?: string }[];
+  eta?: string;
   items: InspectionItem[];
 };
+
+// 規則表版本。正式導入時由原廠技術部門訂定並版本化。
+export const RULE_VERSION = "R-2026.10";
 
 const brakeRule: MeasuredRule = { kind: "measured", mustBelow: 3, deferBelow: 5, reminderMonths: 3 };
 const tireRule: MeasuredRule = { kind: "measured", mustBelow: 1.6, deferBelow: 3, reminderMonths: 3 };
@@ -73,8 +88,19 @@ export const vehicles: Vehicle[] = [
     drivingSummary: {
       period: "近 3 個月",
       shortTripRatio: 78,
-      note: "約 78% 的行程在 10 公里內，多為市區通勤短程。",
+      weeklyStarts: 11,
+      note: "約 78% 的行程在 10 公里內，多為市區通勤短程，每週約發動 11 次。",
     },
+    routine: ["機油與機油芯"],
+    nextServiceKm: 5000,
+    progress: [
+      { stage: "接待完成", time: "10:05" },
+      { stage: "技師檢查完成", time: "11:20" },
+      { stage: "車主確認中", time: "11:25" },
+      { stage: "施工與品檢" },
+      { stage: "完工交車" },
+    ],
+    eta: "16:20",
     items: [
       {
         id: "brake-pad",
@@ -85,6 +111,7 @@ export const vehicles: Vehicle[] = [
         measurement: { value: 2, unit: "mm" },
         previousMeasurement: { value: 3.5, unit: "mm" },
         technicianNote: "左右兩側皆約 2 mm，已低於安全門檻 3 mm。",
+        measuredAt: "10:42",
         photo: "/photos/brake-pad-worn.webp",
         price: 3000,
       },
@@ -97,6 +124,8 @@ export const vehicles: Vehicle[] = [
         measurement: { value: 60, unit: "%" },
         previousMeasurement: { value: 72, unit: "%" },
         technicianNote: "電瓶測試器顯示健康度 60%，啟動正常。",
+        history: "已使用 1.5 年（上次更換工單：2025-03）",
+        measuredAt: "10:50",
         photo: "/photos/battery.webp",
         price: 3500,
       },
@@ -108,6 +137,7 @@ export const vehicles: Vehicle[] = [
         rule: airFilterRule,
         visualOk: true,
         technicianNote: "濾網顏色正常，無明顯堵塞。",
+        measuredAt: "10:55",
         photo: "/photos/air-filter.webp",
         price: 600,
       },
@@ -119,6 +149,7 @@ export const vehicles: Vehicle[] = [
         rule: wiperRule,
         visualOk: true,
         technicianNote: "刮拭乾淨，膠條無裂痕。",
+        measuredAt: "11:00",
         photo: "/photos/wiper.webp",
         price: 800,
       },
@@ -131,6 +162,7 @@ export const vehicles: Vehicle[] = [
         measurement: { value: 5.2, unit: "mm" },
         previousMeasurement: { value: 6, unit: "mm" },
         technicianNote: "四輪胎紋約 5.2 mm，磨耗平均。",
+        measuredAt: "11:10",
         photo: "/photos/tire-ok.webp",
         price: 12000,
       },
@@ -147,8 +179,18 @@ export const vehicles: Vehicle[] = [
     drivingSummary: {
       period: "近 3 個月",
       shortTripRatio: 20,
+      weeklyStarts: 6,
       note: "多為高速公路長途行駛，每週約 400 公里。",
     },
+    routine: ["機油與機油芯"],
+    nextServiceKm: 5000,
+    progress: [
+      { stage: "接待完成", time: "09:30" },
+      { stage: "技師檢查完成", time: "10:40" },
+      { stage: "車主確認中", time: "10:45" },
+      { stage: "施工與品檢" },
+      { stage: "完工交車" },
+    ],
     items: [
       {
         id: "tire",
@@ -159,6 +201,7 @@ export const vehicles: Vehicle[] = [
         measurement: { value: 1.4, unit: "mm" },
         previousMeasurement: { value: 2.5, unit: "mm" },
         technicianNote: "右前輪胎紋約 1.4 mm，已低於安全門檻 1.6 mm。",
+        measuredAt: "10:05",
         photo: "/photos/tire-worn.webp",
         price: 3200,
       },
@@ -171,6 +214,7 @@ export const vehicles: Vehicle[] = [
         measurement: { value: 7, unit: "mm" },
         previousMeasurement: { value: 7.8, unit: "mm" },
         technicianNote: "左右兩側皆約 7 mm。",
+        measuredAt: "10:15",
         photo: "/photos/brake-pad-ok.webp",
         price: 3000,
       },
@@ -183,6 +227,7 @@ export const vehicles: Vehicle[] = [
         measurement: { value: 91, unit: "%" },
         previousMeasurement: { value: 94, unit: "%" },
         technicianNote: "電瓶測試器顯示健康度 91%。",
+        measuredAt: "10:25",
         photo: "/photos/battery.webp",
         price: 3500,
       },
@@ -194,6 +239,7 @@ export const vehicles: Vehicle[] = [
         rule: airFilterRule,
         visualOk: true,
         technicianNote: "濾網顏色正常，無明顯堵塞。",
+        measuredAt: "10:30",
         photo: "/photos/air-filter.webp",
         price: 600,
       },

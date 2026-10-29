@@ -2,6 +2,7 @@
 
 import { useState, type ComponentProps } from "react";
 import { cardItems, withMeasurement } from "@/lib/card";
+import { staffLine } from "@/lib/handover";
 import type { Conclusion } from "@/lib/rules";
 import type { InspectionItem } from "@/lib/vehicles";
 import DecisionCard from "../../card/[id]/DecisionCard";
@@ -97,6 +98,7 @@ export default function Workbench(props: {
           sourceLabels={props.card.sourceLabels}
           onFlow={(e) => setEntries((prev) => [...prev, e])}
           edited={items !== props.items}
+          line={staffLine(cardItems(props.items))}
         />
 
         <FlowPanel entries={entries} />

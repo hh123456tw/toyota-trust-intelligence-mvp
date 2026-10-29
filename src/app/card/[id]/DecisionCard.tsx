@@ -5,11 +5,13 @@ import { useRef, useState } from "react";
 import type { Answer, Preset } from "@/lib/answers";
 import type { AskResult } from "@/lib/ask";
 import type { CardItem, Gauge } from "@/lib/card";
-import { askFlow, presetFlow, type FlowEntry } from "@/lib/flow";
+import { askFlow, handoverFlow, presetFlow, type FlowEntry } from "@/lib/flow";
+import { choiceKey, handover, type Choice } from "@/lib/handover";
 import type { Conclusion } from "@/lib/rules";
-import { formatPrice } from "@/lib/vehicles";
+import { formatPrice, RULE_VERSION } from "@/lib/vehicles";
 import Icon, { ITEM_ICON, type IconName } from "../../Icon";
 import FlowPanel from "./FlowPanel";
+import HandoverView from "./HandoverView";
 
 type VehicleInfo = {
   id: string;
@@ -19,6 +21,10 @@ type VehicleInfo = {
   mileageKm: number;
   technician: string;
   inspectedAt: string;
+  routine: string[];
+  nextServiceKm: number;
+  progress: { stage: string; time?: string }[];
+  eta?: string;
   drivingNote: string;
 };
 
@@ -51,17 +57,28 @@ export default function DecisionCard(props: {
   const [entries, setEntries] = useState<FlowEntry[]>([]);
   const onFlow = props.onFlow ?? ((e: FlowEntry) => setEntries((prev) => [...prev, e]));
   const count = (c: Conclusion) => items.filter((i) => i.verdict.conclusion === c).length;
+  // 車主在卡片上的選擇，交車說明要用，所以放在這一層。
+  const [choices, setChoices] = useState<Record<string, Choice>>({});
+  const [delivered, setDelivered] = useState(false);
+  const topRef = useRef<HTMLElement>(null);
+  const summary = handover(items, choices, vehicle.routine, vehicle.nextServiceKm);
+
+  function showHandover(open: boolean) {
+    setDelivered(open);
+    if (open) onFlow(handoverFlow(summary));
+    topRef.current?.scrollIntoView({ behavior: "smooth" });
+  }
 
   return (
     <main className="mx-auto max-w-md pb-16">
-      <header className="rounded-b-3xl border-t-4 border-brand bg-ink px-5 pt-7 pb-16 text-white">
+      <header ref={topRef} className="rounded-b-3xl border-t-4 border-brand bg-ink px-5 pt-7 pb-16 text-white">
         <p className="flex items-center gap-1.5 text-xs font-medium tracking-wider text-white/70">
           <Icon name="shield" className="size-4 text-brand" />
-          維修決策卡・TRUST INTELLIGENCE
+          {delivered ? "完工交車說明" : "維修決策卡"}・TRUST INTELLIGENCE
         </p>
         <h1 className="mt-3 text-2xl leading-snug font-bold">
           {vehicle.owner}，<br />
-          這是今天的檢查結果
+          {delivered ? "今天的保養完成了" : "這是今天的檢查結果"}
         </h1>
         <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
           <span className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1">
@@ -84,30 +101,65 @@ export default function DecisionCard(props: {
         ))}
       </div>
 
-      <section className="mt-5 space-y-3 px-4">
-        {items.map((item) => (
-          // 結論變了就重設卡片狀態（例如技師改值後，舊的延後選擇不能留著）。
-          <ItemCard key={`${item.id}:${item.verdict.conclusion}`} item={item} />
-        ))}
-      </section>
+      {delivered && (
+        <div className="mt-5">
+          <HandoverView handover={summary} technician={vehicle.technician} onBack={() => showHandover(false)} />
+        </div>
+      )}
 
-      <div className="mx-4 mt-3 flex gap-3 rounded-2xl border border-line bg-white p-4">
-        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-paper text-ink-2">
-          <Icon name="route" className="size-5" />
-        </span>
-        <div>
-          <p className="text-sm font-semibold">行車摘要</p>
-          <p className="text-sm text-muted">{vehicle.drivingNote}</p>
+      {/* 交車說明開著時只隱藏決策卡，不卸載：追問紀錄、照片展開狀態都留著。 */}
+      <div hidden={delivered}>
+        <Progress steps={vehicle.progress} eta={vehicle.eta} />
+
+        <section className="mt-3 space-y-3 px-4">
+          {items.map((item) => (
+            // 結論變了就重設卡片狀態（照片展開等）；選擇用 choiceKey 存，結論變了也對不上。
+            <ItemCard
+              key={choiceKey(item)}
+              item={item}
+              technician={vehicle.technician}
+              choice={choices[choiceKey(item)]}
+              onChoose={(c) =>
+                setChoices((prev) => {
+                  const next = { ...prev };
+                  if (c) next[choiceKey(item)] = c;
+                  else delete next[choiceKey(item)];
+                  return next;
+                })
+              }
+            />
+          ))}
+        </section>
+
+        <div className="mx-4 mt-3 flex gap-3 rounded-2xl border border-line bg-white p-4">
+          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-paper text-ink-2">
+            <Icon name="route" className="size-5" />
+          </span>
+          <div>
+            <p className="text-sm font-semibold">行車摘要</p>
+            <p className="text-sm text-muted">{vehicle.drivingNote}</p>
+          </div>
+        </div>
+
+        <Chat
+          vehicleId={vehicle.id}
+          presets={presets}
+          sourceLabels={sourceLabels}
+          onFlow={onFlow}
+          simulate={props.simulate}
+        />
+
+        <div className="mx-4 mt-4">
+          <button
+            onClick={() => showHandover(true)}
+            className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-ink font-semibold text-white transition-opacity active:opacity-80"
+          >
+            <Icon name="car" className="size-5" />
+            完工交車說明
+          </button>
+          <p className="mt-1 text-center text-xs text-muted">交車時，專員和車主一起看今天完成、延後與不用換的項目</p>
         </div>
       </div>
-
-      <Chat
-        vehicleId={vehicle.id}
-        presets={presets}
-        sourceLabels={sourceLabels}
-        onFlow={onFlow}
-        simulate={props.simulate}
-      />
 
       {!props.onFlow && (
         <div className="mt-8 px-4">
@@ -149,10 +201,21 @@ function Tally({ conclusion, n }: { conclusion: Conclusion; n: number }) {
   );
 }
 
-function ItemCard({ item }: { item: CardItem }) {
+function ItemCard({
+  item,
+  technician,
+  choice,
+  onChoose,
+}: {
+  item: CardItem;
+  technician: string;
+  choice?: Choice;
+  onChoose: (c: Choice | null) => void;
+}) {
   const { conclusion, reason, reminderMonths } = item.verdict;
   const look = LOOK[conclusion];
-  const [choice, setChoice] = useState<"today" | "defer" | null>(null);
+  const setChoice = onChoose;
+  const [escalated, setEscalated] = useState(false);
   const [showPhoto, setShowPhoto] = useState(conclusion === "必須更換");
 
   return (
@@ -184,7 +247,12 @@ function ItemCard({ item }: { item: CardItem }) {
               <span className="text-muted">（零件＋工資，實際以服務廠報價為準）</span>
             </Row>
           )}
+          {item.history && <Row label="使用紀錄">{item.history}</Row>}
           <Row label="技師備註">{item.technicianNote}</Row>
+          <Row label="判定依據">
+            規則 {RULE_VERSION}・{technician}・{item.measuredAt} {item.gauge ? "量測" : "目視檢查"}
+            <span className="text-muted">（示意）</span>
+          </Row>
         </dl>
 
         <button
@@ -207,15 +275,57 @@ function ItemCard({ item }: { item: CardItem }) {
         )}
 
         {conclusion === "必須更換" && (
-          <p className="mt-3 flex items-start gap-2 rounded-xl bg-must-soft px-3 py-2.5 text-sm font-medium text-must">
-            <Icon name="shield" className="mt-px size-4 shrink-0" />
-            這是安全項目，已低於安全門檻，今天需要更換。
-          </p>
+          <div className="mt-3">
+            <p className="flex items-start gap-2 rounded-xl bg-must-soft px-3 py-2.5 text-sm font-medium text-must">
+              <Icon name="shield" className="mt-px size-4 shrink-0" />
+              這是安全項目，已低於安全門檻，今天需要更換，不提供延後。
+            </p>
+            {!choice && !escalated && (
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setEscalated(true)}
+                  className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-line bg-white text-sm font-semibold transition-colors active:bg-paper"
+                >
+                  <Icon name="person" className="size-4" />
+                  轉服務專員
+                </button>
+                <button
+                  onClick={() => setChoice("today")}
+                  className="min-h-11 rounded-xl bg-must text-sm font-semibold text-white transition-opacity active:opacity-80"
+                >
+                  今天授權處理
+                </button>
+              </div>
+            )}
+            {choice === "today" && (
+              <p className="mt-2 flex items-center gap-2 rounded-xl bg-ok-soft px-3 py-2.5 text-sm font-medium text-ok">
+                <Icon name="check" className="size-4 shrink-0" />
+                已授權今天處理，專員確認後開始施工。
+              </p>
+            )}
+            {escalated && !choice && (
+              <p className="mt-2 flex items-center gap-2 rounded-xl bg-paper px-3 py-2.5 text-sm font-medium">
+                <Icon name="person" className="size-4 shrink-0" />
+                已通知服務專員，專員會到你的座位當面說明。
+              </p>
+            )}
+            {(choice || escalated) && (
+              <button
+                onClick={() => {
+                  setChoice(null);
+                  setEscalated(false);
+                }}
+                className="mt-1 min-h-9 text-xs text-muted underline"
+              >
+                重新選擇
+              </button>
+            )}
+          </div>
         )}
 
         {conclusion === "可延後" && (
           <div className="mt-3">
-            {choice === null && (
+            {!choice && (
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => setChoice("today")}
@@ -243,7 +353,7 @@ function ItemCard({ item }: { item: CardItem }) {
                 已設定 {reminderMonths} 個月後回廠提醒，到時會再幫你檢查一次。
               </p>
             )}
-            {choice !== null && (
+            {choice && (
               <button onClick={() => setChoice(null)} className="mt-1 min-h-9 text-xs text-muted underline">
                 重新選擇
               </button>
@@ -252,6 +362,40 @@ function ItemCard({ item }: { item: CardItem }) {
         )}
       </div>
     </article>
+  );
+}
+
+// 保養進度（示意資料）：有時間的步驟已完成，最後一個有時間的步驟是目前階段。
+function Progress({ steps, eta }: { steps: { stage: string; time?: string }[]; eta?: string }) {
+  const current = steps.findLastIndex((s) => s.time);
+  return (
+    <section className="mx-4 mt-3 rounded-2xl border border-line bg-white p-4 shadow-sm">
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 className="text-sm font-bold">保養進度</h2>
+        {/* 簡報規則：缺資料時只顯示階段，不顯示精確時間。 */}
+        {eta && <p className="text-sm font-semibold">預估 {eta} 完成</p>}
+      </div>
+      <ol className="mt-3 flex">
+        {steps.map((s, i) => (
+          <li key={s.stage} className="relative flex-1 text-center">
+            {i > 0 && (
+              <span
+                className={`absolute top-[7px] right-1/2 h-0.5 w-full ${i <= current ? "bg-ok" : "bg-line"}`}
+                aria-hidden
+              />
+            )}
+            <span
+              className={`relative mx-auto block size-4 rounded-full border-2 ${
+                i < current ? "border-ok bg-ok" : i === current ? "border-brand bg-white ring-4 ring-brand/20" : "border-line bg-white"
+              }`}
+            />
+            <p className={`mt-1.5 text-[11px] leading-tight ${i === current ? "font-bold" : "text-muted"}`}>{s.stage}</p>
+            <p className="text-[11px] text-muted">{s.time ?? "—"}</p>
+          </li>
+        ))}
+      </ol>
+      <p className="mt-2 text-[11px] text-muted">進度由工單事件更新（示意資料）</p>
+    </section>
   );
 }
 

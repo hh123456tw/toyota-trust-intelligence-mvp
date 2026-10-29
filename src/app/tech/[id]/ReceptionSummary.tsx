@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { SummaryResult } from "@/lib/ask";
-import { summaryFlow, type FlowEntry } from "@/lib/flow";
+import { staffConfirmFlow, summaryFlow, type FlowEntry } from "@/lib/flow";
 import Icon from "../../Icon";
 
 // 接待摘要：給服務專員看，AI 把整張決策卡整理成 30 秒能講完的版本。
@@ -12,13 +12,17 @@ export default function ReceptionSummary(props: {
   sourceLabels: Record<string, string>;
   onFlow: (entry: FlowEntry) => void;
   edited: boolean;
+  // 專員建議說法：由規則引擎結論組成（staffLine），不經 AI。
+  line: string;
 }) {
   const { vehicleId, sourceLabels, onFlow } = props;
   const [result, setResult] = useState<SummaryResult | { error: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
 
   async function generate() {
     setBusy(true);
+    setConfirmed(false);
     try {
       const res = await fetch("/api/ask", {
         method: "POST",
@@ -78,6 +82,26 @@ export default function ReceptionSummary(props: {
               </li>
             ))}
           </ul>
+          <div className="mt-3 rounded-lg border border-line bg-white p-3">
+            <p className="text-xs font-semibold text-muted">專員建議說法（規則產生）</p>
+            <p className="mt-1 font-semibold">「{props.line}」</p>
+            {confirmed ? (
+              <p className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-ok">
+                <Icon name="check" className="size-4" />
+                專員已確認，可以向車主說明
+              </p>
+            ) : (
+              <button
+                onClick={() => {
+                  setConfirmed(true);
+                  onFlow(staffConfirmFlow(props.line));
+                }}
+                className="mt-2 min-h-11 w-full rounded-xl bg-ink text-sm font-semibold text-white transition-opacity active:opacity-80"
+              >
+                確認並使用
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

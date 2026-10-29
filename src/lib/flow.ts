@@ -2,6 +2,7 @@
 
 import type { Preset } from "./answers";
 import type { AskResult, SummaryResult } from "./ask";
+import type { Handover } from "./handover";
 
 // 流程面板的一筆紀錄：標題、幾個步驟、AI 呼叫次數。
 export type FlowEntry = {
@@ -65,4 +66,23 @@ export function summaryFlow(status: number, data: SummaryResult | { error: strin
     ],
     aiCalls: 1,
   };
+}
+
+// 交車說明：由規則引擎結論和車主選擇組成，不呼叫 AI。
+export function handoverFlow(h: Handover): FlowEntry {
+  const names = (xs: string[]) => (xs.length ? xs.join("、") : "無");
+  return {
+    title: "交車說明：規則產生",
+    steps: [
+      `今天完成：${names(h.done.map((d) => d.name))}`,
+      `今天延後：${names(h.deferred.map((d) => `${d.item.name}（${d.months} 個月後複查）`))}`,
+      `目前不用換：${names(h.fine.map((i) => i.name))}`,
+    ],
+    aiCalls: 0,
+  };
+}
+
+// 專員按「確認並使用」：建議說法由規則產生，專員確認後才對車主說明。
+export function staffConfirmFlow(line: string): FlowEntry {
+  return { title: "專員確認建議說法", steps: [`說法（規則產生）：${line}`, "專員確認後使用"], aiCalls: 0 };
 }

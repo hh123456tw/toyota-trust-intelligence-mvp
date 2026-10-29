@@ -54,3 +54,12 @@ describe("量測趨勢是 AI 可引用的來源", () => {
     expect(ctx.find((i) => i.來源代號 === "item:wiper")!.量測趨勢).toBeNull();
   });
 });
+
+describe("電瓶使用紀錄與每週發動次數（#17）", () => {
+  it("給 AI 的卡片資料帶使用紀錄與每週發動次數", () => {
+    const ctx = cardContext(wang);
+    expect(ctx.檢查項目.find((i) => i.來源代號 === "item:battery")!.使用紀錄).toContain("1.5 年");
+    expect(ctx.檢查項目.find((i) => i.來源代號 === "item:brake-pad")!.使用紀錄).toBeNull();
+    expect(ctx.行車摘要.weeklyStarts).toBe(11);
+  });
+});

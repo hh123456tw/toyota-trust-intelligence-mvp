@@ -53,7 +53,7 @@ const presets: Record<string, Preset[]> = {
       question: "電瓶為什麼衰退得比較快？",
       answer: {
         answer:
-          "你近 3 個月約 78% 的行程在 10 公里內。短程行駛時，發電機來不及把電瓶充飽，長期下來電瓶會衰退得比較快。目前健康度 60%，還沒到必須更換的程度，所以可以延後，系統會在 3 個月後提醒你回廠再測一次。",
+          "你近 3 個月約 78% 的行程在 10 公里內，每週約發動 11 次。短程行駛時，發電機來不及把電瓶充飽，所以電瓶才用 1.5 年就衰退得比較快，這不是單一零件品質問題。目前健康度 60%，還沒到必須更換的程度，所以可以延後，系統會在 3 個月後提醒你回廠再測一次。",
         sources: ["item:battery", "driving"],
         escalate: false,
       },
@@ -124,6 +124,7 @@ export function cardContext(vehicle: Vehicle) {
         量測: item.measurement ? `${item.measurement.value} ${item.measurement.unit}` : "目視檢查",
         量測趨勢: trend ? { 來源代號: `trend:${item.id}`, 內容: trend } : null,
         技師備註: item.technicianNote,
+        使用紀錄: item.history ?? null,
         結論: v.conclusion,
         // 卡片上只顯示必須更換、可延後項目的價格，AI 也只拿得到這些。
         示意費用: v.conclusion === "正常" ? null : formatPrice(item.price),

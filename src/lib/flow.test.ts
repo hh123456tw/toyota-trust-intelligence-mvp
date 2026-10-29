@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { askFlow, presetFlow, summaryFlow } from "./flow";
+import { cardItems } from "./card";
+import { askFlow, handoverFlow, presetFlow, staffConfirmFlow, summaryFlow } from "./flow";
+import { handover } from "./handover";
+import { findVehicle } from "./vehicles";
 
 const labels = {
   "item:brake-pad": "陳技師量測：前煞車來令片 2 mm",
@@ -126,5 +129,22 @@ describe("summaryFlow：接待摘要的流程紀錄", () => {
   it("沒有金鑰（503）→ 顯示失敗，AI 呼叫 0 次", () => {
     const e = summaryFlow(503, { error: "AI 暫時無法回答" }, labels);
     expect(e).toMatchObject({ steps: ["失敗：AI 暫時無法回答"], aiCalls: 0 });
+  });
+});
+
+describe("handoverFlow、staffConfirmFlow（#14 #18）", () => {
+  it("交車說明列出三區，AI 呼叫 0 次", () => {
+    const v = findVehicle("wang")!;
+    const e = handoverFlow(handover(cardItems(v.items), {}, v.routine, v.nextServiceKm));
+    expect(e.aiCalls).toBe(0);
+    expect(e.steps).toEqual([
+      "今天完成：機油與機油芯、前煞車來令片",
+      "今天延後：電瓶（3 個月後複查）",
+      "目前不用換：空氣濾網、雨刷、輪胎胎紋",
+    ]);
+  });
+
+  it("專員確認：AI 呼叫 0 次", () => {
+    expect(staffConfirmFlow("X").aiCalls).toBe(0);
   });
 });

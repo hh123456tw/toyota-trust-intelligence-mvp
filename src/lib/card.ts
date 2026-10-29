@@ -11,6 +11,8 @@ export type CardItem = {
   name: string;
   photo: string;
   technicianNote: string;
+  measuredAt: string;
+  history?: string;
   trend?: string;
   // 示意費用：只有必須更換、可延後的項目有。
   price?: number;
@@ -38,6 +40,8 @@ export function cardItems(items: InspectionItem[]): CardItem[] {
         name: item.name,
         photo: item.photo,
         technicianNote: item.technicianNote,
+        measuredAt: item.measuredAt,
+        history: item.history,
         trend: trendText(item),
         price: verdict.conclusion === "正常" ? undefined : item.price,
         gauge:
@@ -86,6 +90,10 @@ export function cardProps(vehicle: Vehicle) {
       mileageKm: vehicle.mileageKm,
       technician: vehicle.technician,
       inspectedAt: vehicle.inspectedAt,
+      routine: vehicle.routine,
+      nextServiceKm: vehicle.nextServiceKm,
+      progress: vehicle.progress,
+      eta: vehicle.eta,
       drivingNote: `${vehicle.drivingSummary.period}：${vehicle.drivingSummary.note}`,
     },
     items: cardItems(vehicle.items),
