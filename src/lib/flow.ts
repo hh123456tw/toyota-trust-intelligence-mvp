@@ -1,7 +1,7 @@
 // 把追問結果轉成流程面板的一筆紀錄。只讀 trace 和檢查結果，不顯示被攔下的 AI 原回答。
 
 import type { Preset } from "./answers";
-import type { AskResult } from "./ask";
+import type { AskResult, SummaryResult } from "./ask";
 
 // 流程面板的一筆紀錄：標題、幾個步驟、AI 呼叫次數。
 export type FlowEntry = {
@@ -47,5 +47,22 @@ export function presetFlow(preset: Preset, labels: Labels): FlowEntry {
     title: `常見問題：${preset.question}`,
     steps: ["使用預寫回答，不呼叫 AI", `引用的來源：${list(preset.answer.sources, labels, "無")}`],
     aiCalls: 0,
+  };
+}
+
+// 接待摘要：AI 讀整張卡；攔下時畫面改顯示規則版摘要。
+export function summaryFlow(status: number, data: SummaryResult | { error: string }, labels: Labels): FlowEntry {
+  const title = "接待摘要：AI 整理給專員";
+  if (status !== 200 || "error" in data) {
+    return { title, steps: [`失敗：${"error" in data ? data.error : "未知錯誤"}`], aiCalls: status === 502 ? 1 : 0 };
+  }
+  return {
+    title,
+    steps: [
+      "用了哪些資料：整張決策卡（結論由規則引擎判定）",
+      `引用的來源：${list(data.sources, labels, "無")}`,
+      `答案檢查：${data.checkResult === "攔下" ? `攔下（${data.blockedReason}），改顯示規則版摘要` : "通過"}`,
+    ],
+    aiCalls: 1,
   };
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { askFlow, presetFlow } from "./flow";
+import { askFlow, presetFlow, summaryFlow } from "./flow";
 
 const labels = {
   "item:brake-pad": "陳技師量測：前煞車來令片 2 mm",
@@ -106,5 +106,25 @@ describe("presetFlow：常見問題", () => {
       steps: ["使用預寫回答，不呼叫 AI", "引用的來源：行車摘要（近 3 個月）"],
       aiCalls: 0,
     });
+  });
+});
+
+describe("summaryFlow：接待摘要的流程紀錄", () => {
+  const ok = { answer: "x", sources: ["item:brake-pad"], escalate: false, checkResult: "通過" as const };
+
+  it("通過時列出來源與「通過」，AI 呼叫 1 次", () => {
+    const e = summaryFlow(200, ok, labels);
+    expect(e.steps.slice(1)).toEqual(["引用的來源：陳技師量測：前煞車來令片 2 mm", "答案檢查：通過"]);
+    expect(e.aiCalls).toBe(1);
+  });
+
+  it("攔下時寫明原因和改用規則版摘要", () => {
+    const e = summaryFlow(200, { ...ok, checkResult: "攔下", blockedReason: "摘要漏了可延後的電瓶" }, labels);
+    expect(e.steps.at(-1)).toBe("答案檢查：攔下（摘要漏了可延後的電瓶），改顯示規則版摘要");
+  });
+
+  it("沒有金鑰（503）→ 顯示失敗，AI 呼叫 0 次", () => {
+    const e = summaryFlow(503, { error: "AI 暫時無法回答" }, labels);
+    expect(e).toMatchObject({ steps: ["失敗：AI 暫時無法回答"], aiCalls: 0 });
   });
 });

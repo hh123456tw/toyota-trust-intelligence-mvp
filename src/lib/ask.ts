@@ -201,3 +201,39 @@ export async function simulateTampered(vehicle: Vehicle): Promise<AskResult & { 
   const result = await ask(vehicle, question, async () => JSON.stringify(tampered));
   return { ...result, simulated: true, question };
 }
+
+// 接待摘要：AI 把同一張卡整理成服務專員 30 秒能講完的版本。
+// 走同一套答案檢查；另外必須更換、可延後的項目一個都不能漏。沒通過就改用規則版摘要。
+const SUMMARY_PROMPT = `你是和泰汽車服務廠的接待助理。把卡片資料整理成服務專員 30 秒能講完的接待摘要，繁體中文，120 字內。
+
+規則：
+1. 只能根據卡片資料。每個項目的結論照抄卡片資料，不能改變或放寬，也不能給出價格。
+2. 順序：必須更換 → 可延後 → 正常。必須更換、可延後的項目一項一句，句子用句號分開。
+3. 必須更換的項目寫出量測值和安全門檻。可延後的項目寫出回廠提醒月數。
+4. 正常的項目合成一句，例如「X、Y 狀況正常，今天不用處理。」不要推銷。
+5. sources 列出用到的每一個來源代號。itemConclusions 列出卡片上每一個檢查項目：id 填來源代號，conclusion 照抄結論。
+6. escalate 一律填 false。`;
+
+export type SummaryResult = Answer & { checkResult: "通過" | "攔下"; blockedReason?: string };
+
+// 規則版摘要：直接用規則引擎的結果組字，不呼叫 AI。答案檢查攔下時顯示。
+export function ruleSummary(vehicle: Vehicle): Answer {
+  const by = (c: Conclusion) => vehicle.items.filter((i) => judge(i).conclusion === c);
+  const lines = [
+    ...by("必須更換").map((i) => `${i.name}必須更換：${judge(i).reason}`),
+    ...by("可延後").map((i) => `${i.name}可延後：${judge(i).reason}可設定 ${judge(i).reminderMonths} 個月後回廠提醒。`),
+  ];
+  const ok = by("正常");
+  if (ok.length) lines.push(`${ok.map((i) => i.name).join("、")}狀況正常，今天不用處理。`);
+  return { answer: lines.join(""), sources: vehicle.items.map((i) => `item:${i.id}`), escalate: false };
+}
+
+// AI 呼叫丟錯或回應無法解析時直接丟錯，不產生假摘要。
+export async function summarize(vehicle: Vehicle, callAI: CallAI): Promise<SummaryResult> {
+  const reply = parseReply(await callAI(SUMMARY_PROMPT, `卡片資料：\n${JSON.stringify(cardContext(vehicle), null, 2)}`));
+  const missing = vehicle.items.find((i) => judge(i).conclusion !== "正常" && !mentions(i, reply.answer));
+  const blockedReason = missing ? `摘要漏了${judge(missing).conclusion}的${missing.name}` : check(vehicle, reply);
+  return blockedReason
+    ? { ...ruleSummary(vehicle), checkResult: "攔下", blockedReason }
+    : { answer: reply.answer, sources: reply.sources, escalate: false, checkResult: "通過" };
+}

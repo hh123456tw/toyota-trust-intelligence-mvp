@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { ask, simulateTampered } from "@/lib/ask";
+import { ask, simulateTampered, summarize } from "@/lib/ask";
 import { callGemini } from "@/lib/gemini";
 import { findVehicle } from "@/lib/vehicles";
 
@@ -32,9 +32,15 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: (err as Error).message }, { status: 400 });
     }
   }
-  if (!question || question.length > MAX_QUESTION_LENGTH) {
+  // 技師頁的「接待摘要」：不需要問題，其餘（限流、金鑰、錯誤處理）和追問相同。
+  const summary = body?.summary === true;
+  if (!summary && (!question || question.length > MAX_QUESTION_LENGTH)) {
     return Response.json({ error: `問題請在 ${MAX_QUESTION_LENGTH} 字以內` }, { status: 400 });
   }
+
+  const failMessage = summary
+    ? "AI 暫時無法整理摘要，請稍後再試"
+    : "AI 暫時無法回答，請點上面的常見問題，或請專員來說明";
 
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "local";
   if (rateLimited(ip)) {
@@ -43,13 +49,14 @@ export async function POST(request: NextRequest) {
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return Response.json({ error: "AI 暫時無法回答，請點上面的常見問題，或請專員來說明" }, { status: 503 });
+    return Response.json({ error: failMessage }, { status: 503 });
   }
 
   try {
-    return Response.json(await ask(vehicle, question, (system, user) => callGemini(apiKey, system, user)));
+    const callAI = (system: string, user: string) => callGemini(apiKey, system, user);
+    return Response.json(summary ? await summarize(vehicle, callAI) : await ask(vehicle, question, callAI));
   } catch (err) {
     console.error(err);
-    return Response.json({ error: "AI 暫時無法回答，請點上面的常見問題，或請專員來說明" }, { status: 502 });
+    return Response.json({ error: failMessage }, { status: 502 });
   }
 }
