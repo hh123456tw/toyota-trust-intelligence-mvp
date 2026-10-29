@@ -1,7 +1,8 @@
+import { excerptLabel } from "./manual";
 import { judge } from "./rules";
 import { trendText, type Vehicle } from "./vehicles";
 
-// 來源代號：item:<檢查項目 id>、trend:<檢查項目 id>（量測趨勢）或 driving（行車摘要）。
+// 來源代號：item:<檢查項目 id>、trend:<檢查項目 id>（量測趨勢）、doc:<片段 id>（原廠文件片段）或 driving（行車摘要）。
 export type Answer = {
   answer: string;
   sources: string[];
@@ -28,6 +29,7 @@ export function sourceLabel(vehicle: Vehicle, key: string): string | undefined {
     const trend = item && trendText(item);
     return trend && `量測趨勢：${item.name} ${trend}`;
   }
+  if (key.startsWith("doc:")) return excerptLabel(key);
   return undefined;
 }
 
