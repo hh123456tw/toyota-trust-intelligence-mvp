@@ -1,7 +1,7 @@
 // 追問流程：組提示詞 → 呼叫 AI → 答案檢查 → 決定畫面要顯示什麼。不碰 HTTP、限流、金鑰。
 
 import { cardContext, contextSources, presetsFor, sourceLabel, type Answer } from "./answers";
-import { findExcerpts, hasKeyword } from "./manual";
+import { findExcerpts, hasKeyword, OTHER_PARTS } from "./manual";
 import { judge, type Conclusion } from "./rules";
 import type { InspectionItem, Vehicle } from "./vehicles";
 
@@ -59,9 +59,6 @@ export const RESPONSE_SCHEMA = {
 };
 
 const ESCALATE_ANSWER = "這個問題請服務專員當面跟你說明，會比較清楚。";
-
-// 字面包含項目關鍵字、其實是別的零件：比對前先拿掉。
-const OTHER_PARTS = /煞車油|煞車燈|冷氣濾網|遙控器電池|鑰匙電池/g;
 
 function mentions(item: InspectionItem, text: string): boolean {
   return hasKeyword(text.replace(OTHER_PARTS, ""), item.keywords);

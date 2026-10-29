@@ -266,11 +266,23 @@ describe("ask：原廠文件片段", () => {
     expect(sourceLabel(wang, "doc:checkout")).toBe("回廠服務流程手冊 p.9");
   });
 
+  it("問電瓶多久檢查 → 車主手冊保養表放進提示詞；回答引用它 → 通過，來源標籤是「COROLLA CROSS 車主手冊 p.216」", async () => {
+    let prompt = "";
+    const r = await ask(wang, "電瓶多久要檢查一次？", async (_s, user) => {
+      prompt = user;
+      return JSON.stringify(reply("車主手冊的保養表寫每 10,000 公里或 12 個月檢查一次電瓶。", { sources: ["doc:owner-battery-interval"] }));
+    });
+    expect(prompt).toContain("doc:owner-battery-interval");
+    expect(prompt).toContain("8 電瓶 I I I I I I I I 12");
+    expect(r.checkResult).toBe("通過");
+    expect(sourceLabel(wang, "doc:owner-battery-interval")).toBe("COROLLA CROSS 車主手冊 p.216");
+  });
+
   it("不相關問題不放片段進提示詞", async () => {
     let prompt = "";
-    await ask(wang, "電瓶多久要檢查一次？", async (_s, user) => {
+    await ask(wang, "雨刷多久要換？", async (_s, user) => {
       prompt = user;
-      return JSON.stringify(reply("電瓶健康度 60%。", { sources: ["item:battery"] }));
+      return JSON.stringify(reply("雨刷狀況正常。", { sources: ["item:wiper"] }));
     });
     expect(prompt).not.toContain("doc:");
   });

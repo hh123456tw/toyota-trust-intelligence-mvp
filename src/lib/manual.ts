@@ -1,6 +1,9 @@
-// 原廠文件片段：摘自比賽提供的《TOYOTA回廠服務流程手冊》，內文照抄 PDF（只去掉換行和項目符號）。
-// page 是手冊印在頁面上的頁碼（手冊目錄「請見p.X」用的也是這個），等於 PDF 頁數減 1。
-// 手冊只有回廠流程，沒有煞車、電瓶、輪胎、空氣濾網的內容（見 issue #7 留言），所以這裡沒有那些片段。
+// 原廠文件片段，內文照抄 PDF（只去掉換行、項目符號和標點旁的空白）。
+// 1. 比賽提供的《TOYOTA回廠服務流程手冊》：page 是手冊印在頁面上的頁碼（手冊目錄「請見p.X」用的也是這個），等於 PDF 頁數減 1。
+//    這份手冊只有回廠流程，沒有煞車、電瓶、輪胎、空氣濾網的內容（見 issue #7 留言）。
+// 2. 那四項取自 TOYOTA 官網 COROLLA CROSS 車型頁公開的《車主手冊》（2025.10 起適用，汽油版）：
+//    https://hotaicdn.azureedge.net/toyotaweb/car_manual_20251210140600H8A4H4IN.pdf
+//    page 是頁面上印的頁碼，和 PDF 頁數相同。保養表照 PDF 文字順序抄成一行。
 
 export type Excerpt = {
   id: string;
@@ -12,6 +15,9 @@ export type Excerpt = {
 };
 
 const DOC = "回廠服務流程手冊";
+const OWNER = "COROLLA CROSS 車主手冊";
+const TABLE_HEAD =
+  "保養操作：I = 檢查、修正、清潔或視需要更換 R = 更換、變更或潤滑\n保養間隔：里程表讀數 月數(里程表讀數或月數，以先到者為準。) x1,000 km 10 20 30 40 50 60 70 80";
 
 export const EXCERPTS: Excerpt[] = [
   {
@@ -105,7 +111,59 @@ export const EXCERPTS: Excerpt[] = [
     text: "為確保車主離廠後用車狀況，將透過APP/官方LINE/簡訊/電話等管道與車主聯繫。",
     keywords: ["離廠後", "關懷", "聯繫", "回訪"],
   },
+  {
+    id: "owner-battery-interval",
+    doc: OWNER,
+    page: 216,
+    text: `${TABLE_HEAD}\n8 電瓶 I I I I I I I I 12`,
+    keywords: ["電瓶", "電池"],
+  },
+  {
+    id: "owner-battery-check",
+    doc: OWNER,
+    page: 228,
+    text: "以下列方式檢查電瓶。\n電瓶外部\n確認電瓶樁頭未腐蝕且無鬆脫、龜裂或固定夾鬆脫。",
+    keywords: ["電瓶", "電池"],
+  },
+  {
+    id: "owner-brake-interval",
+    doc: OWNER,
+    page: 216,
+    text: `${TABLE_HEAD}\n底盤和車身\n14 煞車塊和煞車碟盤 I I I I I I I I 6`,
+    keywords: ["煞車", "來令片"],
+  },
+  {
+    id: "owner-tire-check",
+    doc: OWNER,
+    page: 231,
+    text: "檢查胎紋磨耗指示是否出現在輪胎上。此外，檢查輪胎的不均勻磨損(例如：胎面單側過度磨損)。\n依照保養週期及磨耗狀態進行更換或輪胎調位。",
+    keywords: ["輪胎", "胎紋"],
+  },
+  {
+    id: "owner-tire-replace",
+    doc: OWNER,
+    page: 232,
+    text: "何時更換輪胎\n在下列情況時應更換輪胎：\n輪胎上出現胎紋磨耗指示。\n輪胎有割傷、脫層、裂痕深度可見到內層纖維及因內傷造成的隆起。\n如您無法確定輪胎狀況，請洽 Toyota 保養廠。",
+    keywords: ["輪胎", "胎紋"],
+  },
+  {
+    id: "owner-air-filter-interval",
+    doc: OWNER,
+    page: 216,
+    text: `${TABLE_HEAD}\n燃油和廢氣排放控制系統\n10 空氣濾芯 I R I R I：24 R：48`,
+    keywords: ["空氣濾網", "濾網", "空氣濾芯"],
+  },
+  {
+    id: "owner-air-filter-check",
+    doc: OWNER,
+    page: 230,
+    text: "檢查濾芯外表，如果太髒時應更換。\n如果濾芯僅沾滿灰塵，則使用壓縮空氣由內往外將灰塵吹掉。",
+    keywords: ["空氣濾網", "濾網", "空氣濾芯"],
+  },
 ];
+
+// 字面包含項目關鍵字、其實是別的零件：比對前先拿掉。追問流程比對檢查項目也用這個。
+export const OTHER_PARTS = /煞車油|煞車燈|冷氣濾網|遙控器電池|鑰匙電池/g;
 
 // 文字包含任一關鍵字（英文不分大小寫）。追問流程比對檢查項目也用這個。
 export function hasKeyword(text: string, keywords: string[]): boolean {
@@ -114,7 +172,8 @@ export function hasKeyword(text: string, keywords: string[]): boolean {
 }
 
 export function findExcerpts(question: string): Excerpt[] {
-  return EXCERPTS.filter((e) => hasKeyword(question, e.keywords));
+  const q = question.replace(OTHER_PARTS, "");
+  return EXCERPTS.filter((e) => hasKeyword(q, e.keywords));
 }
 
 // 來源代號 doc:<片段 id> 的顯示文字；片段不存在回傳 undefined。
