@@ -35,3 +35,17 @@ describe("cardItems：技師改量測值後重算卡片", () => {
     expect(ranks).toEqual([...ranks].sort());
   });
 });
+
+describe("gauge：量測刻度條", () => {
+  it("煞車帶本次、上次和兩個門檻；改值後刻度跟著變", () => {
+    expect(brake(cardItems(wang.items)).gauge).toEqual({ value: 2, previous: 3.5, unit: "mm", mustBelow: 3, deferBelow: 5 });
+    expect(brake(cardItems(withMeasurement(wang.items, "brake-pad", 4))).gauge!.value).toBe(4);
+  });
+
+  it("電瓶不是安全項目：沒有安全門檻；目視型項目沒有刻度條", () => {
+    const items = cardItems(wang.items);
+    expect(items.find((i) => i.id === "battery")!.gauge!.mustBelow).toBeUndefined();
+    expect(items.find((i) => i.id === "air-filter")!.gauge).toBeUndefined();
+    expect(items.find((i) => i.id === "wiper")!.gauge).toBeUndefined();
+  });
+});

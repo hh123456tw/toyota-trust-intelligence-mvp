@@ -14,7 +14,17 @@ export type CardItem = {
   trend?: string;
   // 示意費用：只有必須更換、可延後的項目有。
   price?: number;
+  // 量測型項目的刻度條：本次、上次量測和門檻。只供畫面顯示，結論仍以 verdict 為準。
+  gauge?: Gauge;
   verdict: Verdict;
+};
+
+export type Gauge = {
+  value: number;
+  previous?: number;
+  unit: string;
+  mustBelow?: number;
+  deferBelow: number;
 };
 
 const ORDER: Record<Conclusion, number> = { 必須更換: 0, 可延後: 1, 正常: 2 };
@@ -30,6 +40,16 @@ export function cardItems(items: InspectionItem[]): CardItem[] {
         technicianNote: item.technicianNote,
         trend: trendText(item),
         price: verdict.conclusion === "正常" ? undefined : item.price,
+        gauge:
+          item.rule.kind === "measured" && item.measurement
+            ? {
+                value: item.measurement.value,
+                previous: item.previousMeasurement?.value,
+                unit: item.measurement.unit,
+                mustBelow: item.safetyRelated ? item.rule.mustBelow : undefined,
+                deferBelow: item.rule.deferBelow,
+              }
+            : undefined,
         verdict,
       };
     })

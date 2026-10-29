@@ -85,7 +85,7 @@ export const vehicles: Vehicle[] = [
         measurement: { value: 2, unit: "mm" },
         previousMeasurement: { value: 3.5, unit: "mm" },
         technicianNote: "左右兩側皆約 2 mm，已低於安全門檻 3 mm。",
-        photo: "/photos/brake-pad.svg",
+        photo: "/photos/brake-pad-worn.webp",
         price: 3000,
       },
       {
@@ -97,7 +97,7 @@ export const vehicles: Vehicle[] = [
         measurement: { value: 60, unit: "%" },
         previousMeasurement: { value: 72, unit: "%" },
         technicianNote: "電瓶測試器顯示健康度 60%，啟動正常。",
-        photo: "/photos/battery.svg",
+        photo: "/photos/battery.webp",
         price: 3500,
       },
       {
@@ -108,7 +108,7 @@ export const vehicles: Vehicle[] = [
         rule: airFilterRule,
         visualOk: true,
         technicianNote: "濾網顏色正常，無明顯堵塞。",
-        photo: "/photos/air-filter.svg",
+        photo: "/photos/air-filter.webp",
         price: 600,
       },
       {
@@ -119,7 +119,7 @@ export const vehicles: Vehicle[] = [
         rule: wiperRule,
         visualOk: true,
         technicianNote: "刮拭乾淨，膠條無裂痕。",
-        photo: "/photos/wiper.svg",
+        photo: "/photos/wiper.webp",
         price: 800,
       },
       {
@@ -131,7 +131,7 @@ export const vehicles: Vehicle[] = [
         measurement: { value: 5.2, unit: "mm" },
         previousMeasurement: { value: 6, unit: "mm" },
         technicianNote: "四輪胎紋約 5.2 mm，磨耗平均。",
-        photo: "/photos/tire.svg",
+        photo: "/photos/tire-ok.webp",
         price: 12000,
       },
     ],
@@ -159,7 +159,7 @@ export const vehicles: Vehicle[] = [
         measurement: { value: 1.4, unit: "mm" },
         previousMeasurement: { value: 2.5, unit: "mm" },
         technicianNote: "右前輪胎紋約 1.4 mm，已低於安全門檻 1.6 mm。",
-        photo: "/photos/tire.svg",
+        photo: "/photos/tire-worn.webp",
         price: 3200,
       },
       {
@@ -171,7 +171,7 @@ export const vehicles: Vehicle[] = [
         measurement: { value: 7, unit: "mm" },
         previousMeasurement: { value: 7.8, unit: "mm" },
         technicianNote: "左右兩側皆約 7 mm。",
-        photo: "/photos/brake-pad.svg",
+        photo: "/photos/brake-pad-ok.webp",
         price: 3000,
       },
       {
@@ -183,7 +183,7 @@ export const vehicles: Vehicle[] = [
         measurement: { value: 91, unit: "%" },
         previousMeasurement: { value: 94, unit: "%" },
         technicianNote: "電瓶測試器顯示健康度 91%。",
-        photo: "/photos/battery.svg",
+        photo: "/photos/battery.webp",
         price: 3500,
       },
       {
@@ -194,7 +194,7 @@ export const vehicles: Vehicle[] = [
         rule: airFilterRule,
         visualOk: true,
         technicianNote: "濾網顏色正常，無明顯堵塞。",
-        photo: "/photos/air-filter.svg",
+        photo: "/photos/air-filter.webp",
         price: 600,
       },
     ],

@@ -1,21 +1,35 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-paper: #f6f5f2;
-  --color-ink: #1c1c1a;
-  --color-muted: #6b6a66;
-  --color-line: #e2e0da;
+  --color-paper: #f3f5f8;
+  --color-ink: #0f1f38;
+  --color-ink-2: #1d3557;
+  --color-muted: #5f6b7a;
+  --color-line: #e3e7ed;
   --color-must: #c0262d;
   --color-must-soft: #fbeaea;
-  --color-defer: #a86400;
+  /* 對 defer-soft 底色 5.35:1，符合 WCAG AA。 */
+  --color-defer: #935600;
   --color-defer-soft: #fdf3e2;
-  --color-ok: #2f7a4a;
+  --color-ok: #256b3e;
   --color-ok-soft: #e8f4ec;
-  --font-sans: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --font-sans: var(--font-noto), "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
 }
 
 body {
   background: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-sans);
+}
+
+/* 技師頁是 1920×1080 錄影用：整體放大，影片縮進簡報後字仍看得清楚。 */
+:root:has(.record-scale) {
+  font-size: 125%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
 }
