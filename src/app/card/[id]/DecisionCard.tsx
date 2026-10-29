@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 import type { Answer, Preset } from "@/lib/answers";
+import { askFlow, presetFlow } from "@/lib/flow";
 import type { Conclusion, Verdict } from "@/lib/rules";
+import FlowPanel, { type FlowEntry } from "./FlowPanel";
 
 export type CardItem = {
   id: string;
@@ -48,8 +50,12 @@ export default function DecisionCard(props: {
   presets: Preset[];
   sourceLabels: Record<string, string>;
   others: { id: string; owner: string }[];
+  // 技師頁傳入：流程紀錄併到技師頁自己的面板。沒傳時卡片頁自己顯示面板。
+  onFlow?: (entry: FlowEntry) => void;
 }) {
   const { vehicle, items, presets, sourceLabels, others } = props;
+  const [entries, setEntries] = useState<FlowEntry[]>([]);
+  const onFlow = props.onFlow ?? ((e: FlowEntry) => setEntries((prev) => [...prev, e]));
   const count = (c: Conclusion) => items.filter((i) => i.verdict.conclusion === c).length;
 
   return (
@@ -81,7 +87,13 @@ export default function DecisionCard(props: {
         行車摘要｜{vehicle.drivingNote}
       </p>
 
-      <Chat vehicleId={vehicle.id} presets={presets} sourceLabels={sourceLabels} />
+      <Chat vehicleId={vehicle.id} presets={presets} sourceLabels={sourceLabels} onFlow={onFlow} />
+
+      {!props.onFlow && (
+        <div className="mt-8 px-4">
+          <FlowPanel entries={entries} />
+        </div>
+      )}
 
       <footer className="mt-10 px-4 text-xs text-muted">
         <p>結論由規則引擎依量測和安全門檻判定；AI 只負責查找和解釋。</p>
@@ -184,8 +196,13 @@ function ItemCard({ item }: { item: CardItem }) {
   );
 }
 
-function Chat(props: { vehicleId: string; presets: Preset[]; sourceLabels: Record<string, string> }) {
-  const { vehicleId, presets, sourceLabels } = props;
+function Chat(props: {
+  vehicleId: string;
+  presets: Preset[];
+  sourceLabels: Record<string, string>;
+  onFlow: (entry: FlowEntry) => void;
+}) {
+  const { vehicleId, presets, sourceLabels, onFlow } = props;
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -198,6 +215,7 @@ function Chat(props: { vehicleId: string; presets: Preset[]; sourceLabels: Recor
 
   function askPreset(p: Preset) {
     push({ role: "user", text: p.question }, { role: "ai", answer: p.answer });
+    onFlow(presetFlow(p, sourceLabels));
   }
 
   async function askFree(e: React.FormEvent) {
@@ -215,8 +233,11 @@ function Chat(props: { vehicleId: string; presets: Preset[]; sourceLabels: Recor
       });
       const data = await res.json();
       push(res.ok ? { role: "ai", answer: data } : { role: "error", text: data.error });
+      onFlow(askFlow(question, res.status, data, sourceLabels));
     } catch {
-      push({ role: "error", text: "連線失敗，請點上面的常見問題，或請專員來說明" });
+      const text = "連線失敗，請點上面的常見問題，或請專員來說明";
+      push({ role: "error", text });
+      onFlow(askFlow(question, 0, { error: text }, sourceLabels));
     } finally {
       setBusy(false);
     }

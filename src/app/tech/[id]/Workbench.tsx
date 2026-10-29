@@ -71,7 +71,11 @@ export default function Workbench(props: {
       </section>
 
       <section className="min-w-0 overflow-y-auto rounded-xl border border-line">
-        <DecisionCard {...props.card} items={cardItems(items)} />
+        <DecisionCard
+          {...props.card}
+          items={cardItems(items)}
+          onFlow={(e) => setEntries((prev) => [...prev, e])}
+        />
       </section>
     </div>
   );
