@@ -1,7 +1,7 @@
 import { judge } from "./rules";
-import type { Vehicle } from "./vehicles";
+import { trendText, type Vehicle } from "./vehicles";
 
-// 來源代號：item:<檢查項目 id> 或 driving（行車摘要）。
+// 來源代號：item:<檢查項目 id>、trend:<檢查項目 id>（量測趨勢）或 driving（行車摘要）。
 export type Answer = {
   answer: string;
   sources: string[];
@@ -22,6 +22,11 @@ export function sourceLabel(vehicle: Vehicle, key: string): string | undefined {
     return m
       ? `${vehicle.technician}量測：${item.name} ${m.value} ${m.unit}`
       : `${vehicle.technician}檢查：${item.name}`;
+  }
+  if (key.startsWith("trend:")) {
+    const item = vehicle.items.find((i) => `trend:${i.id}` === key);
+    const trend = item && trendText(item);
+    return trend && `量測趨勢：${item.name} ${trend}`;
   }
   return undefined;
 }
@@ -105,6 +110,7 @@ export function cardContext(vehicle: Vehicle) {
         名稱: item.name,
         安全相關: item.safetyRelated,
         量測: item.measurement ? `${item.measurement.value} ${item.measurement.unit}` : "目視檢查",
+        量測趨勢: trendText(item) ? { 來源代號: `trend:${item.id}`, 內容: trendText(item) } : null,
         技師備註: item.technicianNote,
         結論: v.conclusion,
         結論理由: v.reason,
