@@ -21,7 +21,7 @@ export function judge(item: InspectionItem): Verdict {
       : {
           conclusion: "可延後",
           reason: "技師目視發現需留意。",
-          reminderMonths: DEFAULT_REMINDER_MONTHS,
+          reminderMonths: rule.reminderMonths,
         };
   }
 

@@ -17,6 +17,7 @@ export type MeasuredRule = {
 // 目視型項目：技師直接判定狀況良好或需處理。
 export type VisualRule = {
   kind: "visual";
+  reminderMonths: number;
 };
 
 export type InspectionItem = {
@@ -50,9 +51,11 @@ export type Vehicle = {
   items: InspectionItem[];
 };
 
-const brakeRule: MeasuredRule = { kind: "measured", mustBelow: 3, deferBelow: 4 };
+const brakeRule: MeasuredRule = { kind: "measured", mustBelow: 3, deferBelow: 5, reminderMonths: 3 };
 const tireRule: MeasuredRule = { kind: "measured", mustBelow: 1.6, deferBelow: 3, reminderMonths: 3 };
-const batteryRule: MeasuredRule = { kind: "measured", deferBelow: 75, reminderMonths: 3 };
+const batteryRule: MeasuredRule = { kind: "measured", deferBelow: 70, reminderMonths: 3 };
+const airFilterRule: VisualRule = { kind: "visual", reminderMonths: 6 };
+const wiperRule: VisualRule = { kind: "visual", reminderMonths: 3 };
 
 export const vehicles: Vehicle[] = [
   {
@@ -65,8 +68,8 @@ export const vehicles: Vehicle[] = [
     inspectedAt: "2026-09-25",
     drivingSummary: {
       period: "近 3 個月",
-      shortTripRatio: 80,
-      note: "約 80% 的行程在 10 公里內，多為市區通勤短程。",
+      shortTripRatio: 78,
+      note: "約 78% 的行程在 10 公里內，多為市區通勤短程。",
     },
     items: [
       {
@@ -85,8 +88,8 @@ export const vehicles: Vehicle[] = [
         name: "電瓶",
         safetyRelated: false,
         rule: batteryRule,
-        measurement: { value: 68, unit: "%" },
-        technicianNote: "電瓶測試器顯示健康度 68%，啟動正常。",
+        measurement: { value: 60, unit: "%" },
+        technicianNote: "電瓶測試器顯示健康度 60%，啟動正常。",
         photo: "/photos/battery.svg",
       },
       {
@@ -94,7 +97,7 @@ export const vehicles: Vehicle[] = [
         keywords: ["空氣濾網", "濾網"],
         name: "空氣濾網",
         safetyRelated: false,
-        rule: { kind: "visual" },
+        rule: airFilterRule,
         visualOk: true,
         technicianNote: "濾網顏色正常，無明顯堵塞。",
         photo: "/photos/air-filter.svg",
@@ -104,7 +107,7 @@ export const vehicles: Vehicle[] = [
         keywords: ["雨刷"],
         name: "雨刷",
         safetyRelated: false,
-        rule: { kind: "visual" },
+        rule: wiperRule,
         visualOk: true,
         technicianNote: "刮拭乾淨，膠條無裂痕。",
         photo: "/photos/wiper.svg",
@@ -170,7 +173,7 @@ export const vehicles: Vehicle[] = [
         keywords: ["空氣濾網", "濾網"],
         name: "空氣濾網",
         safetyRelated: false,
-        rule: { kind: "visual" },
+        rule: airFilterRule,
         visualOk: true,
         technicianNote: "濾網顏色正常，無明顯堵塞。",
         photo: "/photos/air-filter.svg",
