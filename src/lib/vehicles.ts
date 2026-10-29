@@ -1,0 +1,184 @@
+// 展示用假資料。門檻數字是展示用，不代表原廠標準。
+
+export type Measurement = {
+  value: number;
+  unit: string;
+};
+
+// 量測型項目：依數值和門檻判定。
+// mustBelow 只給和安全相關的項目；deferBelow 以下算「可延後」。
+export type MeasuredRule = {
+  kind: "measured";
+  mustBelow?: number;
+  deferBelow: number;
+  reminderMonths?: number;
+};
+
+// 目視型項目：技師直接判定狀況良好或需處理。
+export type VisualRule = {
+  kind: "visual";
+};
+
+export type InspectionItem = {
+  id: string;
+  name: string;
+  // 車主提問時可能用來指稱這個項目的字詞。
+  keywords: string[];
+  safetyRelated: boolean;
+  rule: MeasuredRule | VisualRule;
+  measurement?: Measurement;
+  visualOk?: boolean;
+  technicianNote: string;
+  photo: string;
+};
+
+export type DrivingSummary = {
+  period: string;
+  shortTripRatio: number;
+  note: string;
+};
+
+export type Vehicle = {
+  id: string;
+  owner: string;
+  model: string;
+  plate: string;
+  mileageKm: number;
+  technician: string;
+  inspectedAt: string;
+  drivingSummary: DrivingSummary;
+  items: InspectionItem[];
+};
+
+const brakeRule: MeasuredRule = { kind: "measured", mustBelow: 3, deferBelow: 4 };
+const tireRule: MeasuredRule = { kind: "measured", mustBelow: 1.6, deferBelow: 3, reminderMonths: 3 };
+const batteryRule: MeasuredRule = { kind: "measured", deferBelow: 75, reminderMonths: 3 };
+
+export const vehicles: Vehicle[] = [
+  {
+    id: "wang",
+    owner: "王先生",
+    model: "TOYOTA COROLLA CROSS",
+    plate: "ABC-1234",
+    mileageKm: 58200,
+    technician: "陳技師",
+    inspectedAt: "2026-09-25",
+    drivingSummary: {
+      period: "近 3 個月",
+      shortTripRatio: 80,
+      note: "約 80% 的行程在 10 公里內，多為市區通勤短程。",
+    },
+    items: [
+      {
+        id: "brake-pad",
+        keywords: ["煞車", "來令片"],
+        name: "前煞車來令片",
+        safetyRelated: true,
+        rule: brakeRule,
+        measurement: { value: 2, unit: "mm" },
+        technicianNote: "左右兩側皆約 2 mm，已低於安全門檻 3 mm。",
+        photo: "/photos/brake-pad.svg",
+      },
+      {
+        id: "battery",
+        keywords: ["電瓶", "電池"],
+        name: "電瓶",
+        safetyRelated: false,
+        rule: batteryRule,
+        measurement: { value: 68, unit: "%" },
+        technicianNote: "電瓶測試器顯示健康度 68%，啟動正常。",
+        photo: "/photos/battery.svg",
+      },
+      {
+        id: "air-filter",
+        keywords: ["空氣濾網", "濾網"],
+        name: "空氣濾網",
+        safetyRelated: false,
+        rule: { kind: "visual" },
+        visualOk: true,
+        technicianNote: "濾網顏色正常，無明顯堵塞。",
+        photo: "/photos/air-filter.svg",
+      },
+      {
+        id: "wiper",
+        keywords: ["雨刷"],
+        name: "雨刷",
+        safetyRelated: false,
+        rule: { kind: "visual" },
+        visualOk: true,
+        technicianNote: "刮拭乾淨，膠條無裂痕。",
+        photo: "/photos/wiper.svg",
+      },
+      {
+        id: "tire",
+        keywords: ["輪胎", "胎紋"],
+        name: "輪胎胎紋",
+        safetyRelated: true,
+        rule: tireRule,
+        measurement: { value: 5.2, unit: "mm" },
+        technicianNote: "四輪胎紋約 5.2 mm，磨耗平均。",
+        photo: "/photos/tire.svg",
+      },
+    ],
+  },
+  {
+    id: "lin",
+    owner: "林小姐",
+    model: "TOYOTA YARIS CROSS",
+    plate: "XYZ-5678",
+    mileageKm: 71400,
+    technician: "黃技師",
+    inspectedAt: "2026-09-25",
+    drivingSummary: {
+      period: "近 3 個月",
+      shortTripRatio: 20,
+      note: "多為高速公路長途行駛，每週約 400 公里。",
+    },
+    items: [
+      {
+        id: "tire",
+        keywords: ["輪胎", "胎紋"],
+        name: "輪胎胎紋",
+        safetyRelated: true,
+        rule: tireRule,
+        measurement: { value: 1.4, unit: "mm" },
+        technicianNote: "右前輪胎紋約 1.4 mm，已低於安全門檻 1.6 mm。",
+        photo: "/photos/tire.svg",
+      },
+      {
+        id: "brake-pad",
+        keywords: ["煞車", "來令片"],
+        name: "前煞車來令片",
+        safetyRelated: true,
+        rule: brakeRule,
+        measurement: { value: 7, unit: "mm" },
+        technicianNote: "左右兩側皆約 7 mm。",
+        photo: "/photos/brake-pad.svg",
+      },
+      {
+        id: "battery",
+        keywords: ["電瓶", "電池"],
+        name: "電瓶",
+        safetyRelated: false,
+        rule: batteryRule,
+        measurement: { value: 91, unit: "%" },
+        technicianNote: "電瓶測試器顯示健康度 91%。",
+        photo: "/photos/battery.svg",
+      },
+      {
+        id: "air-filter",
+        keywords: ["空氣濾網", "濾網"],
+        name: "空氣濾網",
+        safetyRelated: false,
+        rule: { kind: "visual" },
+        visualOk: true,
+        technicianNote: "濾網顏色正常，無明顯堵塞。",
+        photo: "/photos/air-filter.svg",
+      },
+    ],
+  },
+];
+
+export function findVehicle(id: string): Vehicle | undefined {
+  return vehicles.find((v) => v.id === id);
+}
