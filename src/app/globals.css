@@ -1,19 +1,22 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-paper: #f3f5f8;
-  --color-ink: #0f1f38;
-  --color-ink-2: #1d3557;
-  --color-muted: #5f6b7a;
-  --color-line: #e3e7ed;
-  --color-must: #c0262d;
-  --color-must-soft: #fbeaea;
-  /* 對 defer-soft 底色 5.35:1，符合 WCAG AA。 */
-  --color-defer: #935600;
+  /* 配色和決賽簡報一致：深色 #111827、TOYOTA 紅 #E60012、暖白底 #F7F5F1。 */
+  --color-paper: #f7f5f1;
+  --color-ink: #111827;
+  --color-ink-2: #1f2937;
+  --color-brand: #e60012;
+  /* 簡報灰 #6B7280 在暖白底只有 4.44:1，加深到 5.31:1。 */
+  --color-muted: #5f6673;
+  --color-line: #d9dde3;
+  --color-must: #b5121b;
+  --color-must-soft: #fde8e8;
+  /* 結論色都和自己的淡色底對比 5:1 以上（WCAG AA）。 */
+  --color-defer: #a84d07;
   --color-defer-soft: #fdf3e2;
-  --color-ok: #256b3e;
+  --color-ok: #137035;
   --color-ok-soft: #e8f4ec;
-  --font-sans: var(--font-noto), "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --font-sans: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", system-ui, sans-serif;
 }
 
 body {

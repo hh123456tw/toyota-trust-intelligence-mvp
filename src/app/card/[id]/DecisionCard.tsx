@@ -54,9 +54,9 @@ export default function DecisionCard(props: {
 
   return (
     <main className="mx-auto max-w-md pb-16">
-      <header className="rounded-b-3xl bg-gradient-to-br from-ink to-ink-2 px-5 pt-7 pb-16 text-white">
+      <header className="rounded-b-3xl border-t-4 border-brand bg-ink px-5 pt-7 pb-16 text-white">
         <p className="flex items-center gap-1.5 text-xs font-medium tracking-wider text-white/70">
-          <Icon name="shield" className="size-4" />
+          <Icon name="shield" className="size-4 text-brand" />
           維修決策卡・TRUST INTELLIGENCE
         </p>
         <h1 className="mt-3 text-2xl leading-snug font-bold">

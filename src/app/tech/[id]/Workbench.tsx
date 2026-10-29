@@ -50,7 +50,7 @@ export default function Workbench(props: {
     // record-scale：整頁放大 125%，1920×1080 錄影時字才看得清楚（見 globals.css）。
     <div className="record-scale grid h-screen grid-cols-[minmax(0,46rem)_auto] justify-center gap-10 bg-paper p-6">
       <section className="min-w-0 space-y-4 overflow-y-auto pr-1">
-        <div className="flex items-center gap-3 rounded-2xl bg-gradient-to-br from-ink to-ink-2 p-5 text-white">
+        <div className="flex items-center gap-3 rounded-2xl border-l-4 border-brand bg-ink p-5 text-white">
           <span className="grid size-12 place-items-center rounded-xl bg-white/10">
             <Icon name="wrench" className="size-6" />
           </span>
