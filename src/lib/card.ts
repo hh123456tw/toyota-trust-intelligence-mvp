@@ -2,6 +2,7 @@
 
 import type { CardItem } from "@/app/card/[id]/DecisionCard";
 import { presetsFor, sourceLabel, validSources } from "./answers";
+import { EXCERPTS } from "./manual";
 import { judge, type Conclusion } from "./rules";
 import { trendText, vehicles, type InspectionItem, type Vehicle } from "./vehicles";
 
@@ -39,6 +40,7 @@ export function cardProps(vehicle: Vehicle) {
   const keys = validSources(vehicle, [
     "driving",
     ...vehicle.items.flatMap((i) => [`item:${i.id}`, `trend:${i.id}`]),
+    ...EXCERPTS.map((e) => `doc:${e.id}`),
   ]);
   return {
     vehicle: {
