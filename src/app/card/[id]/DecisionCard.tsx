@@ -3,18 +3,10 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 import type { Answer, Preset } from "@/lib/answers";
-import { askFlow, presetFlow } from "@/lib/flow";
-import type { Conclusion, Verdict } from "@/lib/rules";
-import FlowPanel, { type FlowEntry } from "./FlowPanel";
-
-export type CardItem = {
-  id: string;
-  name: string;
-  photo: string;
-  technicianNote: string;
-  trend?: string;
-  verdict: Verdict;
-};
+import type { CardItem } from "@/lib/card";
+import { askFlow, presetFlow, type FlowEntry } from "@/lib/flow";
+import type { Conclusion } from "@/lib/rules";
+import FlowPanel from "./FlowPanel";
 
 type VehicleInfo = {
   id: string;

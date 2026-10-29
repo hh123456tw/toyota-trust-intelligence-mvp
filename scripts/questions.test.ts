@@ -22,7 +22,7 @@ describe("parseQuestions", () => {
   });
 });
 
-const ok = { answer: "煞車只剩 2 mm，低於安全門檻 3 mm，不建議延後。", sources: ["item:brake-pad"], escalate: true, verdict: "通過" as const };
+const ok = { answer: "煞車只剩 2 mm，低於安全門檻 3 mm，不建議延後。", sources: ["item:brake-pad"], escalate: true, checkResult: "通過" as const };
 
 describe("checkCase", () => {
   it("第 1 題：符合預期 → 沒有問題", () => {
@@ -38,7 +38,7 @@ describe("checkCase", () => {
   });
 
   it("答案檢查攔下 → 失敗並附理由", () => {
-    expect(checkCase(13, { ...ok, verdict: "攔下", blockedReason: "回答沒有附來源" })).toContain("被攔下：回答沒有附來源");
+    expect(checkCase(13, { ...ok, checkResult: "攔下", blockedReason: "回答沒有附來源" })).toContain("被攔下：回答沒有附來源");
   });
 
   it("第 10 題：編造金額 → 失敗；只說卡上沒有價格 → 通過", () => {

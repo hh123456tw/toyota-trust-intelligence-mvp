@@ -1,7 +1,7 @@
 // 追問流程：組提示詞 → 呼叫 AI → 答案檢查 → 決定畫面要顯示什麼。不碰 HTTP、限流、金鑰。
 
-import { cardContext, presetsFor, sourceLabel, type Answer } from "./answers";
-import { findExcerpts } from "./manual";
+import { cardContext, contextSources, presetsFor, sourceLabel, type Answer } from "./answers";
+import { findExcerpts, hasKeyword } from "./manual";
 import { judge, type Conclusion } from "./rules";
 import type { InspectionItem, Vehicle } from "./vehicles";
 
@@ -9,16 +9,20 @@ import type { InspectionItem, Vehicle } from "./vehicles";
 export type CallAI = (system: string, user: string) => Promise<string>;
 
 export type AskResult = Answer & {
-  verdict: "通過" | "攔下";
+  // 答案檢查的結果。和規則引擎的 Verdict（項目結論）是兩回事。
+  checkResult: "通過" | "攔下";
   blockedReason?: string;
-  // 給流程面板：問題提到哪些項目、AI 原本引用哪些來源。不含被攔下的原回答。
-  trace: { mentionedItems: string[]; aiSources: string[]; docs: string[] };
+  // 給流程面板：問題提到哪些項目、給 AI 的資料（來源代號）、AI 原本引用哪些來源。不含被攔下的原回答。
+  trace: { mentionedItems: string[]; data: string[]; aiSources: string[] };
 };
 
 type AIReply = Answer & { itemConclusions: { id: string; conclusion: string }[] };
 
 // 延後類字詞：轉介專員保險和答案檢查共用。只收明確表示「晚點處理」的說法，避免「之後」「等等」這種常見詞誤擋。
-export const DEFER_WORDS = /延後|晚點|下次|下個月|再換|先不換|不換也|撐到|撐得過|撐一下|不用換|不必換|可以不換/;
+// 「下次」「下個月」只是時間：子句沒點名項目時，要搭配換／處理／修才算延後（「下次保養再檢查」不算）。
+const DEFER_CORE = "延後|晚點|再換|先不換|不換也|撐到|撐得過|撐一下|不用換|不必換|可以不換";
+export const DEFER_WORDS = new RegExp(`${DEFER_CORE}|下次|下個月`);
+const DEFER_NOT_TIME = new RegExp(DEFER_CORE);
 // 推銷類字詞：對「正常」項目不能出現。
 const UPSELL_WORDS = /建議.{0,4}換|需要.{0,2}換|最好.{0,4}換|今天換|應該.{0,2}換|該換了|順便換/;
 // 否定前綴：「不建議延後」「無法延後」「不需要換」這類句子是正確說法，先移除再比對。
@@ -56,8 +60,11 @@ export const RESPONSE_SCHEMA = {
 
 const ESCALATE_ANSWER = "這個問題請服務專員當面跟你說明，會比較清楚。";
 
+// 字面包含項目關鍵字、其實是別的零件：比對前先拿掉。
+const OTHER_PARTS = /煞車油|煞車燈|冷氣濾網|遙控器電池|鑰匙電池/g;
+
 function mentions(item: InspectionItem, text: string): boolean {
-  return item.keywords.some((k) => text.includes(k));
+  return hasKeyword(text.replace(OTHER_PARTS, ""), item.keywords);
 }
 
 // 保險：問題同時提到「必須更換」的項目和延後類字眼時，一律轉介專員。
@@ -84,12 +91,14 @@ const NEGATED_TIME = "(?:到|至|等到)?(?:下個月|下次保養|下次)?";
 
 // 假設句說明後果（「若延後更換可能會拉長煞車距離」）是在講風險，不是說可以延後。
 // 同一句有安撫字眼（「風險不大」「沒影響」）就不算，照樣檢查。
-const IF_THEN_RISK = "(?:若|如果|要是|假如)(?:WORDS).*?(?:風險|危險|變長|拉長|磨傷|影響)";
+const IF = /若|如果|要是|假如/;
+const RISK = /風險|危險|變長|拉長|磨傷|影響/;
+const IF_THEN_RISK = `(?:${IF.source})(?:WORDS).*?(?:${RISK.source})`;
 const REASSURE = /不大|不高|很低|較低|沒有?(?:關係|問題|影響|風險|危險)|還好|也可以|也行|無妨/;
 
-function hasWord(sentence: string, words: RegExp): boolean {
-  let stripped = sentence.replace(new RegExp(`${NEGATION}(?:${words.source})${NEGATED_TIME}`, "g"), "");
-  if (!REASSURE.test(sentence)) stripped = stripped.replace(new RegExp(IF_THEN_RISK.replace("WORDS", words.source), "g"), "");
+function hasWord(clause: string, words: RegExp): boolean {
+  let stripped = clause.replace(new RegExp(`${NEGATION}(?:${words.source})${NEGATED_TIME}`, "g"), "");
+  if (!REASSURE.test(clause)) stripped = stripped.replace(new RegExp(IF_THEN_RISK.replace("WORDS", words.source), "g"), "");
   return words.test(stripped);
 }
 
@@ -103,21 +112,40 @@ function noDataReply(vehicle: Vehicle, reply: AIReply): boolean {
   );
 }
 
+// 子句有沒有說「必須更換」的項目可以延後。named：子句自己點名了項目。
+// 點名項目的子句（「煞車若延後一個月」）只有否定，或同一子句講風險，才放行。
+// 沒點名項目的假設子句（「若延後更換，…有行車安全風險」）是在講後果：同句有風險說明且沒有安撫字眼就放行。
+function defers(clause: string, sentence: string, named: boolean): boolean {
+  const words = named || /換|處理|修/.test(clause) ? DEFER_WORDS : DEFER_NOT_TIME;
+  if (!hasWord(clause, words)) return false;
+  return named || !(IF.test(clause) && RISK.test(sentence) && !REASSURE.test(sentence));
+}
+
 // 答案檢查：回傳攔下理由；通過回傳 undefined。
 function check(vehicle: Vehicle, reply: AIReply): string | undefined {
   const conclusions = new Map(vehicle.items.map((i) => [`item:${i.id}`, judge(i).conclusion]));
 
-  for (const c of reply.itemConclusions) {
+  // trend:、doc: 等不是檢查項目，不比對結論。
+  for (const c of reply.itemConclusions.filter((c) => c.id.startsWith("item:"))) {
     const real = conclusions.get(c.id);
     if (real !== c.conclusion) return `${c.id} 的結論應為 ${real ?? "（不存在）"}，AI 說 ${c.conclusion}`;
   }
+  const listed = new Set(reply.itemConclusions.map((c) => c.id));
+  const unlisted = vehicle.items.find(
+    (i) => judge(i).conclusion === "必須更換" && mentions(i, reply.answer) && !listed.has(`item:${i.id}`),
+  );
+  if (unlisted) return `回答提到必須更換的${unlisted.name}，卻沒有列出它的結論`;
 
+  // 逐子句檢查：子句點名的項目是主詞；沒點名就沿用同一句提到的項目。
   for (const sentence of reply.answer.split(/[。！？!?；;\n]/)) {
-    for (const item of vehicle.items) {
-      if (!mentions(item, sentence)) continue;
-      const real: Conclusion = judge(item).conclusion;
-      if (real === "必須更換" && hasWord(sentence, DEFER_WORDS)) return `${item.name}是必須更換，回答卻說可以延後`;
-      if (real === "正常" && hasWord(sentence, UPSELL_WORDS)) return `${item.name}是正常，回答卻建議更換`;
+    const inSentence = vehicle.items.filter((i) => mentions(i, sentence));
+    for (const clause of sentence.split(/[，,]/)) {
+      const named = inSentence.filter((i) => mentions(i, clause));
+      for (const item of named.length ? named : inSentence) {
+        const real: Conclusion = judge(item).conclusion;
+        if (real === "必須更換" && defers(clause, sentence, named.length > 0)) return `${item.name}是必須更換，回答卻說可以延後`;
+        if (real === "正常" && hasWord(clause, UPSELL_WORDS)) return `${item.name}是正常，回答卻建議更換`;
+      }
     }
   }
 
@@ -147,8 +175,8 @@ export async function ask(vehicle: Vehicle, question: string, callAI: CallAI): P
   const reply = parseReply(await callAI(SYSTEM_PROMPT, user));
   const trace = {
     mentionedItems: vehicle.items.filter((i) => mentions(i, question)).map((i) => `item:${i.id}`),
+    data: [...contextSources(vehicle), ...excerpts.map((e) => e.來源代號)],
     aiSources: reply.sources,
-    docs: excerpts.map((e) => e.來源代號),
   };
 
   const blockedReason = check(vehicle, reply);
@@ -157,5 +185,5 @@ export async function ask(vehicle: Vehicle, question: string, callAI: CallAI): P
     : { answer: reply.answer, sources: reply.sources, escalate: reply.escalate };
   if (touchesMustReplace(vehicle, question)) shown.escalate = true;
 
-  return blockedReason ? { ...shown, verdict: "攔下", blockedReason, trace } : { ...shown, verdict: "通過", trace };
+  return blockedReason ? { ...shown, checkResult: "攔下", blockedReason, trace } : { ...shown, checkResult: "通過", trace };
 }

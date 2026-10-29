@@ -4,7 +4,8 @@ import { useState, type ComponentProps } from "react";
 import { cardItems, withMeasurement } from "@/lib/card";
 import type { InspectionItem } from "@/lib/vehicles";
 import DecisionCard from "../../card/[id]/DecisionCard";
-import FlowPanel, { type FlowEntry } from "../../card/[id]/FlowPanel";
+import FlowPanel from "../../card/[id]/FlowPanel";
+import type { FlowEntry } from "@/lib/flow";
 
 // 只用前端狀態：改值後直接交給規則引擎重算，不經過後端或 AI。
 export default function Workbench(props: {

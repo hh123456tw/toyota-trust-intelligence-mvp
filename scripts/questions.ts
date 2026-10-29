@@ -6,7 +6,7 @@ export type Shown = {
   answer: string;
   sources: string[];
   escalate: boolean;
-  verdict: "通過" | "攔下";
+  checkResult: "通過" | "攔下";
   blockedReason?: string;
 };
 
@@ -47,7 +47,7 @@ export function parseQuestions(md: string): Question[] {
 export function checkCase(no: number, r: Shown): string[] {
   const e = EXPECT[no] ?? {};
   const problems: string[] = [];
-  if (r.verdict === "攔下") problems.push(`被攔下：${r.blockedReason}`);
+  if (r.checkResult === "攔下") problems.push(`被攔下：${r.blockedReason}`);
   if (e.escalate && !r.escalate) problems.push("應該出現「請專員來說明」");
   for (const s of e.sources ?? []) if (!r.sources.includes(s)) problems.push(`缺少來源 ${s}`);
   for (const re of e.must ?? []) if (!re.test(r.answer)) problems.push(`應該出現 ${re}`);

@@ -101,6 +101,11 @@ export function presetsFor(vehicleId: string): Preset[] {
   return presets[vehicleId] ?? [];
 }
 
+// 卡片資料裡的每一個來源代號。流程面板用來列出給了 AI 哪些資料。
+export function contextSources(vehicle: Vehicle): string[] {
+  return [...vehicle.items.flatMap((i) => (trendText(i) ? [`item:${i.id}`, `trend:${i.id}`] : [`item:${i.id}`])), "driving"];
+}
+
 // 給 AI 的卡片資料：只包含它可以引用的內容。
 export function cardContext(vehicle: Vehicle) {
   return {
@@ -111,12 +116,13 @@ export function cardContext(vehicle: Vehicle) {
     行車摘要: { 來源代號: "driving", ...vehicle.drivingSummary },
     檢查項目: vehicle.items.map((item) => {
       const v = judge(item);
+      const trend = trendText(item);
       return {
         來源代號: `item:${item.id}`,
         名稱: item.name,
         安全相關: item.safetyRelated,
         量測: item.measurement ? `${item.measurement.value} ${item.measurement.unit}` : "目視檢查",
-        量測趨勢: trendText(item) ? { 來源代號: `trend:${item.id}`, 內容: trendText(item) } : null,
+        量測趨勢: trend ? { 來源代號: `trend:${item.id}`, 內容: trend } : null,
         技師備註: item.technicianNote,
         結論: v.conclusion,
         結論理由: v.reason,

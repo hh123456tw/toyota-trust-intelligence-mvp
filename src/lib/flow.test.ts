@@ -11,8 +11,8 @@ const passed = {
   answer: "煞車只剩 2 mm。",
   sources: ["item:brake-pad"],
   escalate: false,
-  verdict: "通過" as const,
-  trace: { mentionedItems: ["item:brake-pad"], aiSources: ["item:brake-pad"], docs: [] as string[] },
+  checkResult: "通過" as const,
+  trace: { mentionedItems: ["item:brake-pad"], aiSources: ["item:brake-pad"], data: ["item:brake-pad", "driving"] },
 };
 
 describe("askFlow：追問的流程紀錄", () => {
@@ -21,7 +21,7 @@ describe("askFlow：追問的流程紀錄", () => {
     expect(e.title).toBe("追問：煞車還能撐嗎？");
     expect(e.steps).toEqual([
       "理解的問題：提到 陳技師量測：前煞車來令片 2 mm",
-      "用了哪些資料：這張卡片的檢查項目與行車摘要",
+      "用了哪些資料：陳技師量測：前煞車來令片 2 mm、行車摘要（近 3 個月）",
       "引用的來源：陳技師量測：前煞車來令片 2 mm",
       "答案檢查：通過",
     ]);
@@ -32,7 +32,7 @@ describe("askFlow：追問的流程紀錄", () => {
     const blocked = {
       ...passed,
       answer: "這個問題請服務專員當面跟你說明，會比較清楚。",
-      verdict: "攔下" as const,
+      checkResult: "攔下" as const,
       blockedReason: "前煞車來令片是必須更換，回答卻說可以延後",
     };
     const e = askFlow("煞車下個月換", 200, blocked, labels);
@@ -41,18 +41,18 @@ describe("askFlow：追問的流程紀錄", () => {
   });
 
   it("問題沒提到項目、AI 沒附來源時寫明，不留空白", () => {
-    const e = askFlow("你好", 200, { ...passed, trace: { mentionedItems: [], aiSources: [], docs: [] } }, labels);
+    const e = askFlow("你好", 200, { ...passed, trace: { mentionedItems: [], aiSources: [], data: [] } }, labels);
     expect(e.steps[0]).toBe("理解的問題：沒有提到特定項目");
     expect(e.steps[2]).toBe("引用的來源：無");
   });
 
   it("有查到原廠文件片段時列在用了哪些資料", () => {
-    const e = askFlow("x", 200, { ...passed, trace: { ...passed.trace, docs: ["doc:brake-1"] } }, labels);
-    expect(e.steps[1]).toBe("用了哪些資料：這張卡片的檢查項目與行車摘要、原廠文件：回廠服務流程手冊 第 3 頁");
+    const e = askFlow("x", 200, { ...passed, trace: { ...passed.trace, data: ["driving", "doc:brake-1"] } }, labels);
+    expect(e.steps[1]).toBe("用了哪些資料：行車摘要（近 3 個月）、回廠服務流程手冊 第 3 頁");
   });
 
   it("未知來源代號直接顯示代號", () => {
-    const e = askFlow("x", 200, { ...passed, trace: { mentionedItems: [], aiSources: ["item:ghost"], docs: [] } }, labels);
+    const e = askFlow("x", 200, { ...passed, trace: { mentionedItems: [], aiSources: ["item:ghost"], data: [] } }, labels);
     expect(e.steps[2]).toBe("引用的來源：item:ghost");
   });
 

@@ -1,8 +1,14 @@
 // 把追問結果轉成流程面板的一筆紀錄。只讀 trace 和檢查結果，不顯示被攔下的 AI 原回答。
 
-import type { FlowEntry } from "@/app/card/[id]/FlowPanel";
 import type { Preset } from "./answers";
 import type { AskResult } from "./ask";
+
+// 流程面板的一筆紀錄：標題、幾個步驟、AI 呼叫次數。
+export type FlowEntry = {
+  title: string;
+  steps: string[];
+  aiCalls: number;
+};
 
 type Labels = Record<string, string>;
 
@@ -15,14 +21,14 @@ export function askFlow(question: string, status: number, data: AskResult | { er
   if (status !== 200 || "error" in data) {
     return { title, steps: [`失敗：${"error" in data ? data.error : "未知錯誤"}`], aiCalls: status === 502 ? 1 : 0 };
   }
-  const { trace, verdict, blockedReason } = data;
+  const { trace, checkResult, blockedReason } = data;
   return {
     title,
     steps: [
       `理解的問題：${trace.mentionedItems.length ? `提到 ${list(trace.mentionedItems, labels, "")}` : "沒有提到特定項目"}`,
-      `用了哪些資料：這張卡片的檢查項目與行車摘要${trace.docs.length ? `、原廠文件：${list(trace.docs, labels, "")}` : ""}`,
+      `用了哪些資料：${list(trace.data, labels, "無")}`,
       `引用的來源：${list(trace.aiSources, labels, "無")}`,
-      `答案檢查：${verdict === "攔下" ? `攔下（${blockedReason}）` : "通過"}`,
+      `答案檢查：${checkResult === "攔下" ? `攔下（${blockedReason}）` : "通過"}`,
     ],
     aiCalls: 1,
   };

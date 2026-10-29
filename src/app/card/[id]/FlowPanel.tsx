@@ -1,11 +1,8 @@
 "use client";
 
-// 流程面板：讓評審看見每一步在做什麼。每筆紀錄有標題、幾個步驟、AI 呼叫次數。
-export type FlowEntry = {
-  title: string;
-  steps: string[];
-  aiCalls: number;
-};
+import type { FlowEntry } from "@/lib/flow";
+
+// 流程面板：讓評審看見每一步在做什麼。
 
 export default function FlowPanel({ entries }: { entries: FlowEntry[] }) {
   return (

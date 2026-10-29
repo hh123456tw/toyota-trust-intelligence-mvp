@@ -19,6 +19,18 @@ describe("原廠文件片段：關鍵字比對", () => {
     },
   );
 
+  it("「要等到下個月才換嗎」→ 不挑客休室等待片段", () => {
+    expect(ids("要等到下個月才換嗎")).not.toContain("lounge-wait");
+  });
+
+  it("「要等多久」→ 挑到客休室等待片段", () => {
+    expect(ids("保養要等多久？")).toContain("lounge-wait");
+  });
+
+  it("英文關鍵字不分大小寫（point）", () => {
+    expect(ids("可以用 point 折抵嗎")).toEqual(["checkout"]);
+  });
+
   it("資料檔有 10–15 段，每段有頁碼和內文", () => {
     expect(EXCERPTS.length).toBeGreaterThanOrEqual(10);
     expect(EXCERPTS.length).toBeLessThanOrEqual(15);

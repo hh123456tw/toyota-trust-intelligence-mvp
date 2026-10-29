@@ -42,7 +42,7 @@ describe("21 題實測", () => {
       const r = await ask(vehicle, q.question, async (s, u) => (raw = await callGemini(apiKey, s, u)));
       const problems = checkCase(q.no, r);
       console.log(
-        `#${q.no} ${problems.length ? "失敗" : "通過"}｜${q.question}\n  預期：${q.expected}\n  回答：${r.answer}\n  來源：${r.sources.join(", ")}｜專員：${r.escalate}｜答案檢查：${r.verdict}${r.blockedReason ? `（${r.blockedReason}）` : ""}${r.verdict === "攔下" ? `\n  AI 原回答：${raw}` : ""}${problems.length ? `\n  問題：${problems.join("；")}` : ""}`,
+        `#${q.no} ${problems.length ? "失敗" : "通過"}｜${q.question}\n  預期：${q.expected}\n  回答：${r.answer}\n  來源：${r.sources.join(", ")}｜專員：${r.escalate}｜答案檢查：${r.checkResult}${r.blockedReason ? `（${r.blockedReason}）` : ""}${r.checkResult === "攔下" ? `\n  AI 原回答：${raw}` : ""}${problems.length ? `\n  問題：${problems.join("；")}` : ""}`,
       );
       expect(problems).toEqual([]);
     });

@@ -1,10 +1,19 @@
 // 把檢查項目轉成決策卡要顯示的樣子。結論一律交給規則引擎重算。
 
-import type { CardItem } from "@/app/card/[id]/DecisionCard";
 import { presetsFor, sourceLabel, validSources } from "./answers";
 import { EXCERPTS } from "./manual";
-import { judge, type Conclusion } from "./rules";
+import { judge, type Conclusion, type Verdict } from "./rules";
 import { trendText, vehicles, type InspectionItem, type Vehicle } from "./vehicles";
+
+// 決策卡上的一個檢查項目。
+export type CardItem = {
+  id: string;
+  name: string;
+  photo: string;
+  technicianNote: string;
+  trend?: string;
+  verdict: Verdict;
+};
 
 const ORDER: Record<Conclusion, number> = { 必須更換: 0, 可延後: 1, 正常: 2 };
 

@@ -61,7 +61,7 @@ export const EXCERPTS: Excerpt[] = [
     doc: DOC,
     page: 5,
     text: "車主平均在客休室等待時間為一至兩小時",
-    keywords: ["等多久", "要等", "等待時間", "客休室"],
+    keywords: ["等多久", "等待時間", "客休室"],
   },
   {
     id: "progress-board",
@@ -107,8 +107,14 @@ export const EXCERPTS: Excerpt[] = [
   },
 ];
 
+// 文字包含任一關鍵字（英文不分大小寫）。追問流程比對檢查項目也用這個。
+export function hasKeyword(text: string, keywords: string[]): boolean {
+  const t = text.toLowerCase();
+  return keywords.some((k) => t.includes(k.toLowerCase()));
+}
+
 export function findExcerpts(question: string): Excerpt[] {
-  return EXCERPTS.filter((e) => e.keywords.some((k) => question.includes(k)));
+  return EXCERPTS.filter((e) => hasKeyword(question, e.keywords));
 }
 
 // 來源代號 doc:<片段 id> 的顯示文字；片段不存在回傳 undefined。
