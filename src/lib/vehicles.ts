@@ -28,6 +28,8 @@ export type InspectionItem = {
   safetyRelated: boolean;
   rule: MeasuredRule | VisualRule;
   measurement?: Measurement;
+  // 半年前上次回廠的量測（量測趨勢）。只當解釋的來源，規則引擎不讀。
+  previousMeasurement?: Measurement;
   visualOk?: boolean;
   technicianNote: string;
   photo: string;
@@ -79,6 +81,7 @@ export const vehicles: Vehicle[] = [
         safetyRelated: true,
         rule: brakeRule,
         measurement: { value: 2, unit: "mm" },
+        previousMeasurement: { value: 3.5, unit: "mm" },
         technicianNote: "左右兩側皆約 2 mm，已低於安全門檻 3 mm。",
         photo: "/photos/brake-pad.svg",
       },
@@ -89,6 +92,7 @@ export const vehicles: Vehicle[] = [
         safetyRelated: false,
         rule: batteryRule,
         measurement: { value: 60, unit: "%" },
+        previousMeasurement: { value: 72, unit: "%" },
         technicianNote: "電瓶測試器顯示健康度 60%，啟動正常。",
         photo: "/photos/battery.svg",
       },
@@ -145,6 +149,7 @@ export const vehicles: Vehicle[] = [
         safetyRelated: true,
         rule: tireRule,
         measurement: { value: 1.4, unit: "mm" },
+        previousMeasurement: { value: 2.5, unit: "mm" },
         technicianNote: "右前輪胎紋約 1.4 mm，已低於安全門檻 1.6 mm。",
         photo: "/photos/tire.svg",
       },
@@ -181,6 +186,14 @@ export const vehicles: Vehicle[] = [
     ],
   },
 ];
+
+// 量測趨勢的顯示文字。沒有上次量測（含目視型項目）就不顯示。
+export function trendText(item: InspectionItem): string | undefined {
+  const prev = item.previousMeasurement;
+  const now = item.measurement;
+  if (!prev || !now) return undefined;
+  return `半年前 ${prev.value} ${prev.unit} → 本次 ${now.value} ${now.unit}`;
+}
 
 export function findVehicle(id: string): Vehicle | undefined {
   return vehicles.find((v) => v.id === id);
