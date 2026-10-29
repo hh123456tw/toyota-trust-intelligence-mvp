@@ -1,9 +1,9 @@
 // 把檢查項目轉成決策卡要顯示的樣子。結論一律交給規則引擎重算。
 
 import type { CardItem } from "@/app/card/[id]/DecisionCard";
-import { presetsFor, sourceLabel } from "./answers";
+import { presetsFor, sourceLabel, validSources } from "./answers";
 import { judge, type Conclusion } from "./rules";
-import { vehicles, type InspectionItem, type Vehicle } from "./vehicles";
+import { trendText, vehicles, type InspectionItem, type Vehicle } from "./vehicles";
 
 const ORDER: Record<Conclusion, number> = { 必須更換: 0, 可延後: 1, 正常: 2 };
 
@@ -14,6 +14,7 @@ export function cardItems(items: InspectionItem[]): CardItem[] {
       name: item.name,
       photo: item.photo,
       technicianNote: item.technicianNote,
+      trend: trendText(item),
       verdict: judge(item),
     }))
     .sort((a, b) => ORDER[a.verdict.conclusion] - ORDER[b.verdict.conclusion]);
@@ -35,7 +36,10 @@ export function withMeasurement(items: InspectionItem[], id: string, value: numb
 // 決策卡需要的全部資料；卡片頁和技師頁共用。
 export function cardProps(vehicle: Vehicle) {
   // 來源代號對應的顯示文字，讓畫面把 AI 回答的來源轉成看得懂的標籤。
-  const keys = ["driving", ...vehicle.items.map((i) => `item:${i.id}`)];
+  const keys = validSources(vehicle, [
+    "driving",
+    ...vehicle.items.flatMap((i) => [`item:${i.id}`, `trend:${i.id}`]),
+  ]);
   return {
     vehicle: {
       id: vehicle.id,

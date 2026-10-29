@@ -10,6 +10,7 @@ export type CardItem = {
   name: string;
   photo: string;
   technicianNote: string;
+  trend?: string;
   verdict: Verdict;
 };
 
@@ -124,6 +125,7 @@ function ItemCard({ item }: { item: CardItem }) {
       </div>
 
       <p className="mt-2 text-sm">{reason}</p>
+      {item.trend && <p className="mt-1 text-sm text-muted">量測趨勢：{item.trend}</p>}
       <p className="mt-1 text-sm text-muted">技師備註：{item.technicianNote}</p>
 
       <button onClick={() => setShowPhoto((s) => !s)} className="mt-2 text-sm text-muted underline">
