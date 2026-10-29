@@ -8,6 +8,7 @@ import { ask } from "@/lib/ask";
 import { callGemini } from "@/lib/gemini";
 import { findVehicle } from "@/lib/vehicles";
 import { checkCase, parseQuestions } from "./questions";
+import { sleep, withRetry } from "./retry";
 
 const apiKey = process.env.GEMINI_API_KEY;
 if (!apiKey) throw new Error("缺少 GEMINI_API_KEY：請在 .env.local 設定 GEMINI_API_KEY=<你的金鑰> 後再執行 npm run eval:21");
@@ -37,15 +38,15 @@ describe("21 題實測", () => {
   for (const q of questions.filter((q) => q.no <= 19)) {
     it(`#${q.no} ${q.question}`, async () => {
       const vehicle = findVehicle(q.vehicleId)!;
-      await new Promise((ok) => setTimeout(ok, 4_500)); // 免費額度每分鐘 15 次
+      await sleep(8_000); // 免費額度每分鐘 15 次，放慢一點避免限流
       let raw = "";
-      const r = await ask(vehicle, q.question, async (s, u) => (raw = await callGemini(apiKey, s, u)));
+      const r = await ask(vehicle, q.question, async (s, u) => (raw = await withRetry(() => callGemini(apiKey, s, u))));
       const problems = checkCase(q.no, r);
       console.log(
         `#${q.no} ${problems.length ? "失敗" : "通過"}｜${q.question}\n  預期：${q.expected}\n  回答：${r.answer}\n  來源：${r.sources.join(", ")}｜專員：${r.escalate}｜答案檢查：${r.checkResult}${r.blockedReason ? `（${r.blockedReason}）` : ""}${r.checkResult === "攔下" ? `\n  AI 原回答：${raw}` : ""}${problems.length ? `\n  問題：${problems.join("；")}` : ""}`,
       );
       expect(problems).toEqual([]);
-    });
+    }, 600_000); // 限流時會等好幾輪重試
   }
 
   it("#20 拔掉金鑰：API 回友善錯誤，3 顆常見問題都有預寫回答和來源", async () => {
