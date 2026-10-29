@@ -71,7 +71,8 @@ export default function DecisionCard(props: {
 
       <section className="space-y-3 px-4">
         {items.map((item) => (
-          <ItemCard key={item.id} item={item} />
+          // 結論變了就重設卡片狀態（例如技師改值後，舊的延後選擇不能留著）。
+          <ItemCard key={`${item.id}:${item.verdict.conclusion}`} item={item} />
         ))}
       </section>
 
