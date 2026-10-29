@@ -20,7 +20,7 @@ export function askFlow(question: string, status: number, data: AskResult | { er
     title,
     steps: [
       `理解的問題：${trace.mentionedItems.length ? `提到 ${list(trace.mentionedItems, labels, "")}` : "沒有提到特定項目"}`,
-      "用了哪些資料：這張卡片的檢查項目與行車摘要",
+      `用了哪些資料：這張卡片的檢查項目與行車摘要${trace.docs.length ? `、原廠文件：${list(trace.docs, labels, "")}` : ""}`,
       `引用的來源：${list(trace.aiSources, labels, "無")}`,
       `答案檢查：${verdict === "攔下" ? `攔下（${blockedReason}）` : "通過"}`,
     ],

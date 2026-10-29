@@ -123,6 +123,7 @@ describe("ask：原廠文件片段", () => {
     expect(prompt).toContain("doc:checkout");
     expect(prompt).toContain("和泰Point折抵");
     expect(r.verdict).toBe("通過");
+    expect(r.trace.docs).toEqual(["doc:checkout"]);
     expect(sourceLabel(wang, "doc:checkout")).toBe("回廠服務流程手冊 p.9");
   });
 

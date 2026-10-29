@@ -1,14 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { askFlow, presetFlow } from "./flow";
 
-const labels = { "item:brake-pad": "陳技師量測：前煞車來令片 2 mm", driving: "行車摘要（近 3 個月）" };
+const labels = {
+  "item:brake-pad": "陳技師量測：前煞車來令片 2 mm",
+  driving: "行車摘要（近 3 個月）",
+  "doc:brake-1": "回廠服務流程手冊 第 3 頁",
+};
 
 const passed = {
   answer: "煞車只剩 2 mm。",
   sources: ["item:brake-pad"],
   escalate: false,
   verdict: "通過" as const,
-  trace: { mentionedItems: ["item:brake-pad"], aiSources: ["item:brake-pad"] },
+  trace: { mentionedItems: ["item:brake-pad"], aiSources: ["item:brake-pad"], docs: [] as string[] },
 };
 
 describe("askFlow：追問的流程紀錄", () => {
@@ -30,7 +34,6 @@ describe("askFlow：追問的流程紀錄", () => {
       answer: "這個問題請服務專員當面跟你說明，會比較清楚。",
       verdict: "攔下" as const,
       blockedReason: "前煞車來令片是必須更換，回答卻說可以延後",
-      trace: { mentionedItems: ["item:brake-pad"], aiSources: ["item:brake-pad"] },
     };
     const e = askFlow("煞車下個月換", 200, blocked, labels);
     expect(e.steps.at(-1)).toBe("答案檢查：攔下（前煞車來令片是必須更換，回答卻說可以延後）");
@@ -38,13 +41,18 @@ describe("askFlow：追問的流程紀錄", () => {
   });
 
   it("問題沒提到項目、AI 沒附來源時寫明，不留空白", () => {
-    const e = askFlow("你好", 200, { ...passed, trace: { mentionedItems: [], aiSources: [] } }, labels);
+    const e = askFlow("你好", 200, { ...passed, trace: { mentionedItems: [], aiSources: [], docs: [] } }, labels);
     expect(e.steps[0]).toBe("理解的問題：沒有提到特定項目");
     expect(e.steps[2]).toBe("引用的來源：無");
   });
 
+  it("有查到原廠文件片段時列在用了哪些資料", () => {
+    const e = askFlow("x", 200, { ...passed, trace: { ...passed.trace, docs: ["doc:brake-1"] } }, labels);
+    expect(e.steps[1]).toBe("用了哪些資料：這張卡片的檢查項目與行車摘要、原廠文件：回廠服務流程手冊 第 3 頁");
+  });
+
   it("未知來源代號直接顯示代號", () => {
-    const e = askFlow("x", 200, { ...passed, trace: { mentionedItems: [], aiSources: ["item:ghost"] } }, labels);
+    const e = askFlow("x", 200, { ...passed, trace: { mentionedItems: [], aiSources: ["item:ghost"], docs: [] } }, labels);
     expect(e.steps[2]).toBe("引用的來源：item:ghost");
   });
 

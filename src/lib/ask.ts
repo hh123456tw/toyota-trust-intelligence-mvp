@@ -12,7 +12,7 @@ export type AskResult = Answer & {
   verdict: "通過" | "攔下";
   blockedReason?: string;
   // 給流程面板：問題提到哪些項目、AI 原本引用哪些來源。不含被攔下的原回答。
-  trace: { mentionedItems: string[]; aiSources: string[] };
+  trace: { mentionedItems: string[]; aiSources: string[]; docs: string[] };
 };
 
 type AIReply = Answer & { itemConclusions: { id: string; conclusion: string }[] };
@@ -127,6 +127,7 @@ export async function ask(vehicle: Vehicle, question: string, callAI: CallAI): P
   const trace = {
     mentionedItems: vehicle.items.filter((i) => mentions(i, question)).map((i) => `item:${i.id}`),
     aiSources: reply.sources,
+    docs: excerpts.map((e) => e.來源代號),
   };
 
   const blockedReason = check(vehicle, reply);
