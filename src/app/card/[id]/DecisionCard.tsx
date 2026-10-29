@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 import type { Answer, Preset } from "@/lib/answers";
+import type { AskResult } from "@/lib/ask";
 import type { CardItem } from "@/lib/card";
 import { askFlow, presetFlow, type FlowEntry } from "@/lib/flow";
 import type { Conclusion } from "@/lib/rules";
@@ -22,6 +23,8 @@ type VehicleInfo = {
 type Message =
   | { role: "user"; text: string }
   | { role: "ai"; answer: Answer }
+  // 技師頁的模擬：一定帶「模擬」標籤和答案檢查結果，不會看起來像真的回答。
+  | { role: "simulated"; result: AskResult }
   | { role: "error"; text: string };
 
 const BADGE: Record<Conclusion, string> = {
@@ -44,6 +47,8 @@ export default function DecisionCard(props: {
   others: { id: string; owner: string }[];
   // 技師頁傳入：流程紀錄併到技師頁自己的面板。沒傳時卡片頁自己顯示面板。
   onFlow?: (entry: FlowEntry) => void;
+  // 技師頁傳入：顯示「模擬：AI 回答被竄改」按鈕。車主看的卡片頁不顯示。
+  simulate?: boolean;
 }) {
   const { vehicle, items, presets, sourceLabels, others } = props;
   const [entries, setEntries] = useState<FlowEntry[]>([]);
@@ -79,7 +84,13 @@ export default function DecisionCard(props: {
         行車摘要｜{vehicle.drivingNote}
       </p>
 
-      <Chat vehicleId={vehicle.id} presets={presets} sourceLabels={sourceLabels} onFlow={onFlow} />
+      <Chat
+        vehicleId={vehicle.id}
+        presets={presets}
+        sourceLabels={sourceLabels}
+        onFlow={onFlow}
+        simulate={props.simulate}
+      />
 
       {!props.onFlow && (
         <div className="mt-8 px-4">
@@ -193,6 +204,7 @@ function Chat(props: {
   presets: Preset[];
   sourceLabels: Record<string, string>;
   onFlow: (entry: FlowEntry) => void;
+  simulate?: boolean;
 }) {
   const { vehicleId, presets, sourceLabels, onFlow } = props;
   const [messages, setMessages] = useState<Message[]>([]);
@@ -230,6 +242,25 @@ function Chat(props: {
       const text = "連線失敗，請點上面的常見問題，或請專員來說明";
       push({ role: "error", text });
       onFlow(askFlow(question, 0, { error: text }, sourceLabels));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function askSimulated() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vehicleId, simulate: "tampered" }),
+      });
+      const data = await res.json();
+      push(res.ok ? { role: "simulated", result: data } : { role: "error", text: data.error });
+      onFlow(askFlow(data.question ?? "模擬", res.status, data, sourceLabels));
+    } catch {
+      push({ role: "error", text: "連線失敗" });
     } finally {
       setBusy(false);
     }
@@ -275,6 +306,16 @@ function Chat(props: {
           送出
         </button>
       </form>
+
+      {props.simulate && (
+        <button
+          onClick={askSimulated}
+          disabled={busy}
+          className="mt-3 w-full rounded-lg border-2 border-dashed border-defer bg-defer-soft py-2 text-sm font-semibold text-defer disabled:opacity-40"
+        >
+          模擬：AI 回答被竄改（展示答案檢查，不呼叫 AI）
+        </button>
+      )}
     </section>
   );
 }
@@ -295,9 +336,19 @@ function Bubble({ message, sourceLabels }: { message: Message; sourceLabels: Rec
       </div>
     );
   }
-  const { answer, sources, escalate } = message.answer;
+  const simulated = message.role === "simulated" ? message.result : undefined;
+  const { answer, sources, escalate } = simulated ?? (message as { answer: Answer }).answer;
   return (
-    <div className="max-w-[90%] rounded-2xl rounded-bl-sm bg-white px-3 py-2">
+    <div
+      className={`max-w-[90%] rounded-2xl rounded-bl-sm bg-white px-3 py-2 ${simulated ? "border-2 border-dashed border-defer" : ""}`}
+    >
+      {simulated && (
+        <p className="mb-2 rounded bg-defer-soft px-2 py-1 text-sm font-semibold text-defer">
+          模擬｜AI 回答被竄改（未呼叫 AI）→ 答案檢查：
+          {simulated.checkResult === "攔下" ? `攔下（${simulated.blockedReason}）` : "通過"}
+          {simulated.checkResult === "攔下" && "。以下是改顯示的替代回答："}
+        </p>
+      )}
       <p>{answer}</p>
       {sources.length > 0 && (
         <ul className="mt-2 flex flex-wrap gap-1">

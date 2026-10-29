@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { ask } from "@/lib/ask";
+import { ask, simulateTampered } from "@/lib/ask";
 import { callGemini } from "@/lib/gemini";
 import { findVehicle } from "@/lib/vehicles";
 
@@ -23,6 +23,15 @@ export async function POST(request: NextRequest) {
   const question = String(body?.question ?? "").trim();
 
   if (!vehicle) return Response.json({ error: "找不到這台車" }, { status: 404 });
+
+  // 技師頁的「模擬：AI 回答被竄改」：不呼叫 AI，回傳結果標 simulated。
+  if (body?.simulate === "tampered") {
+    try {
+      return Response.json(await simulateTampered(vehicle));
+    } catch (err) {
+      return Response.json({ error: (err as Error).message }, { status: 400 });
+    }
+  }
   if (!question || question.length > MAX_QUESTION_LENGTH) {
     return Response.json({ error: `問題請在 ${MAX_QUESTION_LENGTH} 字以內` }, { status: 400 });
   }

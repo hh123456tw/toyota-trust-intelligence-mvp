@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { sourceLabel } from "./answers";
-import { ask } from "./ask";
+import { ask, simulateTampered } from "./ask";
 import { findVehicle } from "./vehicles";
 
 const wang = findVehicle("wang")!;
@@ -200,6 +200,7 @@ describe("ask：流程面板的資料清單", () => {
       "item:air-filter",
       "item:wiper",
       "item:tire",
+      "trend:tire",
       "driving",
       "doc:checkout",
     ]);
@@ -279,5 +280,30 @@ describe("ask：原廠文件片段", () => {
     const r = await ask(wang, "電瓶多久要檢查一次？", fakeAI(reply("手冊說每半年檢查一次。", { sources: ["doc:battery"] })));
     expect(r.checkResult).toBe("攔下");
     expect(r.blockedReason).toContain("doc:battery");
+  });
+});
+
+describe("simulateTampered：展示用的竄改回答", () => {
+  it("王先生：竄改回答說煞車可延到下個月 → 真的答案檢查攔下，顯示替代回答，不呼叫真 AI", async () => {
+    const r = await simulateTampered(wang);
+    expect(r.simulated).toBe(true);
+    expect(r.question).toBe("前煞車來令片可以下個月再換嗎？");
+    expect(r.checkResult).toBe("攔下");
+    expect(r.blockedReason).toBe("前煞車來令片是必須更換，回答卻說可以延後");
+    expect(r.answer).not.toContain("撐到下個月");
+    expect(r.answer).toContain("不建議延後");
+    expect(r.escalate).toBe(true);
+    expect(r.trace.aiSources).toEqual(["item:brake-pad"]);
+  });
+
+  it("對照車（林小姐）：竄改的是必須更換的輪胎", async () => {
+    const r = await simulateTampered(lin);
+    expect(r.checkResult).toBe("攔下");
+    expect(r.blockedReason).toBe("輪胎胎紋是必須更換，回答卻說可以延後");
+  });
+
+  it("沒有必須更換的項目 → 不產生模擬", async () => {
+    const ok = { ...wang, items: wang.items.filter((i) => i.id !== "brake-pad") };
+    await expect(simulateTampered(ok)).rejects.toThrow();
   });
 });

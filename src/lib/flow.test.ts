@@ -73,6 +73,31 @@ describe("askFlow：追問的流程紀錄", () => {
   });
 });
 
+describe("askFlow：模擬的竄改回答", () => {
+  const simulated = {
+    ...passed,
+    answer: "替代回答",
+    checkResult: "攔下" as const,
+    blockedReason: "前煞車來令片是必須更換，回答卻說可以延後",
+    simulated: true as const,
+    question: "前煞車來令片可以下個月再換嗎？",
+  };
+
+  it("標題和步驟標明模擬、AI 回答是模擬的，AI 呼叫 0 次，仍顯示真的檢查結果", () => {
+    const e = askFlow(simulated.question, 200, simulated, labels);
+    expect(e.title).toBe("模擬：AI 回答被竄改（前煞車來令片可以下個月再換嗎？）");
+    expect(e.steps[0]).toBe("AI 回答：模擬的竄改回答，沒有呼叫 AI");
+    expect(e.steps.at(-1)).toBe("答案檢查：攔下（前煞車來令片是必須更換，回答卻說可以延後）");
+    expect(e.aiCalls).toBe(0);
+  });
+
+  it("真的追問不會被標成模擬", () => {
+    const e = askFlow("x", 200, passed, labels);
+    expect(e.title).not.toContain("模擬");
+    expect(e.steps.join()).not.toContain("模擬");
+  });
+});
+
 describe("presetFlow：常見問題", () => {
   it("顯示預寫回答與來源，AI 呼叫 0 次", () => {
     const e = presetFlow({ question: "電瓶？", answer: { answer: "a", sources: ["driving"], escalate: false } }, labels);
