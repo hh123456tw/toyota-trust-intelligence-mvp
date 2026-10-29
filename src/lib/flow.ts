@@ -68,6 +68,9 @@ export function summaryFlow(status: number, data: SummaryResult | { error: strin
   };
 }
 
+// 流程面板要標紅的步驟：答案檢查攔下。只認步驟開頭，引用文字或問題裡出現「攔下」不算。
+export const isBlockedStep = (step: string) => /^答案檢查：攔下/.test(step);
+
 // 交車說明：由規則引擎結論和車主選擇組成，不呼叫 AI。
 export function handoverFlow(h: Handover): FlowEntry {
   const names = (xs: string[]) => (xs.length ? xs.join("、") : "無");

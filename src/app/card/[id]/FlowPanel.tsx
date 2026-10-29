@@ -1,6 +1,6 @@
 "use client";
 
-import type { FlowEntry } from "@/lib/flow";
+import { isBlockedStep, type FlowEntry } from "@/lib/flow";
 import Icon from "../../Icon";
 
 // 流程面板：讓評審看見每一步在做什麼。
@@ -36,7 +36,7 @@ export default function FlowPanel({ entries }: { entries: FlowEntry[] }) {
                 </div>
                 <ol className="mt-2 space-y-1 border-l-2 border-line pl-3 text-sm text-muted">
                   {e.steps.map((s, j) => (
-                    <li key={j} className={/攔下/.test(s) ? "font-semibold text-must" : ""}>
+                    <li key={j} className={isBlockedStep(s) ? "font-semibold text-must" : ""}>
                       {s}
                     </li>
                   ))}

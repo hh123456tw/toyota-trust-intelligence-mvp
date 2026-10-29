@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ComponentProps } from "react";
+import { useMemo, useState, type ComponentProps } from "react";
 import { cardItems, withMeasurement } from "@/lib/card";
 import { staffLine } from "@/lib/handover";
 import type { Conclusion } from "@/lib/rules";
@@ -25,6 +25,8 @@ export default function Workbench(props: {
 }) {
   const [items, setItems] = useState(props.items);
   const [entries, setEntries] = useState<FlowEntry[]>([]);
+  // 只在量測值改變時重算；DecisionCard 用 items 是否換了來判斷要不要清掉舊選擇。
+  const cards = useMemo(() => cardItems(items), [items]);
 
   const conclusionOf = (list: InspectionItem[], id: string) =>
     cardItems(list).find((i) => i.id === id)!.verdict.conclusion;
@@ -49,8 +51,8 @@ export default function Workbench(props: {
 
   return (
     // record-scale：整頁放大 125%，1920×1080 錄影時字才看得清楚（見 globals.css）。
-    <div className="record-scale grid h-screen grid-cols-[minmax(0,46rem)_auto] justify-center gap-10 bg-paper p-6">
-      <section className="min-w-0 space-y-4 overflow-y-auto pr-1">
+    <div className="record-scale grid gap-6 bg-paper p-4 lg:h-screen lg:grid-cols-[minmax(0,46rem)_auto] lg:justify-center lg:gap-10 lg:p-6">
+      <section className="min-w-0 space-y-4 lg:overflow-y-auto lg:pr-1">
         <div className="flex items-center gap-3 rounded-2xl border-l-4 border-brand bg-ink p-5 text-white">
           <span className="grid size-12 place-items-center rounded-xl bg-white/10">
             <Icon name="wrench" className="size-6" />
@@ -105,13 +107,13 @@ export default function Workbench(props: {
       </section>
 
       {/* 手機外框：讓錄影畫面看得出這是車主手機上的樣子。 */}
-      <section className="flex min-h-0 flex-col items-center">
+      <section className="flex min-h-0 min-w-0 flex-col items-center">
         <p className="mb-2 text-sm font-medium text-muted">車主手機畫面</p>
-        <div className="min-h-0 w-[25rem] flex-1 overflow-hidden rounded-[2.75rem] border-[10px] border-ink bg-ink shadow-2xl">
+        <div className="h-[80vh] min-h-0 w-full max-w-[25rem] flex-1 overflow-hidden lg:h-auto rounded-[2.75rem] border-[10px] border-ink bg-ink shadow-2xl">
           <div className="h-full overflow-y-auto rounded-[2rem] bg-paper">
             <DecisionCard
               {...props.card}
-              items={cardItems(items)}
+              items={cards}
               simulate
               onFlow={(e) => setEntries((prev) => [...prev, e])}
             />

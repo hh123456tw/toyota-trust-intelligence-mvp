@@ -25,7 +25,16 @@ describe("withRetry：實測遇到暫時錯誤才重試", () => {
   });
 
   it("反例：格式錯誤、400、金額 429 元這類字樣都不重試，直接丟錯", async () => {
-    for (const msg of ["AI 回應格式無法解析", "Gemini 400: INVALID_ARGUMENT", "回答提到的金額 NT$4290 不在卡片上"]) {
+    for (const msg of [
+      "AI 回應格式無法解析",
+      "Gemini 400: INVALID_ARGUMENT",
+      "回答提到的金額 NT$4290 不在卡片上",
+      // 內文碰巧含 unavailable、RESOURCE_EXHAUSTED，但狀態碼是永久錯誤。
+      "Gemini 403: model unavailable in your region",
+      "Gemini 404: RESOURCE_EXHAUSTED is not a model",
+      // 近似但不是 429 的狀態碼。
+      "Gemini 4290: weird",
+    ]) {
       const fn = vi.fn().mockRejectedValue(new Error(msg));
       await expect(withRetry(fn)).rejects.toThrow(msg);
       expect(fn).toHaveBeenCalledTimes(1);

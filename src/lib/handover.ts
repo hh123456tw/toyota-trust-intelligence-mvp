@@ -8,9 +8,15 @@ export type Choice = "today" | "defer";
 // 車主選擇的鍵：項目＋結論。技師改值讓結論改變後，舊的選擇就對不上，不會被沿用。
 export const choiceKey = (item: CardItem) => `${item.id}:${item.verdict.conclusion}`;
 
+// 結論改變時刪掉該項的舊選擇；否則 60% → 80% → 60% 這種往返會讓舊選擇復活。
+export function pruneChoices(choices: Record<string, Choice>, items: CardItem[]): Record<string, Choice> {
+  const live = new Set(items.map(choiceKey));
+  return Object.fromEntries(Object.entries(choices).filter(([k]) => live.has(k)));
+}
+
 export type Handover = {
-  // 今天完成：定期保養項目、必須更換、車主選今天換的可延後項目。
-  done: { name: string; note: string }[];
+  // 今天完成：定期保養項目（沒有 item）、必須更換、車主選今天換的可延後項目。
+  done: { name: string; note: string; item?: CardItem }[];
   // 今天延後：可延後且車主選延後或沒有選。
   deferred: { item: CardItem; months: number }[];
   // 目前不用換：結論為正常的項目。
@@ -32,8 +38,8 @@ export function handover(
   return {
     done: [
       ...routine.map((name) => ({ name, note: "定期保養" })),
-      ...by("必須更換").map((i) => ({ name: i.name, note: "已低於安全門檻，今天更換" })),
-      ...today.map((i) => ({ name: i.name, note: "車主選擇今天一併更換" })),
+      ...by("必須更換").map((item) => ({ name: item.name, note: "已低於安全門檻，今天更換", item })),
+      ...today.map((item) => ({ name: item.name, note: "車主選擇今天一併更換", item })),
     ],
     deferred,
     fine: by("正常"),

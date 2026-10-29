@@ -26,7 +26,12 @@ export default function HandoverView({
 
       <Block title="今天完成" icon="check" tone="text-ok bg-ok-soft">
         {h.done.map((d) => (
-          <Line key={d.name} title={d.name} note={d.note} />
+          <Line
+            key={d.name}
+            title={d.name}
+            note={d.item ? `${d.item.verdict.reason}${d.note}。` : d.note}
+            meta={d.item && `規則 ${RULE_VERSION}・${technician}・${d.item.measuredAt}`}
+          />
         ))}
       </Block>
 

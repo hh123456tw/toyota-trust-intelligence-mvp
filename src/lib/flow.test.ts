@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { cardItems } from "./card";
-import { askFlow, handoverFlow, presetFlow, staffConfirmFlow, summaryFlow } from "./flow";
+import { askFlow, handoverFlow, isBlockedStep, presetFlow, staffConfirmFlow, summaryFlow } from "./flow";
 import { handover } from "./handover";
 import { findVehicle } from "./vehicles";
 
@@ -146,5 +146,18 @@ describe("handoverFlow、staffConfirmFlow（#14 #18）", () => {
 
   it("專員確認：AI 呼叫 0 次", () => {
     expect(staffConfirmFlow("X").aiCalls).toBe(0);
+  });
+});
+
+describe("isBlockedStep：流程面板標紅", () => {
+  it("答案檢查攔下的步驟標紅", () => {
+    expect(isBlockedStep("答案檢查：攔下（前煞車來令片是必須更換，回答卻說可以延後）")).toBe(true);
+    expect(isBlockedStep("答案檢查：攔下（摘要漏了可延後的電瓶），改顯示規則版摘要")).toBe(true);
+  });
+
+  it("反例：未攔下、通過、問題或引用文字含「攔下」都不標紅", () => {
+    for (const s of ["答案檢查：未攔下", "答案檢查：通過", "理解的問題：會不會被攔下？", "說法（規則產生）：攔下來的車今天處理"]) {
+      expect(isBlockedStep(s)).toBe(false);
+    }
   });
 });

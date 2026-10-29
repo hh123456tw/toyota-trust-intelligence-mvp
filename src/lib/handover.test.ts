@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { cardItems, withMeasurement } from "./card";
-import { choiceKey, handover, staffLine, type Choice } from "./handover";
+import { choiceKey, handover, pruneChoices, staffLine, type Choice } from "./handover";
 import { findVehicle } from "./vehicles";
 
 const wang = findVehicle("wang")!;
@@ -57,5 +57,45 @@ describe("staffLine：專員建議說法", () => {
 
   it("林小姐：輪胎今天處理，其餘不用換", () => {
     expect(staffLine(cardItems(lin.items))).toBe("今天優先處理輪胎胎紋。前煞車來令片、電瓶、空氣濾網目前不用換。");
+  });
+});
+
+describe("pruneChoices 與殘留選擇（Codex review）", () => {
+  it("往返：60% 選今天換 → 80% 正常 → 60%，舊選擇不復活", () => {
+    let choices: Record<string, Choice> = { [choiceKey(battery)]: "today" };
+    choices = pruneChoices(choices, cardItems(withMeasurement(wang.items, "battery", 80)));
+    expect(choices).toEqual({});
+    const back = cardItems(withMeasurement(wang.items, "battery", 60));
+    expect(names(run(pruneChoices(choices, back), back).done)).not.toContain("電瓶");
+  });
+
+  it("結論沒變的選擇保留", () => {
+    const choices = { [choiceKey(battery)]: "defer" as Choice };
+    expect(pruneChoices(choices, cardItems(withMeasurement(wang.items, "battery", 65)))).toEqual(choices);
+  });
+
+  it("反例：正常項目帶殘留的「今天換」也不會進今天完成；必須更換帶殘留的「延後」也不會被延後", () => {
+    const filter = items.find((i) => i.id === "air-filter")!;
+    const brake = items.find((i) => i.id === "brake-pad")!;
+    const h = run({ [`${filter.id}:可延後`]: "today", [choiceKey(filter)]: "today", [choiceKey(brake)]: "defer" });
+    expect(names(h.done)).not.toContain("空氣濾網");
+    expect(names(h.done)).toContain("前煞車來令片");
+    expect(h.deferred.map((d) => d.item.id)).not.toContain("brake-pad");
+  });
+
+  it("今天完成的檢查項目附判定依據用的項目資料；定期保養項目沒有", () => {
+    const done = run().done;
+    expect(done.find((d) => d.name === "前煞車來令片")!.item!.measuredAt).toBe("10:42");
+    expect(done.find((d) => d.name === "機油與機油芯")!.item).toBeUndefined();
+  });
+});
+
+describe("staffLine 邊界", () => {
+  it("沒有可延後、沒有正常項目時，不出現對應句子", () => {
+    const allMust = items.filter((i) => i.verdict.conclusion === "必須更換");
+    expect(staffLine(allMust)).toBe("今天優先處理前煞車來令片。");
+    const allFine = items.filter((i) => i.verdict.conclusion === "正常");
+    expect(staffLine(allFine)).toBe("空氣濾網、雨刷、輪胎胎紋目前不用換。");
+    expect(staffLine([])).toBe("");
   });
 });

@@ -6,7 +6,7 @@ import type { Answer, Preset } from "@/lib/answers";
 import type { AskResult } from "@/lib/ask";
 import type { CardItem, Gauge } from "@/lib/card";
 import { askFlow, handoverFlow, presetFlow, type FlowEntry } from "@/lib/flow";
-import { choiceKey, handover, type Choice } from "@/lib/handover";
+import { choiceKey, handover, pruneChoices, type Choice } from "@/lib/handover";
 import type { Conclusion } from "@/lib/rules";
 import { formatPrice, RULE_VERSION } from "@/lib/vehicles";
 import Icon, { ITEM_ICON, type IconName } from "../../Icon";
@@ -59,6 +59,12 @@ export default function DecisionCard(props: {
   const count = (c: Conclusion) => items.filter((i) => i.verdict.conclusion === c).length;
   // 車主在卡片上的選擇，交車說明要用，所以放在這一層。
   const [choices, setChoices] = useState<Record<string, Choice>>({});
+  // 技師改值後（items 換了）立刻清掉結論已改變的選擇，在 render 中調整，不用 effect。
+  const [seenItems, setSeenItems] = useState(items);
+  if (items !== seenItems) {
+    setSeenItems(items);
+    setChoices((prev) => pruneChoices(prev, items));
+  }
   const [delivered, setDelivered] = useState(false);
   const topRef = useRef<HTMLElement>(null);
   const summary = handover(items, choices, vehicle.routine, vehicle.nextServiceKm);
@@ -377,7 +383,7 @@ function Progress({ steps, eta }: { steps: { stage: string; time?: string }[]; e
       </div>
       <ol className="mt-3 flex">
         {steps.map((s, i) => (
-          <li key={s.stage} className="relative flex-1 text-center">
+          <li key={s.stage} aria-current={i === current ? "step" : undefined} className="relative flex-1 text-center">
             {i > 0 && (
               <span
                 className={`absolute top-[7px] right-1/2 h-0.5 w-full ${i <= current ? "bg-ok" : "bg-line"}`}
@@ -389,7 +395,10 @@ function Progress({ steps, eta }: { steps: { stage: string; time?: string }[]; e
                 i < current ? "border-ok bg-ok" : i === current ? "border-brand bg-white ring-4 ring-brand/20" : "border-line bg-white"
               }`}
             />
-            <p className={`mt-1.5 text-[11px] leading-tight ${i === current ? "font-bold" : "text-muted"}`}>{s.stage}</p>
+            <p className={`mt-1.5 text-[11px] leading-tight ${i === current ? "font-bold" : "text-muted"}`}>
+              {s.stage}
+              {i === current && <span className="sr-only">（目前階段）</span>}
+            </p>
             <p className="text-[11px] text-muted">{s.time ?? "—"}</p>
           </li>
         ))}
@@ -411,14 +420,27 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 // 刻度條：把量測值放在「必須更換／可延後／正常」三個區間上，讓車主一眼看到離門檻多遠。
 function GaugeBar({ gauge, conclusion }: { gauge: Gauge; conclusion: Conclusion }) {
   const { value, previous, unit, mustBelow, deferBelow } = gauge;
-  const max = unit === "%" ? 100 : Math.max(deferBelow * 1.6, value * 1.15, (previous ?? 0) * 1.15);
+  // 刻度上限最多到建議值的 2.5 倍：技師輸入離譜大值（例如 100 mm）時門檻文字才不會擠在一起，超出的點停在最右邊。
+  const max =
+    unit === "%" ? 100 : Math.min(deferBelow * 2.5, Math.max(deferBelow * 1.6, value * 1.15, (previous ?? 0) * 1.15));
   const pct = (v: number) => Math.min(100, Math.max(0, (v / max) * 100));
   const must = mustBelow !== undefined ? pct(mustBelow) : 0;
   const defer = pct(deferBelow);
   const look = LOOK[conclusion];
 
   return (
-    <div className="mt-4" role="img" aria-label={`本次量測 ${value} ${unit}`}>
+    <div
+      className="mt-4"
+      role="img"
+      aria-label={[
+        `本次量測 ${value} ${unit}`,
+        previous !== undefined && `半年前 ${previous} ${unit}`,
+        mustBelow !== undefined && `安全門檻 ${mustBelow} ${unit}`,
+        `建議值 ${deferBelow} ${unit}`,
+      ]
+        .filter(Boolean)
+        .join("，")}
+    >
       <div className="relative h-7">
         <span
           className={`absolute bottom-0 -translate-x-1/2 rounded-md px-1.5 py-0.5 text-xs font-bold whitespace-nowrap text-white ${look.dot}`}

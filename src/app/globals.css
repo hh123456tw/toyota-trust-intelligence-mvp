@@ -26,8 +26,11 @@ body {
 }
 
 /* 技師頁是 1920×1080 錄影用：整體放大，影片縮進簡報後字仍看得清楚。 */
-:root:has(.record-scale) {
-  font-size: 125%;
+/* 只在桌面寬度放大；手機開技師頁時改成單欄，不會水平捲動。 */
+@media (min-width: 1024px) {
+  :root:has(.record-scale) {
+    font-size: 125%;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

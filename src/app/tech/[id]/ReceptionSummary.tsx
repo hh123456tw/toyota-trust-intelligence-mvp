@@ -60,8 +60,9 @@ export default function ReceptionSummary(props: {
         </button>
       </div>
       {props.edited && <p className="text-sm text-muted">技師已改值：摘要只依原始量測產生，展示時請先產生摘要再改值。</p>}
-      {result && "error" in result && <p className="text-sm text-muted">{result.error}</p>}
-      {result && !("error" in result) && (
+      {/* 改值後摘要和建議說法都依舊資料，不再顯示，也不能確認。 */}
+      {result && !props.edited && "error" in result && <p className="text-sm text-muted">{result.error}</p>}
+      {result && !props.edited && !("error" in result) && (
         <div className="rounded-xl bg-paper p-3">
           <p
             className={`mb-2 flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-semibold ${result.checkResult === "攔下" ? "bg-defer-soft text-defer" : "bg-ok-soft text-ok"}`}
