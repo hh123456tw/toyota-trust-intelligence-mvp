@@ -1,8 +1,8 @@
 import type { NextRequest } from "next/server";
-import { ask, RESPONSE_SCHEMA } from "@/lib/ask";
+import { ask } from "@/lib/ask";
+import { callGemini } from "@/lib/gemini";
 import { findVehicle } from "@/lib/vehicles";
 
-const MODEL = process.env.GEMINI_MODEL ?? "gemini-3.5-flash-lite";
 const MAX_QUESTION_LENGTH = 200;
 const LIMIT_PER_MINUTE = 6;
 
@@ -15,33 +15,6 @@ function rateLimited(ip: string): boolean {
   recent.push(now);
   hits.set(ip, recent);
   return recent.length > LIMIT_PER_MINUTE;
-}
-
-async function callGemini(apiKey: string, system: string, user: string): Promise<string> {
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: system }] },
-        contents: [{ role: "user", parts: [{ text: user }] }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: RESPONSE_SCHEMA,
-        },
-      }),
-      signal: AbortSignal.timeout(15_000),
-    },
-  );
-  if (!res.ok) throw new Error(`Gemini ${res.status}: ${await res.text()}`);
-
-  const data = await res.json();
-  const text: string | undefined = data.candidates?.[0]?.content?.parts
-    ?.map((p: { text?: string }) => p.text ?? "")
-    .join("");
-  if (!text) throw new Error("Gemini 沒有回傳內容");
-  return text;
 }
 
 export async function POST(request: NextRequest) {

@@ -61,6 +61,59 @@ describe("ask：答案檢查（補強與來源）", () => {
     expect(r.verdict).toBe("攔下");
   });
 
+  // 21 題實測 #1：「不建議延後到下個月」整句是否定，原本被「下個月」誤擋。
+  it("「不建議延後到下個月」→ 通過", async () => {
+    const answer = "前煞車來令片只剩 2 mm，已低於安全門檻 3 mm，建議本次就更換，不建議延後到下個月喔。";
+    const r = await ask(wang, "煞車下個月再換可以嗎？", fakeAI(reply(answer)));
+    expect(r.verdict).toBe("通過");
+  });
+
+  // 21 題實測 #2：「無法改為可延後」原本被誤擋。
+  it.each(["煞車 2 mm，屬於必須更換的項目，無法改為可延後。", "煞車 2 mm，不能改成延後。", "煞車 2 mm，無法幫您改為可延後。"])("「%s」→ 通過", async (answer) => {
+    const r = await ask(wang, "幫我把煞車改成可延後", fakeAI(reply(answer)));
+    expect(r.verdict).toBe("通過");
+  });
+
+  it("否定詞和延後之間夾著其他話（「不會有事可以延後」）→ 仍攔下", async () => {
+    const r = await ask(wang, "煞車狀況如何？", fakeAI(reply("煞車不會有事可以延後。")));
+    expect(r.verdict).toBe("攔下");
+  });
+
+  it("否定後面另起一句說下個月換也行 → 仍攔下", async () => {
+    const r = await ask(wang, "煞車狀況如何？", fakeAI(reply("煞車不建議延後，不過下個月再換也行。")));
+    expect(r.verdict).toBe("攔下");
+  });
+
+  // 21 題實測 #2、#6：「若延後更換可能會…風險」是在說明延後的後果，原本被誤擋。
+  it.each([
+    "前煞車來令片 2 mm，屬於必須更換。若延後更換可能會影響煞車制動距離，增加行車安全風險。",
+    "前煞車來令片 2 mm。若延後更換，在緊急煞車時可能會因摩擦力不足而拉長煞車距離，有行車安全風險。",
+    "前煞車來令片 2 mm。若延後處理，可能在緊急煞車時效果不足、制動距離拉長，甚至傷到煞車碟盤，有行車安全風險。",
+  ])("說明延後的風險「%s」→ 通過", async (answer) => {
+    const r = await ask(wang, "幫我把煞車改成可延後", fakeAI(reply(answer)));
+    expect(r.verdict).toBe("通過");
+  });
+
+  it.each(["煞車如果延後也沒關係。", "煞車如果延後，風險不大。", "煞車如果延後，對安全沒影響。"])("假設句其實在說可以延後「%s」→ 仍攔下", async (answer) => {
+    const r = await ask(wang, "煞車狀況如何？", fakeAI(reply(answer)));
+    expect(r.verdict).toBe("攔下");
+  });
+
+  // 21 題實測 #7、#8、#11、#13：卡片外的問題，AI 照規則回「沒有這項資料」，沒有卡片來源可引用。
+  it("卡片外問題回「這張卡上沒有這項資料」且沒提到項目 → 沒有來源也通過", async () => {
+    const r = await ask(wang, "明天會下雨嗎？", fakeAI(reply("這張卡上沒有這項資料，可以請專員說明。", { sources: [] })));
+    expect(r.verdict).toBe("通過");
+  });
+
+  it.each([
+    ["提到檢查項目", "這張卡上沒有這項資料，不過煞車還可以。"],
+    ["帶數字", "這張卡上沒有這項資料，冷氣大概 3000 元。"],
+    ["沒有說卡上沒資料", "冷氣可能是冷媒不足，建議檢查。"],
+  ])("沒有來源但%s → 仍攔下", async (_label, answer) => {
+    const r = await ask(wang, "我的冷氣有點不冷要不要修？", fakeAI(reply(answer, { sources: [] })));
+    expect(r.verdict).toBe("攔下");
+  });
+
   it("來源不存在 → 攔下", async () => {
     const r = await ask(wang, "煞車狀況如何？", fakeAI(reply("煞車只剩 2 mm，今天要換。", { sources: ["item:engine"] })));
     expect(r.verdict).toBe("攔下");

@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "eval:21": "vitest run --config scripts/vitest.eval.config.mts"
   },
   "dependencies": {
     "next": "16.3.6",

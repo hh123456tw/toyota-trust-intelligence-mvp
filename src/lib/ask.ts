@@ -22,12 +22,14 @@ export const DEFER_WORDS = /延後|晚點|下次|下個月|再換|先不換|不�
 // 推銷類字詞：對「正常」項目不能出現。
 const UPSELL_WORDS = /建議.{0,4}換|需要.{0,2}換|最好.{0,4}換|今天換|應該.{0,2}換|該換了|順便換/;
 // 否定前綴：「不建議延後」「無法延後」「不需要換」這類句子是正確說法，先移除再比對。
-const NEGATION = "(?:不建議|不需要|不用|不必|不能|無法|無須|無需|不可以?|不宜|不應該?|不要|別|不)再?";
+const NEGATION = "(?:不建議|不需要|不用|不必|不能|無法|無須|無需|不可以?|不宜|不應該?|不要|別|不)再?(?:幫你|幫您|替你|替您)?(?:改為|改成|變成)?可?";
+
+const NO_DATA = "這張卡上沒有這項資料";
 
 const SYSTEM_PROMPT = `你是和泰汽車服務廠的維修說明助理，用繁體中文、口語、簡短（150 字內）回答車主的追問。
 
 規則：
-1. 只能根據提供的卡片資料和原廠文件片段回答。資料裡沒有的事，就說「這張卡上沒有這項資料，可以請專員說明」。
+1. 只能根據提供的卡片資料和原廠文件片段回答。資料裡沒有的事，就說「${NO_DATA}，可以請專員說明」。
 2. 每個項目的「結論」由規則引擎決定。你只能解釋，不能改變、放寬或質疑結論，也不能給出價格。
 3. 車主想延後或不處理「必須更換」的項目，或問到任何行車安全風險時：先引用量測解釋理由，再把 escalate 設為 true。
 4. sources 只能填卡片資料或原廠文件片段裡出現的「來源代號」，列出你回答時用到的每一個。
@@ -77,9 +79,28 @@ function parseReply(text: string): AIReply {
   return r;
 }
 
+// 否定句後面緊接的時間（「不建議延後到下個月」）也屬於同一個否定，一起移除。
+const NEGATED_TIME = "(?:到|至|等到)?(?:下個月|下次保養|下次)?";
+
+// 假設句說明後果（「若延後更換可能會拉長煞車距離」）是在講風險，不是說可以延後。
+// 同一句有安撫字眼（「風險不大」「沒影響」）就不算，照樣檢查。
+const IF_THEN_RISK = "(?:若|如果|要是|假如)(?:WORDS).*?(?:風險|危險|變長|拉長|磨傷|影響)";
+const REASSURE = /不大|不高|很低|較低|沒有?(?:關係|問題|影響|風險|危險)|還好|也可以|也行|無妨/;
+
 function hasWord(sentence: string, words: RegExp): boolean {
-  const stripped = sentence.replace(new RegExp(`${NEGATION}(?:${words.source})`, "g"), "");
+  let stripped = sentence.replace(new RegExp(`${NEGATION}(?:${words.source})${NEGATED_TIME}`, "g"), "");
+  if (!REASSURE.test(sentence)) stripped = stripped.replace(new RegExp(IF_THEN_RISK.replace("WORDS", words.source), "g"), "");
   return words.test(stripped);
+}
+
+// 卡片外的問題：AI 照規則 1 回「沒有這項資料」，沒提到任何項目也沒有數字，就不需要來源。
+function noDataReply(vehicle: Vehicle, reply: AIReply): boolean {
+  return (
+    reply.answer.includes(NO_DATA) &&
+    reply.itemConclusions.length === 0 &&
+    !/\d/.test(reply.answer) &&
+    !vehicle.items.some((i) => mentions(i, reply.answer))
+  );
 }
 
 // 答案檢查：回傳攔下理由；通過回傳 undefined。
@@ -100,7 +121,7 @@ function check(vehicle: Vehicle, reply: AIReply): string | undefined {
     }
   }
 
-  if (reply.sources.length === 0) return "回答沒有附來源";
+  if (reply.sources.length === 0 && !noDataReply(vehicle, reply)) return "回答沒有附來源";
   const missing = reply.sources.find((s) => sourceLabel(vehicle, s) === undefined);
   if (missing) return `來源 ${missing} 不存在`;
   return undefined;
