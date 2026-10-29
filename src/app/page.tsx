@@ -21,6 +21,9 @@ export default function Home() {
           </li>
         ))}
       </ul>
+      <Link href="/tech/wang" className="mt-6 block text-sm text-muted underline">
+        技師輸入頁＋決策卡（錄影用，1920×1080）
+      </Link>
       <p className="mt-8 text-xs text-muted">所有資料皆為展示用假資料。</p>
     </main>
   );
