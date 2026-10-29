@@ -33,6 +33,8 @@ export type InspectionItem = {
   visualOk?: boolean;
   technicianNote: string;
   photo: string;
+  // 示意費用（零件＋工資，NT$）。正式導入時來自服務廠工單報價。
+  price: number;
 };
 
 export type DrivingSummary = {
@@ -84,6 +86,7 @@ export const vehicles: Vehicle[] = [
         previousMeasurement: { value: 3.5, unit: "mm" },
         technicianNote: "左右兩側皆約 2 mm，已低於安全門檻 3 mm。",
         photo: "/photos/brake-pad.svg",
+        price: 3000,
       },
       {
         id: "battery",
@@ -95,6 +98,7 @@ export const vehicles: Vehicle[] = [
         previousMeasurement: { value: 72, unit: "%" },
         technicianNote: "電瓶測試器顯示健康度 60%，啟動正常。",
         photo: "/photos/battery.svg",
+        price: 3500,
       },
       {
         id: "air-filter",
@@ -105,6 +109,7 @@ export const vehicles: Vehicle[] = [
         visualOk: true,
         technicianNote: "濾網顏色正常，無明顯堵塞。",
         photo: "/photos/air-filter.svg",
+        price: 600,
       },
       {
         id: "wiper",
@@ -115,6 +120,7 @@ export const vehicles: Vehicle[] = [
         visualOk: true,
         technicianNote: "刮拭乾淨，膠條無裂痕。",
         photo: "/photos/wiper.svg",
+        price: 800,
       },
       {
         id: "tire",
@@ -126,6 +132,7 @@ export const vehicles: Vehicle[] = [
         previousMeasurement: { value: 6, unit: "mm" },
         technicianNote: "四輪胎紋約 5.2 mm，磨耗平均。",
         photo: "/photos/tire.svg",
+        price: 12000,
       },
     ],
   },
@@ -153,6 +160,7 @@ export const vehicles: Vehicle[] = [
         previousMeasurement: { value: 2.5, unit: "mm" },
         technicianNote: "右前輪胎紋約 1.4 mm，已低於安全門檻 1.6 mm。",
         photo: "/photos/tire.svg",
+        price: 3200,
       },
       {
         id: "brake-pad",
@@ -164,6 +172,7 @@ export const vehicles: Vehicle[] = [
         previousMeasurement: { value: 7.8, unit: "mm" },
         technicianNote: "左右兩側皆約 7 mm。",
         photo: "/photos/brake-pad.svg",
+        price: 3000,
       },
       {
         id: "battery",
@@ -175,6 +184,7 @@ export const vehicles: Vehicle[] = [
         previousMeasurement: { value: 94, unit: "%" },
         technicianNote: "電瓶測試器顯示健康度 91%。",
         photo: "/photos/battery.svg",
+        price: 3500,
       },
       {
         id: "air-filter",
@@ -185,6 +195,7 @@ export const vehicles: Vehicle[] = [
         visualOk: true,
         technicianNote: "濾網顏色正常，無明顯堵塞。",
         photo: "/photos/air-filter.svg",
+        price: 600,
       },
     ],
   },
@@ -196,6 +207,10 @@ export function trendText(item: InspectionItem): string | undefined {
   const now = item.measurement;
   if (!prev || !now) return undefined;
   return `半年前 ${prev.value} ${prev.unit} → 本次 ${now.value} ${now.unit}`;
+}
+
+export function formatPrice(price: number): string {
+  return `NT$${price.toLocaleString("en-US")}`;
 }
 
 export function findVehicle(id: string): Vehicle | undefined {

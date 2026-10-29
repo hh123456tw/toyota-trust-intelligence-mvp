@@ -41,10 +41,10 @@ describe("checkCase", () => {
     expect(checkCase(13, { ...ok, checkResult: "攔下", blockedReason: "回答沒有附來源" })).toContain("被攔下：回答沒有附來源");
   });
 
-  it("第 10 題：編造金額 → 失敗；只說卡上沒有價格 → 通過", () => {
-    const priced = { ...ok, answer: "煞車大約 2500 元。" };
-    expect(checkCase(10, priced).join()).toMatch(/不該出現/);
-    expect(checkCase(10, { ...ok, answer: "這張卡上沒有價格資料，可以請專員說明。" })).toEqual([]);
+  it("第 10 題：照抄卡片價格並附煞車來源 → 通過；沒提價格 → 失敗", () => {
+    const priced = { ...ok, sources: ["item:brake-pad"] };
+    expect(checkCase(10, { ...priced, answer: "示意費用 NT$3,000，價格無法調整。" })).toEqual([]);
+    expect(checkCase(10, { ...priced, answer: "這張卡上沒有價格資料。" }).join()).toMatch(/應該出現/);
   });
 
   it("第 9 題：用英文回答 → 失敗；只有單位 mm → 通過", () => {

@@ -3,7 +3,7 @@
 import { cardContext, contextSources, presetsFor, sourceLabel, type Answer } from "./answers";
 import { findExcerpts, hasKeyword, OTHER_PARTS } from "./manual";
 import { judge, type Conclusion } from "./rules";
-import type { InspectionItem, Vehicle } from "./vehicles";
+import { formatPrice, type InspectionItem, type Vehicle } from "./vehicles";
 
 // AI 呼叫函式：收系統提示詞和使用者內容，回傳 AI 的原始 JSON 文字。
 export type CallAI = (system: string, user: string) => Promise<string>;
@@ -34,7 +34,7 @@ const SYSTEM_PROMPT = `你是和泰汽車服務廠的維修說明助理，用繁
 
 規則：
 1. 只能根據提供的卡片資料和原廠文件片段回答。資料裡沒有的事，就說「${NO_DATA}，可以請專員說明」。
-2. 每個項目的「結論」由規則引擎決定。你只能解釋，不能改變、放寬或質疑結論，也不能給出價格。
+2. 每個項目的「結論」由規則引擎決定。你只能解釋，不能改變、放寬或質疑結論。價格只能照抄卡片資料的「示意費用」，不能自己估價、打折或比價；卡片上沒有的價格就說沒有這項資料。
 3. 車主想延後或不處理「必須更換」的項目，或問到任何行車安全風險時：先引用量測解釋理由，再把 escalate 設為 true。
 4. sources 只能填卡片資料或原廠文件片段裡出現的「來源代號」，列出你回答時用到的每一個。
 5. itemConclusions 列出回答提到的每個檢查項目：id 填它的來源代號，conclusion 照抄卡片資料的結論。
@@ -118,6 +118,19 @@ function defers(clause: string, sentence: string, named: boolean): boolean {
   return named || !(IF.test(clause) && RISK.test(sentence) && !REASSURE.test(sentence));
 }
 
+// 金額：要有貨幣記號（NT$、$、新台幣）或單位（元、塊、塊錢）才算，里程、量測值、月數不會被當成金額。
+// 「塊」後面接來令片、煞車皮這類名詞時是量詞（「2 塊來令片」），不算。
+// shortcut: 只認阿拉伯數字（可帶千、萬），「三千元」這種國字數字抓不到；AI 改寫成國字時再補。
+const MONEY = /(?:NT\$|新台幣|\$)\s*(\d[\d,]*(?:\.\d+)?)\s*(千|萬)?|(\d[\d,]*(?:\.\d+)?)\s*(千|萬)?\s*(?:元|塊錢|塊(?![來煞片]))/g;
+
+export function amounts(text: string): number[] {
+  return [...text.matchAll(MONEY)].map((m) => {
+    const n = Number((m[1] ?? m[3]).replace(/,/g, ""));
+    const unit = m[2] ?? m[4];
+    return Math.round(n * (unit === "萬" ? 10000 : unit === "千" ? 1000 : 1));
+  });
+}
+
 // 答案檢查：回傳攔下理由；通過回傳 undefined。
 function check(vehicle: Vehicle, reply: AIReply): string | undefined {
   const conclusions = new Map(vehicle.items.map((i) => [`item:${i.id}`, judge(i).conclusion]));
@@ -145,6 +158,11 @@ function check(vehicle: Vehicle, reply: AIReply): string | undefined {
       }
     }
   }
+
+  // 金額只能是卡片上顯示的價格（必須更換、可延後的項目）。
+  const prices = new Set(vehicle.items.filter((i) => judge(i).conclusion !== "正常").map((i) => i.price));
+  const wrong = amounts(reply.answer).find((a) => !prices.has(a));
+  if (wrong !== undefined) return `回答提到的金額 ${formatPrice(wrong)} 不在卡片上`;
 
   if (reply.sources.length === 0 && !noDataReply(vehicle, reply)) return "回答沒有附來源";
   const missing = reply.sources.find((s) => sourceLabel(vehicle, s) === undefined);
@@ -207,7 +225,7 @@ export async function simulateTampered(vehicle: Vehicle): Promise<AskResult & { 
 const SUMMARY_PROMPT = `你是和泰汽車服務廠的接待助理。把卡片資料整理成服務專員 30 秒能講完的接待摘要，繁體中文，120 字內。
 
 規則：
-1. 只能根據卡片資料。每個項目的結論照抄卡片資料，不能改變或放寬，也不能給出價格。
+1. 只能根據卡片資料。每個項目的結論照抄卡片資料，不能改變或放寬。價格只能照抄卡片資料的「示意費用」。
 2. 順序：必須更換 → 可延後 → 正常。必須更換、可延後的項目一項一句，句子用句號分開。
 3. 必須更換的項目寫出量測值和安全門檻。可延後的項目寫出回廠提醒月數。
 4. 正常的項目合成一句，例如「X、Y 狀況正常，今天不用處理。」不要推銷。
@@ -220,8 +238,10 @@ export type SummaryResult = Answer & { checkResult: "通過" | "攔下"; blocked
 export function ruleSummary(vehicle: Vehicle): Answer {
   const by = (c: Conclusion) => vehicle.items.filter((i) => judge(i).conclusion === c);
   const lines = [
-    ...by("必須更換").map((i) => `${i.name}必須更換：${judge(i).reason}`),
-    ...by("可延後").map((i) => `${i.name}可延後：${judge(i).reason}可設定 ${judge(i).reminderMonths} 個月後回廠提醒。`),
+    ...by("必須更換").map((i) => `${i.name}必須更換：${judge(i).reason}示意費用 ${formatPrice(i.price)}。`),
+    ...by("可延後").map(
+      (i) => `${i.name}可延後：${judge(i).reason}示意費用 ${formatPrice(i.price)}，可設定 ${judge(i).reminderMonths} 個月後回廠提醒。`,
+    ),
   ];
   const ok = by("正常");
   if (ok.length) lines.push(`${ok.map((i) => i.name).join("、")}狀況正常，今天不用處理。`);

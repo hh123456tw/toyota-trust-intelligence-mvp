@@ -12,6 +12,8 @@ export type CardItem = {
   photo: string;
   technicianNote: string;
   trend?: string;
+  // 示意費用：只有必須更換、可延後的項目有。
+  price?: number;
   verdict: Verdict;
 };
 
@@ -19,14 +21,18 @@ const ORDER: Record<Conclusion, number> = { 必須更換: 0, 可延後: 1, 正�
 
 export function cardItems(items: InspectionItem[]): CardItem[] {
   return items
-    .map((item) => ({
-      id: item.id,
-      name: item.name,
-      photo: item.photo,
-      technicianNote: item.technicianNote,
-      trend: trendText(item),
-      verdict: judge(item),
-    }))
+    .map((item) => {
+      const verdict = judge(item);
+      return {
+        id: item.id,
+        name: item.name,
+        photo: item.photo,
+        technicianNote: item.technicianNote,
+        trend: trendText(item),
+        price: verdict.conclusion === "正常" ? undefined : item.price,
+        verdict,
+      };
+    })
     .sort((a, b) => ORDER[a.verdict.conclusion] - ORDER[b.verdict.conclusion]);
 }
 

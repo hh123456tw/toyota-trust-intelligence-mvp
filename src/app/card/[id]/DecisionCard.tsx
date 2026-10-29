@@ -7,6 +7,7 @@ import type { AskResult } from "@/lib/ask";
 import type { CardItem } from "@/lib/card";
 import { askFlow, presetFlow, type FlowEntry } from "@/lib/flow";
 import type { Conclusion } from "@/lib/rules";
+import { formatPrice } from "@/lib/vehicles";
 import FlowPanel from "./FlowPanel";
 
 type VehicleInfo = {
@@ -141,6 +142,12 @@ function ItemCard({ item }: { item: CardItem }) {
 
       <p className="mt-2 text-sm">{reason}</p>
       {item.trend && <p className="mt-1 text-sm text-muted">量測趨勢：{item.trend}</p>}
+      {item.price !== undefined && (
+        <p className="mt-1 text-sm font-semibold">
+          示意費用 {formatPrice(item.price)}
+          <span className="ml-1 font-normal text-muted">（零件＋工資，實際以服務廠報價為準）</span>
+        </p>
+      )}
       <p className="mt-1 text-sm text-muted">技師備註：{item.technicianNote}</p>
 
       <button onClick={() => setShowPhoto((s) => !s)} className="mt-2 text-sm text-muted underline">

@@ -1,6 +1,6 @@
 import { excerptLabel } from "./manual";
 import { judge } from "./rules";
-import { trendText, type Vehicle } from "./vehicles";
+import { formatPrice, trendText, type Vehicle } from "./vehicles";
 
 // 來源代號：item:<檢查項目 id>、trend:<檢查項目 id>（量測趨勢）、doc:<片段 id>（原廠文件片段）或 driving（行車摘要）。
 export type Answer = {
@@ -125,6 +125,8 @@ export function cardContext(vehicle: Vehicle) {
         量測趨勢: trend ? { 來源代號: `trend:${item.id}`, 內容: trend } : null,
         技師備註: item.technicianNote,
         結論: v.conclusion,
+        // 卡片上只顯示必須更換、可延後項目的價格，AI 也只拿得到這些。
+        示意費用: v.conclusion === "正常" ? null : formatPrice(item.price),
         結論理由: v.reason,
         回廠提醒月數: v.reminderMonths ?? null,
       };
