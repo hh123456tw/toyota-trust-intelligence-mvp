@@ -264,9 +264,11 @@ function ItemCard({
         <button
           onClick={() => setShowPhoto((s) => !s)}
           aria-expanded={showPhoto}
-          className="mt-2 flex min-h-11 items-center gap-1.5 text-sm font-medium text-ink-2"
+          className="mt-2 flex min-h-11 items-center gap-2 text-sm font-medium text-ink-2"
         >
-          <Icon name="camera" className="size-4" />
+          {/* 縮圖：每個項目一眼看得到有照片，也先把圖載好，展開大圖時不會空白。 */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={item.photo} alt="" className="size-11 rounded-lg border border-line object-cover" />
           {showPhoto ? "收起技師照片" : "看技師照片"}
           <Icon name="chevron" className={`size-4 transition-transform ${showPhoto ? "rotate-180" : ""}`} />
         </button>
@@ -277,6 +279,18 @@ function ItemCard({
             <figcaption className="absolute top-2 left-2 rounded-md bg-black/60 px-2 py-0.5 text-xs text-white">
               示意圖
             </figcaption>
+            {/* 量測值疊在照片上、讀卡片資料：技師改值會跟著變，不靠 AI 在圖裡畫數字。 */}
+            {item.gauge && (
+              <p
+                className={`absolute bottom-2 left-2 rounded-lg px-2.5 py-1 text-sm font-bold text-white shadow ${look.dot}`}
+              >
+                {item.measuredAt} 量測 {item.gauge.value} {item.gauge.unit}
+                <span className="font-medium text-white/85">
+                  ｜{item.gauge.mustBelow !== undefined ? `安全門檻 ${item.gauge.mustBelow}` : `建議值 ${item.gauge.deferBelow}`}{" "}
+                  {item.gauge.unit}
+                </span>
+              </p>
+            )}
           </figure>
         )}
 
