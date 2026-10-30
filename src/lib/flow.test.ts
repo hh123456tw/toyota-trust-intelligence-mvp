@@ -139,8 +139,8 @@ describe("handoverFlow、staffConfirmFlow（#14 #18）", () => {
     expect(e.aiCalls).toBe(0);
     expect(e.steps).toEqual([
       "今天完成：機油與機油芯、前煞車來令片",
-      "可延後：電瓶（3 個月後複查）",
-      "正常：空氣濾網、雨刷、輪胎胎紋",
+      "今天延後：電瓶（3 個月後複查）",
+      "目前不用換：空氣濾網、雨刷、輪胎胎紋",
     ]);
   });
 
