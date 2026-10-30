@@ -17,9 +17,9 @@ export function pruneChoices(choices: Record<string, Choice>, items: CardItem[])
 export type Handover = {
   // 今天完成：定期保養項目（沒有 item）、必須更換、車主選今天換的可延後項目。
   done: { name: string; note: string; item?: CardItem }[];
-  // 今天延後：可延後且車主選延後或沒有選。
+  // 可延後：車主選延後或沒有選。
   deferred: { item: CardItem; months: number }[];
-  // 目前不用換：結論為正常的項目。
+  // 正常：結論為正常的項目。
   fine: CardItem[];
   reminders: string[];
 };

@@ -78,8 +78,8 @@ export function handoverFlow(h: Handover): FlowEntry {
     title: "交車說明：規則產生",
     steps: [
       `今天完成：${names(h.done.map((d) => d.name))}`,
-      `今天延後：${names(h.deferred.map((d) => `${d.item.name}（${d.months} 個月後複查）`))}`,
-      `目前不用換：${names(h.fine.map((i) => i.name))}`,
+      `可延後：${names(h.deferred.map((d) => `${d.item.name}（${d.months} 個月後複查）`))}`,
+      `正常：${names(h.fine.map((i) => i.name))}`,
     ],
     aiCalls: 0,
   };

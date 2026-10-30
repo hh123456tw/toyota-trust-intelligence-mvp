@@ -2,7 +2,7 @@ import type { Handover } from "@/lib/handover";
 import { RULE_VERSION } from "@/lib/vehicles";
 import Icon from "../../Icon";
 
-// 完工交車說明（峰終體驗）：今天完成、今天延後、目前不用換一次說清楚。內容全由規則產生。
+// 完工交車說明（峰終體驗）：今天完成、可延後、正常一次說清楚。內容全由規則產生。
 export default function HandoverView({
   handover: h,
   technician,
@@ -36,7 +36,7 @@ export default function HandoverView({
       </Block>
 
       {h.deferred.length > 0 && (
-        <Block title="今天延後" icon="clock" tone="text-defer bg-defer-soft">
+        <Block title="可延後" icon="clock" tone="text-defer bg-defer-soft">
           {h.deferred.map(({ item, months }) => (
             <Line
               key={item.id}
@@ -49,7 +49,7 @@ export default function HandoverView({
       )}
 
       {h.fine.length > 0 && (
-        <Block title="目前不用換" icon="shield" tone="text-ink-2 bg-paper">
+        <Block title="正常" icon="shield" tone="text-ink-2 bg-paper">
           {h.fine.map((item) => (
             <div key={item.id} className="flex items-center gap-3 py-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
