@@ -53,17 +53,17 @@ export default function Workbench(props: {
     // record-scale：整頁放大 125%，1920×1080 錄影時字才看得清楚（見 globals.css）。
     <div className="record-scale grid gap-6 bg-paper p-4 lg:h-screen lg:grid-cols-[minmax(0,46rem)_auto] lg:justify-center lg:gap-10 lg:p-6">
       <section className="min-w-0 space-y-4 lg:overflow-y-auto lg:pr-1">
-        <div className="flex items-center gap-3 rounded-2xl border-l-4 border-brand bg-ink p-5 text-white">
-          <span className="grid size-12 place-items-center rounded-xl bg-white/10">
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border-l-4 border-brand bg-ink p-5 text-white">
+          <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-white/10">
             <Icon name="wrench" className="size-6" />
           </span>
-          <div className="min-w-0 flex-1">
+          <div className="min-w-40 flex-1">
             <p className="text-xs font-medium tracking-wider text-white/70">技師輸入頁</p>
             <h1 className="text-xl font-bold">
               {props.technician}・{props.card.vehicle.plate}
             </h1>
           </div>
-          <p className="max-w-72 text-right text-sm text-white/80">改量測值，右邊的結論立刻由規則引擎重算。</p>
+          <p className="w-full text-sm text-white/80 sm:w-auto sm:max-w-72 sm:text-right">改量測值，決策卡的結論立刻由規則引擎重算。</p>
         </div>
 
         <div className="divide-y divide-line rounded-2xl border border-line bg-white px-4 shadow-sm">
@@ -76,9 +76,11 @@ export default function Workbench(props: {
                   <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-paper text-ink-2">
                     <Icon name={ITEM_ICON[i.id] ?? "wrench"} className="size-5" />
                   </span>
-                  <span className="min-w-0 flex-1 font-semibold">{i.name}</span>
-                  <span className={`rounded-full px-2.5 py-0.5 text-sm font-semibold ${PILL[conclusion]}`}>
-                    {LABEL[conclusion]}
+                  <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
+                    <span className="font-semibold whitespace-nowrap">{i.name}</span>
+                    <span className={`rounded-full px-2.5 py-0.5 text-sm font-semibold whitespace-nowrap ${PILL[conclusion]}`}>
+                      {LABEL[conclusion]}
+                    </span>
                   </span>
                   <span className="flex items-center gap-2">
                     <input
@@ -86,7 +88,7 @@ export default function Workbench(props: {
                       step="0.1"
                       defaultValue={i.measurement!.value}
                       onChange={(e) => change(i, e.target.value)}
-                      className="w-24 rounded-xl border border-line bg-paper px-3 py-2 text-right text-lg font-bold outline-none focus:border-ink-2 focus:bg-white"
+                      className="w-20 rounded-xl border border-line bg-paper px-3 py-2 text-right text-lg font-bold sm:w-24 outline-none focus:border-ink-2 focus:bg-white"
                     />
                     <span className="w-7 text-muted">{i.measurement!.unit}</span>
                   </span>
