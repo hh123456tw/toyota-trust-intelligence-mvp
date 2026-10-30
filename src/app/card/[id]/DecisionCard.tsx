@@ -7,7 +7,7 @@ import type { AskResult } from "@/lib/ask";
 import type { CardItem, Gauge } from "@/lib/card";
 import { askFlow, handoverFlow, presetFlow, type FlowEntry } from "@/lib/flow";
 import { choiceKey, handover, pruneChoices, type Choice } from "@/lib/handover";
-import type { Conclusion } from "@/lib/rules";
+import { LABEL, type Conclusion } from "@/lib/rules";
 import { formatPrice, RULE_VERSION } from "@/lib/vehicles";
 import Icon, { ITEM_ICON, type IconName } from "../../Icon";
 import FlowPanel from "./FlowPanel";
@@ -202,7 +202,7 @@ function Tally({ conclusion, n }: { conclusion: Conclusion; n: number }) {
         <Icon name={look.icon} className="size-5" />
         {n}
       </p>
-      <p className="mt-0.5 text-xs font-medium text-muted">{conclusion}</p>
+      <p className="mt-0.5 text-xs font-medium text-muted">{LABEL[conclusion]}</p>
     </div>
   );
 }
@@ -237,7 +237,7 @@ function ItemCard({
             className={`flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-sm font-semibold ${look.badge}`}
           >
             <Icon name={look.icon} className="size-4" />
-            {conclusion}
+            {LABEL[conclusion]}
           </span>
         </div>
 

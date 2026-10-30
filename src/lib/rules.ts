@@ -4,6 +4,9 @@ import type { InspectionItem } from "./vehicles";
 
 export type Conclusion = "必須更換" | "可延後" | "正常";
 
+// 畫面上顯示的字。內部代碼仍是「正常」（AI 回傳格式、答案檢查都用它），車主看到的是「目前不用換」。
+export const LABEL: Record<Conclusion, string> = { 必須更換: "必須更換", 可延後: "可延後", 正常: "目前不用換" };
+
 export type Verdict = {
   conclusion: Conclusion;
   reason: string;

@@ -3,7 +3,7 @@
 import { useMemo, useState, type ComponentProps } from "react";
 import { cardItems, withMeasurement } from "@/lib/card";
 import { staffLine } from "@/lib/handover";
-import type { Conclusion } from "@/lib/rules";
+import { LABEL, type Conclusion } from "@/lib/rules";
 import type { InspectionItem } from "@/lib/vehicles";
 import DecisionCard from "../../card/[id]/DecisionCard";
 import FlowPanel from "../../card/[id]/FlowPanel";
@@ -43,7 +43,7 @@ export default function Workbench(props: {
       ...prev,
       {
         title: `技師改值：${item.name} ${before.value} → ${value} ${before.unit}`,
-        steps: ["規則引擎重算", `結論：${conclusionOf(items, item.id)} → ${conclusionOf(next, item.id)}`],
+        steps: ["規則引擎重算", `結論：${LABEL[conclusionOf(items, item.id)]} → ${LABEL[conclusionOf(next, item.id)]}`],
         aiCalls: 0,
       },
     ]);
@@ -78,7 +78,7 @@ export default function Workbench(props: {
                   </span>
                   <span className="min-w-0 flex-1 font-semibold">{i.name}</span>
                   <span className={`rounded-full px-2.5 py-0.5 text-sm font-semibold ${PILL[conclusion]}`}>
-                    {conclusion}
+                    {LABEL[conclusion]}
                   </span>
                   <span className="flex items-center gap-2">
                     <input
