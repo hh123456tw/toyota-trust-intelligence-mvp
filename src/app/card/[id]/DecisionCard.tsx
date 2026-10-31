@@ -26,6 +26,8 @@ type VehicleInfo = {
   progress: { stage: string; time?: string }[];
   eta?: string;
   drivingNote: string;
+  drivingAdvice?: string;
+  priceFirstNote?: string;
 };
 
 type Message =
@@ -117,6 +119,8 @@ export default function DecisionCard(props: {
       <div hidden={delivered}>
         <Progress steps={vehicle.progress} eta={vehicle.eta} />
 
+        {vehicle.priceFirstNote && <PriceFirst note={vehicle.priceFirstNote} items={items} />}
+
         <section className="mt-3 space-y-3 px-4">
           {items.map((item) => (
             // 結論變了就重設卡片狀態（照片展開等）；選擇用 choiceKey 存，結論變了也對不上。
@@ -144,6 +148,15 @@ export default function DecisionCard(props: {
           <div>
             <p className="text-sm font-semibold">行車摘要</p>
             <p className="text-sm text-muted">{vehicle.drivingNote}</p>
+            {vehicle.drivingAdvice && (
+              <p className="mt-2 flex items-start gap-1.5 rounded-lg bg-defer-soft px-2.5 py-2 text-sm font-medium text-defer">
+                <Icon name="battery" className="mt-px size-4 shrink-0" />
+                <span>
+                  {vehicle.drivingAdvice}
+                  <span className="font-normal text-muted">（規則產生）</span>
+                </span>
+              </p>
+            )}
           </div>
         </div>
 
@@ -254,6 +267,12 @@ function ItemCard({
             </Row>
           )}
           {item.history && <Row label="使用紀錄">{item.history}</Row>}
+          {item.cca && (
+            <Row label="CCA">
+              本次 {item.cca.value} A，標準 {item.cca.standard} A{item.cca.value < item.cca.standard && "，低於標準"}
+              <span className="text-muted">（電瓶測試器，示意）</span>
+            </Row>
+          )}
           <Row label="技師備註">{item.technicianNote}</Row>
           <Row label="判定依據">
             規則 {RULE_VERSION}・{technician}・{item.measuredAt} {item.gauge ? "量測" : "目視檢查"}
@@ -382,6 +401,33 @@ function ItemCard({
         )}
       </div>
     </article>
+  );
+}
+
+// 費用先列：APP 互動紀錄顯示車主常問費用時，在項目卡片前先列出有費用的項目。
+function PriceFirst({ note, items }: { note: string; items: CardItem[] }) {
+  const priced = items.filter((i) => i.price !== undefined);
+  if (priced.length === 0) return null;
+  return (
+    <section className="mx-4 mt-3 rounded-2xl border border-line bg-white p-4 shadow-sm">
+      <h2 className="text-sm font-bold">費用一覽</h2>
+      <p className="mt-0.5 text-xs text-muted">{note}（依 APP 互動紀錄，示意）</p>
+      <ul className="mt-3 space-y-2">
+        {priced.map((i) => {
+          const look = LOOK[i.verdict.conclusion];
+          return (
+            <li key={i.id} className="flex items-center gap-2 text-sm">
+              <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${look.badge}`}>
+                {LABEL[i.verdict.conclusion]}
+              </span>
+              <span className="min-w-0 flex-1 font-medium">{i.name}</span>
+              <span className="font-bold tabular-nums">{formatPrice(i.price!)}</span>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="mt-2 text-xs text-muted">零件＋工資，實際以服務廠報價為準。目前不用換的項目沒有費用。</p>
+    </section>
   );
 }
 

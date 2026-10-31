@@ -13,6 +13,7 @@ export type CardItem = {
   technicianNote: string;
   measuredAt: string;
   history?: string;
+  cca?: { value: number; standard: number };
   trend?: string;
   // 示意費用：只有必須更換、可延後的項目有。
   price?: number;
@@ -42,6 +43,7 @@ export function cardItems(items: InspectionItem[]): CardItem[] {
         technicianNote: item.technicianNote,
         measuredAt: item.measuredAt,
         history: item.history,
+        cca: item.cca,
         trend: trendText(item),
         price: verdict.conclusion === "正常" ? undefined : item.price,
         gauge:
@@ -68,9 +70,30 @@ export function withMeasurement(items: InspectionItem[], id: string, value: numb
           ...i,
           measurement: { ...i.measurement, value },
           technicianNote: `技師更新量測值為 ${value} ${i.measurement.unit}。`,
+          // CCA 和舊健康度是同一次測試器讀值，改值後不再顯示，避免和新結論矛盾。
+          cca: undefined,
         }
       : i,
   );
+}
+
+// 車主在 App 追問費用達這個次數，決策卡就先列出費用。
+export const PRICE_FIRST_MIN_QUESTIONS = 3;
+
+// 依 APP 互動紀錄決定是否先列費用；回傳說明文字，沒有紀錄或次數不夠回傳 undefined。
+export function priceFirstNote(vehicle: Vehicle): string | undefined {
+  const r = vehicle.appRecord;
+  if (!r || r.priceQuestions < PRICE_FIRST_MIN_QUESTIONS) return undefined;
+  return `${r.period}你在 App 問過 ${r.priceQuestions} 次費用，先把費用列在這裡。`;
+}
+
+// 短程比例達這個百分比，行車摘要加上電瓶充電的建議。
+export const SHORT_TRIP_ADVICE_MIN_RATIO = 50;
+
+// 行車摘要的建議句：由規則產生，不經 AI。
+export function drivingAdvice(vehicle: Vehicle): string | undefined {
+  if (vehicle.drivingSummary.shortTripRatio < SHORT_TRIP_ADVICE_MIN_RATIO) return undefined;
+  return "短程行駛多，發電機來不及把電瓶充飽。建議每週安排一次較長距離行駛。";
 }
 
 // 決策卡需要的全部資料；卡片頁和技師頁共用。
@@ -95,6 +118,8 @@ export function cardProps(vehicle: Vehicle) {
       progress: vehicle.progress,
       eta: vehicle.eta,
       drivingNote: `${vehicle.drivingSummary.period}：${vehicle.drivingSummary.note}`,
+      drivingAdvice: drivingAdvice(vehicle),
+      priceFirstNote: priceFirstNote(vehicle),
     },
     items: cardItems(vehicle.items),
     presets: presetsFor(vehicle.id),

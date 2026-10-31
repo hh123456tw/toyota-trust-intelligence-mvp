@@ -103,6 +103,7 @@ export default function Workbench(props: {
           onFlow={(e) => setEntries((prev) => [...prev, e])}
           edited={items !== props.items}
           line={staffLine(cardItems(props.items))}
+          items={cards}
         />
 
         <FlowPanel entries={entries} />

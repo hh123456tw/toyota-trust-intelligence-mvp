@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { cardItems, withMeasurement } from "./card";
+import {
+  cardItems,
+  cardProps,
+  drivingAdvice,
+  PRICE_FIRST_MIN_QUESTIONS,
+  priceFirstNote,
+  SHORT_TRIP_ADVICE_MIN_RATIO,
+  withMeasurement,
+} from "./card";
 import { findVehicle } from "./vehicles";
 
 const wang = findVehicle("wang")!;
@@ -47,5 +55,69 @@ describe("gauge：量測刻度條", () => {
     expect(items.find((i) => i.id === "battery")!.gauge!.mustBelow).toBeUndefined();
     expect(items.find((i) => i.id === "air-filter")!.gauge).toBeUndefined();
     expect(items.find((i) => i.id === "wiper")!.gauge).toBeUndefined();
+  });
+});
+
+describe("priceFirstNote：APP 互動紀錄決定是否先列費用", () => {
+  const lin = findVehicle("lin")!;
+  const withQuestions = (n: number) => ({ ...wang, appRecord: { period: "近 6 個月", priceQuestions: n } });
+
+  it("王先生問過 4 次費用 → 先列費用，說明寫出次數", () => {
+    expect(priceFirstNote(wang)).toBe("近 6 個月你在 App 問過 4 次費用，先把費用列在這裡。");
+  });
+
+  it("剛好 3 次 → 先列；2 次 → 不先列", () => {
+    expect(priceFirstNote(withQuestions(PRICE_FIRST_MIN_QUESTIONS))).toBeDefined();
+    expect(priceFirstNote(withQuestions(PRICE_FIRST_MIN_QUESTIONS - 1))).toBeUndefined();
+  });
+
+  it("林小姐沒有 APP 互動紀錄 → 不先列", () => {
+    expect(priceFirstNote(lin)).toBeUndefined();
+  });
+
+  it("cardProps 把說明帶到卡片；林小姐沒有", () => {
+    expect(cardProps(wang).vehicle.priceFirstNote).toBeDefined();
+    expect(cardProps(lin).vehicle.priceFirstNote).toBeUndefined();
+  });
+});
+
+describe("drivingAdvice：行車摘要的規則建議", () => {
+  const lin = findVehicle("lin")!;
+  const withRatio = (r: number) => ({ ...wang, drivingSummary: { ...wang.drivingSummary, shortTripRatio: r } });
+
+  it("王先生 78% 短程 → 有建議", () => {
+    expect(drivingAdvice(wang)).toContain("每週安排一次較長距離行駛");
+  });
+
+  it("剛好 50% → 有建議；49% → 沒有", () => {
+    expect(drivingAdvice(withRatio(SHORT_TRIP_ADVICE_MIN_RATIO))).toBeDefined();
+    expect(drivingAdvice(withRatio(SHORT_TRIP_ADVICE_MIN_RATIO - 1))).toBeUndefined();
+  });
+
+  it("林小姐 20% 短程、多跑長途 → 沒有建議", () => {
+    expect(drivingAdvice(lin)).toBeUndefined();
+  });
+});
+
+describe("cca：電瓶測試器讀值只顯示，不改判定", () => {
+  it("電瓶帶出 CCA；結論仍由健康度 60% 判定為可延後", () => {
+    const battery = cardItems(wang.items).find((i) => i.id === "battery")!;
+    expect(battery.cca).toEqual({ value: 340, standard: 430 });
+    expect(battery.verdict.conclusion).toBe("可延後");
+  });
+
+  it("CCA 拿掉，結論一樣", () => {
+    const noCca = wang.items.map((i) => ({ ...i, cca: undefined }));
+    const a = cardItems(wang.items).map((i) => i.verdict);
+    const b = cardItems(noCca).map((i) => i.verdict);
+    expect(b).toEqual(a);
+  });
+});
+
+describe("withMeasurement：改值後不留舊的 CCA", () => {
+  it("電瓶改值 → CCA 拿掉；煞車改值 → 電瓶 CCA 保留", () => {
+    const battery = (items: ReturnType<typeof cardItems>) => items.find((i) => i.id === "battery")!;
+    expect(battery(cardItems(withMeasurement(wang.items, "battery", 80))).cca).toBeUndefined();
+    expect(battery(cardItems(withMeasurement(wang.items, "brake-pad", 4))).cca).toEqual({ value: 340, standard: 430 });
   });
 });

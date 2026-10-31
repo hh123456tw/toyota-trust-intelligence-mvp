@@ -36,6 +36,8 @@ export type InspectionItem = {
   measuredAt: string;
   // 零件使用紀錄，例如電瓶上次更換到現在多久。卡片顯示，AI 也可以引用（來源同 item:<id>）。
   history?: string;
+  // 電瓶測試器的冷啟動電流（CCA，示意）。只在卡片顯示，規則引擎不讀，結論仍看健康度。
+  cca?: { value: number; standard: number };
   photo: string;
   // 示意費用（零件＋工資，NT$）。正式導入時來自服務廠工單報價。
   price: number;
@@ -57,6 +59,8 @@ export type Vehicle = {
   technician: string;
   inspectedAt: string;
   drivingSummary: DrivingSummary;
+  // APP 互動紀錄（示意，需車主授權）：車主在 App 追問費用的次數。決定決策卡要不要先列費用。
+  appRecord?: { period: string; priceQuestions: number };
   // 定期保養本來就會做的項目（不經規則引擎），交車說明列在「今天完成」。
   routine: string[];
   // 下次定期保養還有幾公里，交車說明的「下次提醒」用。
@@ -91,6 +95,7 @@ export const vehicles: Vehicle[] = [
       weeklyStarts: 11,
       note: "約 78% 的行程在 10 公里內，多為市區通勤短程，每週約發動 11 次。",
     },
+    appRecord: { period: "近 6 個月", priceQuestions: 4 },
     routine: ["機油與機油芯"],
     nextServiceKm: 5000,
     progress: [
@@ -125,6 +130,7 @@ export const vehicles: Vehicle[] = [
         previousMeasurement: { value: 72, unit: "%" },
         technicianNote: "電瓶測試器顯示健康度 60%，啟動正常。",
         history: "已使用 1.5 年（上次更換工單：2025-03）",
+        cca: { value: 340, standard: 430 },
         measuredAt: "10:50",
         photo: "/photos/battery.webp",
         price: 3500,
