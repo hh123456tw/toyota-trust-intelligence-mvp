@@ -7,11 +7,11 @@ import { staffConfirmFlow, summaryFlow, type FlowEntry } from "@/lib/flow";
 import { LABEL, type Conclusion } from "@/lib/rules";
 import Icon, { ITEM_ICON } from "../../Icon";
 
-// 分級顏色：外框、圖示底色、標籤用同一個顏色，和簡報 A5 的 Rule Engine 分級一致。
-const TONE: Record<Conclusion, { border: string; solid: string; text: string }> = {
-  必須更換: { border: "border-must", solid: "bg-must", text: "text-must" },
-  可延後: { border: "border-defer", solid: "bg-defer", text: "text-defer" },
-  正常: { border: "border-ok", solid: "bg-ok", text: "text-ok" },
+// 分級顏色：左側色條、圖示、標籤用同一個顏色，和簡報 A5 的 Rule Engine 分級一致。
+const TONE: Record<Conclusion, { bar: string; text: string }> = {
+  必須更換: { bar: "border-l-must", text: "text-must" },
+  可延後: { bar: "border-l-defer", text: "text-defer" },
+  正常: { bar: "border-l-ok", text: "text-ok" },
 };
 
 // 接待摘要：給服務專員看，AI 把整張決策卡整理成 30 秒能講完的版本。
@@ -75,50 +75,45 @@ export default function ReceptionSummary(props: {
       {result && !props.edited && "error" in result && <p className="text-sm text-muted">{result.error}</p>}
       {result && !props.edited && !("error" in result) && (
         <div className="space-y-3 rounded-xl bg-paper p-3">
-          <p className="font-semibold">今天檢查 {props.items.length} 個項目</p>
-          <ul className="space-y-2">
-            {props.items.map((i) => {
-              const { conclusion, reason, reminderMonths } = i.verdict;
-              const tone = TONE[conclusion];
-              return (
-                <li key={i.id} className={`flex items-start gap-3 rounded-xl border-2 bg-white px-3 py-2.5 ${tone.border}`}>
-                  <span className={`grid size-10 shrink-0 place-items-center rounded-full text-white ${tone.solid}`}>
-                    <Icon name={ITEM_ICON[i.id] ?? "wrench"} className="size-5" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <span className={`font-bold ${tone.text}`}>{LABEL[conclusion]}</span>
-                      <span className="font-semibold">{i.name}</span>
-                    </p>
-                    <p className="mt-0.5 text-sm text-muted">
+          {/* 精簡清單：一項一行，只當參考；重點是下面的 AI 摘要和專員建議說法。 */}
+          <div>
+            <p className="mb-1.5 text-xs font-semibold text-muted">今天檢查 {props.items.length} 個項目（規則引擎判定）</p>
+            <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-white">
+              {props.items.map((i) => {
+                const { conclusion, reason, reminderMonths } = i.verdict;
+                const tone = TONE[conclusion];
+                return (
+                  <li key={i.id} className={`flex items-center gap-2 border-l-4 py-1.5 pr-3 pl-2 text-sm ${tone.bar}`}>
+                    <Icon name={ITEM_ICON[i.id] ?? "wrench"} className={`size-4 shrink-0 ${tone.text}`} />
+                    <span className={`w-[4.5rem] shrink-0 font-semibold ${tone.text}`}>{LABEL[conclusion]}</span>
+                    <span className="shrink-0 font-medium">{i.name}</span>
+                    <span className="min-w-0 flex-1 truncate text-xs text-muted">
                       {reason}
                       {reminderMonths && ` ${reminderMonths} 個月後提醒回廠。`}
-                      {i.trend && `（${i.trend}）`}
-                    </p>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-          <div>
-            <p
-              className={`mb-2 flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-semibold ${result.checkResult === "攔下" ? "bg-defer-soft text-defer" : "bg-ok-soft text-ok"}`}
-            >
-              <Icon name={result.checkResult === "攔下" ? "alert" : "check"} className="size-4 shrink-0" />
-              答案檢查：
-              {result.checkResult === "攔下" ? `攔下（${result.blockedReason}）。以下是規則版摘要（未經 AI）：` : "通過"}
-            </p>
-            <p className="text-xs font-semibold text-muted">
-              {result.checkResult === "攔下" ? "規則版摘要（未經 AI）" : "AI 30 秒摘要"}
-            </p>
-            <p className="mt-1 leading-relaxed">{result.answer}</p>
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+          <div className="rounded-xl border border-line bg-white p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-bold">{result.checkResult === "攔下" ? "規則版摘要（未經 AI）" : "AI 30 秒摘要"}</p>
+              <p
+                className={`flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${result.checkResult === "攔下" ? "bg-defer-soft text-defer" : "bg-ok-soft text-ok"}`}
+              >
+                <Icon name={result.checkResult === "攔下" ? "alert" : "check"} className="size-3.5 shrink-0" />
+                答案檢查：{result.checkResult === "攔下" ? `攔下（${result.blockedReason}）` : "通過"}
+              </p>
+            </div>
+            <p className="mt-2 text-lg leading-relaxed">{result.answer}</p>
             <details className="mt-1 text-sm">
               <summary className="flex min-h-11 cursor-pointer items-center text-muted">看來源（{result.sources.length}）</summary>
               <ul className="flex flex-wrap gap-1">
                 {result.sources.map((s) => (
                   <li
                     key={s}
-                    className="flex items-center gap-1 rounded-md border border-line bg-white px-2 py-0.5 text-xs text-muted"
+                    className="flex items-center gap-1 rounded-md border border-line bg-paper px-2 py-0.5 text-xs text-muted"
                   >
                     <Icon name="doc" className="size-3" />
                     來源｜{sourceLabels[s] ?? s}
@@ -127,11 +122,11 @@ export default function ReceptionSummary(props: {
               </ul>
             </details>
           </div>
-          <div className="rounded-lg border border-line bg-white p-3">
-            <p className="text-xs font-semibold text-muted">專員建議說法（規則產生）</p>
-            <p className="mt-1 font-semibold">「{props.line}」</p>
+          <div className="rounded-xl bg-ink p-4 text-white">
+            <p className="text-xs font-semibold text-white/70">專員建議說法（規則產生）</p>
+            <p className="mt-1 text-lg leading-relaxed font-bold">「{props.line}」</p>
             {confirmed ? (
-              <p className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-ok">
+              <p className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-white">
                 <Icon name="check" className="size-4" />
                 專員已確認，可以向車主說明
               </p>
@@ -141,7 +136,7 @@ export default function ReceptionSummary(props: {
                   setConfirmed(true);
                   onFlow(staffConfirmFlow(props.line));
                 }}
-                className="mt-2 min-h-11 w-full rounded-xl bg-ink text-sm font-semibold text-white transition-opacity active:opacity-80"
+                className="mt-3 min-h-11 w-full rounded-xl bg-white text-sm font-semibold text-ink transition-opacity active:opacity-80"
               >
                 確認並使用
               </button>
