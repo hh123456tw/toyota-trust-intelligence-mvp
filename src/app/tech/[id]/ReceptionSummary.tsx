@@ -83,11 +83,15 @@ export default function ReceptionSummary(props: {
                 const { conclusion, reason, reminderMonths } = i.verdict;
                 const tone = TONE[conclusion];
                 return (
-                  <li key={i.id} className={`flex items-center gap-2 border-l-4 py-1.5 pr-3 pl-2 text-sm ${tone.bar}`}>
+                  <li key={i.id} className={`flex flex-wrap items-center gap-x-2 gap-y-0.5 border-l-4 sm:flex-nowrap py-1.5 pr-3 pl-2 text-sm ${tone.bar}`}>
                     <Icon name={ITEM_ICON[i.id] ?? "wrench"} className={`size-4 shrink-0 ${tone.text}`} />
                     <span className={`w-[4.5rem] shrink-0 font-semibold ${tone.text}`}>{LABEL[conclusion]}</span>
                     <span className="shrink-0 font-medium">{i.name}</span>
-                    <span className="min-w-0 flex-1 truncate text-xs text-muted">
+                    {/* 窄螢幕換行讀得完；寬螢幕單行，滑鼠停留看全文。 */}
+                    <span
+                      title={`${reason}${reminderMonths ? ` ${reminderMonths} 個月後提醒回廠。` : ""}`}
+                      className="min-w-0 flex-1 text-xs text-muted sm:truncate"
+                    >
                       {reason}
                       {reminderMonths && ` ${reminderMonths} 個月後提醒回廠。`}
                     </span>
