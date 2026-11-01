@@ -194,7 +194,7 @@ export default function DecisionCard(props: {
         <p className="pl-5.5">照片為示意圖，所有資料皆為展示用。</p>
         <p className="pl-5.5">
           <Link href="/eval" className="font-semibold text-ink-2 underline">
-            真實 AI 實測紀錄：21 題 × 3 次
+            真實 AI 實測紀錄：57 次 Gemini 追問
           </Link>
         </p>
         {others.length > 0 && (

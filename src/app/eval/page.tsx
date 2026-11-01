@@ -21,6 +21,9 @@ const RUNS = [
 const AFTER = RUNS.slice(1);
 const questionCount = AFTER[0].questions.length + AFTER[0].system.length;
 const allPassedAfter = AFTER.every((r) => r.passed === r.total);
+// 第 20、21 題測系統行為，不經過 AI，不算進真實 Gemini 追問次數。
+const aiPerRun = AFTER[0].questions.length;
+const aiPassed = AFTER.reduce((n, r) => n + r.questions.filter((q) => q.pass).length, 0);
 const summaryPassed = AFTER.reduce((n, r) => n + r.summaries.filter((s) => s.pass).length, 0);
 const summaryTotal = AFTER.reduce((n, r) => n + r.summaries.length, 0);
 
@@ -81,12 +84,12 @@ export default function EvalPage() {
 
       <dl className="mt-6 grid grid-cols-2 gap-3">
         <div className="rounded-2xl border border-line bg-white p-4">
-          <dt className="text-xs text-muted">追問題（改提示詞後）</dt>
+          <dt className="text-xs text-muted">真實 Gemini 追問（改提示詞後）</dt>
           <dd className="mt-1 text-2xl font-bold text-brand">
-            {questionCount} × {AFTER.length}
+            {aiPassed} / {aiPerRun * AFTER.length}
           </dd>
           <dd className="text-sm">
-            {questionCount} 題連跑 {AFTER.length} 次，{allPassedAfter ? "全部通過" : "有未通過的題目"}
+            {aiPerRun} 題 × {AFTER.length} 次，{allPassedAfter ? "全部通過" : "有未通過的題目"}；另 {AFTER[0].system.length} 題系統測試不經過 AI
           </dd>
         </div>
         <div className="rounded-2xl border border-line bg-white p-4">
@@ -104,7 +107,7 @@ export default function EvalPage() {
           <thead className="text-xs text-muted">
             <tr className="border-b border-line">
               <th className="py-2 pr-3 font-semibold">執行</th>
-              <th className="py-2 pr-3 font-semibold">追問題</th>
+              <th className="py-2 pr-3 font-semibold">測試題（含系統題）</th>
               <th className="py-2 pr-3 font-semibold">接待摘要</th>
               <th className="py-2 font-semibold">合計</th>
             </tr>
