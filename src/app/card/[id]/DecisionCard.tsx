@@ -189,9 +189,14 @@ export default function DecisionCard(props: {
       <footer className="mt-10 space-y-1 px-4 text-xs text-muted">
         <p className="flex items-start gap-1.5">
           <Icon name="shield" className="mt-px size-4 shrink-0" />
-          結論由規則引擎依量測和安全門檻判定；AI 只負責查找和解釋。
+          結論由規則引擎依量測和安全門檻判定；AI 查找資料、附來源解釋，回答由程式核對後才顯示。
         </p>
         <p className="pl-5.5">照片為示意圖，所有資料皆為展示用。</p>
+        <p className="pl-5.5">
+          <Link href="/eval" className="font-semibold text-ink-2 underline">
+            真實 AI 實測紀錄：21 題 × 3 次
+          </Link>
+        </p>
         {others.length > 0 && (
           <p className="pt-3">
             換一台車看看：
