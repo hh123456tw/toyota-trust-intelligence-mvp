@@ -274,7 +274,7 @@ function ItemCard({
           {item.history && <Row label="使用紀錄">{item.history}</Row>}
           {item.cca && (
             <Row label="CCA">
-              本次 {item.cca.value} A，標準 {item.cca.standard} A{item.cca.value < item.cca.standard && "，低於標準"}
+              本次 {item.cca.value} A，新品額定 {item.cca.standard} A
               <span className="text-muted">（電瓶測試器，示意）</span>
             </Row>
           )}

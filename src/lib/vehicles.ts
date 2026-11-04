@@ -36,7 +36,8 @@ export type InspectionItem = {
   measuredAt: string;
   // 零件使用紀錄，例如電瓶上次更換到現在多久。卡片顯示，AI 也可以引用（來源同 item:<id>）。
   history?: string;
-  // 電瓶測試器的冷啟動電流（CCA，示意）。只在卡片顯示，規則引擎不讀，結論仍看健康度。
+  // 電瓶測試器的冷啟動電流（CCA，示意）。standard 是新品額定值，舊電瓶低於它是正常衰退。
+  // 只在卡片顯示，規則引擎不讀，結論仍看健康度。
   cca?: { value: number; standard: number };
   photo: string;
   // 示意費用（零件＋工資，NT$）。正式導入時來自服務廠工單報價。
