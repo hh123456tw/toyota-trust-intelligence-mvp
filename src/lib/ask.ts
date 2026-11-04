@@ -71,13 +71,14 @@ function touchesMustReplace(vehicle: Vehicle, question: string): boolean {
   return vehicle.items.some((item) => judge(item).conclusion === "必須更換" && mentions(item, question));
 }
 
-// 議價、比價、要改結論：AI 不能處理，一律轉介專員。「Point 折抵」這類付款問題不算。
-const BARGAIN = /便宜一?點|算便宜|少算|打個?折|折扣|殺價|議價|比價|別家|外面.{0,4}(?:廠|店|修|換|保養)|改(?:成|為)?.{0,6}結論|更新結論|改.{0,2}工單/;
-// 顧客不滿：「不滿 30 歲」不算，只認明確的抱怨字眼。
-const COMPLAINT = /不相信|不信任|推銷|騙|生氣|不滿意|很不滿|對.{0,6}不滿|客訴|投訴|太扯|爛透/;
+// 議價、比價、要改結論：AI 不能處理，一律轉介專員。只認「要求」的句型：「Point 折抵算折扣嗎」這類查詢不算。
+const BARGAIN = /便宜一?[點些]|算便宜|少算|打個?[一二三四五六七八九\d]*折|殺價|議價|比價|別家|外面.{0,4}(?:廠|店|保養|修車)|(?:有沒有|能不能|可不可以|可以|再)優惠|優惠一?[點些]|(?:改|更新|修改)(?:一下)?(?:這個|卡片的?|你的)?結論|改.{0,2}工單|(?:改成|標成|改為|變成)(?:正常|可延後|不用換)/;
+// 顧客不滿：只認明確的抱怨字眼。「不滿 30 歲」「防騙宣導」「我沒有不滿意」都不算。
+const COMPLAINT = /(?<!沒有|沒|不是|並不|不會)(?:不相信|不信任|推銷|騙(?:我|人|錢)|被騙|亂收|坑(?:人|錢|我)|生氣|不滿意|很不滿(?!\s*\d)|對.{0,15}不滿(?!\s*\d)|客訴|投訴|找主管|態度(?:很|太|超|有夠)?(?:差|爛)|太扯|爛透)/;
 
+// 一個子句一個子句比對，規則不會跨標點（「改天再看，結論在哪」不算要改結論）。
 export function needsHuman(question: string): boolean {
-  return BARGAIN.test(question) || COMPLAINT.test(question);
+  return question.split(/[，。！？、；,.!?;]+/).some((c) => BARGAIN.test(c) || COMPLAINT.test(c));
 }
 
 function parseReply(text: string): AIReply {
