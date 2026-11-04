@@ -9,10 +9,11 @@ export const metadata: Metadata = { title: "真實 AI 實測紀錄｜Trust Intel
 
 // 建置時讀 repo 裡的原始紀錄，頁面是靜態的；紀錄不見就建置失敗，不顯示假數字。
 const RUNS = [
+  // 10/30 免費版發現第 5 題的問題、改了提示詞；11/5 換付費版後重跑 3 次。10/30 改提示詞後的 3 次紀錄留在 docs/eval/raw。
   { file: "2026-10-30_run0_before-prompt-fix.log", label: "改提示詞前" },
-  { file: "2026-10-30_run1.log", label: "第 1 次" },
-  { file: "2026-10-30_run2.log", label: "第 2 次" },
-  { file: "2026-10-30_run3.log", label: "第 3 次" },
+  { file: "2026-11-05_run1.log", label: "第 1 次" },
+  { file: "2026-11-05_run2.log", label: "第 2 次" },
+  { file: "2026-11-05_run3.log", label: "第 3 次" },
 ].map((r) => ({
   ...r,
   ...parseEvalLog(readFileSync(join(process.cwd(), "docs/eval/raw", r.file), "utf-8")),
@@ -26,6 +27,12 @@ const aiPerRun = AFTER[0].questions.length;
 const aiPassed = AFTER.reduce((n, r) => n + r.questions.filter((q) => q.pass).length, 0);
 const summaryPassed = AFTER.reduce((n, r) => n + r.summaries.filter((s) => s.pass).length, 0);
 const summaryTotal = AFTER.reduce((n, r) => n + r.summaries.length, 0);
+// AI 回應秒數（含重試）。紀錄沒有秒數就是建置錯誤，不顯示假數字。
+const seconds = AFTER.flatMap((r) => r.questions.map((q) => q.seconds));
+if (seconds.some((x) => x === undefined)) throw new Error("實測紀錄缺少 AI 回應時間");
+const secs = (seconds as number[]).sort((a, b) => a - b);
+const avgSeconds = (secs.reduce((a, b) => a + b, 0) / secs.length).toFixed(1);
+const maxSeconds = secs[secs.length - 1].toFixed(1);
 
 function Badge({ pass }: { pass: boolean }) {
   return pass ? (
@@ -57,6 +64,7 @@ function Answer({ label, q }: { label: string; q: QuestionResult }) {
       <p className="text-sm">{q.answer}</p>
       <p className="text-xs text-muted">
         來源：{q.sources || "（無）"}｜請專員說明：{q.escalate ? "是" : "否"}｜答案檢查：{q.check}
+        {q.seconds !== undefined && `｜AI 回應 ${q.seconds} 秒`}
       </p>
       {q.problems.map((p) => (
         <p key={p} className="text-xs font-semibold text-must">
@@ -78,7 +86,8 @@ export default function EvalPage() {
       </p>
       <h1 className="mt-2 text-2xl font-bold">用真的 Gemini 連跑 3 次，不挑最好的一次</h1>
       <p className="mt-2 text-sm text-muted">
-        2026-10-30，模型 gemini-3.5-flash-lite。真的 AI 每次回答都不一樣，所以同一份題目連跑多次，用通過率說話。
+        2026-11-05，模型 gemini-3.5-flash-lite（付費版，和正式站相同）。真的 AI 每次回答都不一樣，所以同一份題目連跑多次，用通過率說話。
+        「改提示詞前」那次是 2026-10-30 用免費版跑的，留著說明當時修了什麼。
         下面每一題的回答都是 AI 的原文，取自原始紀錄。
       </p>
 
@@ -98,6 +107,13 @@ export default function EvalPage() {
             {summaryPassed} / {summaryTotal}
           </dd>
           <dd className="text-sm">王先生、林小姐各 3 次 × {AFTER.length} 次執行</dd>
+        </div>
+        <div className="col-span-2 rounded-2xl border border-line bg-white p-4">
+          <dt className="text-xs text-muted">AI 回應時間（追問）</dt>
+          <dd className="mt-1 text-2xl font-bold text-brand">平均 {avgSeconds} 秒</dd>
+          <dd className="text-sm">
+            {secs.length} 次中最慢 {maxSeconds} 秒。維修結論由規則算出，不等 AI。
+          </dd>
         </div>
       </dl>
 

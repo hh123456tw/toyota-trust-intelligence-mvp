@@ -10,6 +10,8 @@ export type QuestionResult = {
   escalate: boolean;
   check: string;
   problems: string[];
+  // AI 回應秒數；11/5 之前的紀錄沒有這欄。
+  seconds?: number;
 };
 
 // 第 20、21 題測系統行為，不經過 AI，紀錄裡只有 ✓／× 那一行。
@@ -50,10 +52,12 @@ export function parseEvalLog(log: string): EvalRun {
     } else if (current && line.startsWith("  回答：")) {
       current.answer = line.slice(5);
     } else if (current && line.startsWith("  來源：")) {
-      const [sources, escalate, check] = line.slice(5).split("｜");
+      const [sources, escalate, check, latency] = line.slice(5).split("｜");
       current.sources = sources;
       current.escalate = escalate === "專員：true";
       current.check = (check ?? "").replace("答案檢查：", "");
+      const sec = latency?.match(/^AI 回應：([\d.]+) 秒$/);
+      if (sec) current.seconds = Number(sec[1]);
     } else if (current && line.startsWith("  問題：")) {
       current.problems.push(line.slice(5));
     } else if ((m = line.match(SYSTEM))) {

@@ -38,12 +38,18 @@ describe("21 題實測", () => {
   for (const q of questions.filter((q) => q.no <= 19)) {
     it(`#${q.no} ${q.question}`, async () => {
       const vehicle = findVehicle(q.vehicleId)!;
-      await sleep(8_000); // 免費額度每分鐘 15 次，放慢一點避免限流
+      await sleep(1_000); // 付費版沒有每分鐘 15 次的限制，稍微間隔就好
       let raw = "";
-      const r = await ask(vehicle, q.question, async (s, u) => (raw = await withRetry(() => callGemini(apiKey, s, u))));
+      let ms = 0;
+      const r = await ask(vehicle, q.question, async (s, u) => {
+        const t0 = Date.now();
+        raw = await withRetry(() => callGemini(apiKey, s, u));
+        ms = Date.now() - t0; // AI 回應時間（含重試），不含上面的間隔
+        return raw;
+      });
       const problems = checkCase(q.no, r);
       console.log(
-        `#${q.no} ${problems.length ? "失敗" : "通過"}｜${q.question}\n  預期：${q.expected}\n  回答：${r.answer}\n  來源：${r.sources.join(", ")}｜專員：${r.escalate}｜答案檢查：${r.checkResult}${r.blockedReason ? `（${r.blockedReason}）` : ""}${r.checkResult === "攔下" ? `\n  AI 原回答：${raw}` : ""}${problems.length ? `\n  問題：${problems.join("；")}` : ""}`,
+        `#${q.no} ${problems.length ? "失敗" : "通過"}｜${q.question}\n  預期：${q.expected}\n  回答：${r.answer}\n  來源：${r.sources.join(", ")}｜專員：${r.escalate}｜答案檢查：${r.checkResult}${r.blockedReason ? `（${r.blockedReason}）` : ""}｜AI 回應：${(ms / 1000).toFixed(1)} 秒${r.checkResult === "攔下" ? `\n  AI 原回答：${raw}` : ""}${problems.length ? `\n  問題：${problems.join("；")}` : ""}`,
       );
       expect(problems).toEqual([]);
     }, 600_000); // 限流時會等好幾輪重試
@@ -65,7 +71,7 @@ describe("21 題實測", () => {
     const statuses: number[] = [];
     let last: Response | undefined;
     await withoutKey(async () => {
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < 62; i++) { // 上限每分鐘 60 次
         last = await post("煞車狀況怎麼樣？", "eval-21");
         statuses.push(last.status);
       }

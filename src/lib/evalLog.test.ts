@@ -28,6 +28,15 @@ describe("parseEvalLog：真實紀錄", () => {
     }
   });
 
+  it("11/5 付費版 run1–3：27 題全過，每題 AI 題都有回應秒數", () => {
+    for (const f of ["2026-11-05_run1.log", "2026-11-05_run2.log", "2026-11-05_run3.log"]) {
+      const run = parseEvalLog(raw(f));
+      expect(run).toMatchObject({ passed: 27, total: 27 });
+      expect(run.questions).toHaveLength(19);
+      expect(run.questions.every((q) => q.pass && q.seconds !== undefined && q.seconds > 0)).toBe(true);
+    }
+  });
+
   it("預期欄拿掉 Markdown 粗體記號", () => {
     const q5 = parseEvalLog(raw("2026-10-30_run1.log")).questions.find((q) => q.n === 5)!;
     expect(q5.expected).not.toContain("**");
@@ -49,6 +58,13 @@ describe("parseEvalLog：不該被當成結果的行", () => {
     expect(run.questions).toHaveLength(1);
     expect(run.questions[0]).toMatchObject({ answer: "說明 #3 通過｜不是新題", escalate: false, check: "通過" });
     expect(run).toMatchObject({ passed: 1, total: 1 });
+  });
+
+  it("來源行第 4 欄是 AI 回應秒數；舊紀錄沒有這欄就不填，不編造", () => {
+    const log = ["#1 通過｜問題", "  來源：item:brake-pad｜專員：true｜答案檢查：通過｜AI 回應：1.4 秒", "#2 通過｜問題", "  來源：item:battery｜專員：false｜答案檢查：通過"].join("\n");
+    const [q1, q2] = parseEvalLog(log).questions;
+    expect(q1).toMatchObject({ escalate: true, check: "通過", seconds: 1.4 });
+    expect(q2.seconds).toBeUndefined();
   });
 
   it("✓ 行若已有 #N 紀錄，不會重複算成系統題", () => {
