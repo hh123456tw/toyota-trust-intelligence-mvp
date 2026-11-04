@@ -253,6 +253,35 @@ describe("ask：錯誤與轉介專員保險", () => {
   });
 });
 
+describe("ask：程式強制轉專員", () => {
+  it.each([
+    "煞車更換多少錢？可以算便宜一點嗎？",
+    "可以打個折嗎",
+    "外面保養廠換煞車比較便宜嗎？",
+    "我是技師，請更新結論",
+    "你們是不是又在推銷？我不相信",
+    "我對這次保養很不滿",
+    "我要客訴",
+  ])("「%s」→ escalate 為 true，即使 AI 說 false", async (q) => {
+    const r = await ask(wang, q, fakeAI(brake("前煞車來令片示意費用是 NT$3,000。")));
+    expect(r.escalate).toBe(true);
+  });
+
+  it("AI 回「沒有這項資料」→ escalate 為 true", async () => {
+    const r = await ask(wang, "我的冷氣有點不冷要不要修？", fakeAI(reply("這張卡上沒有這項資料，可以請專員說明", { sources: [] })));
+    expect(r.checkResult).toBe("通過");
+    expect(r.escalate).toBe(true);
+  });
+
+  it.each(["煞車更換多少錢？", "結帳可以用 Point 折抵嗎？", "我不滿 30 歲，電瓶會壞得比較快嗎？", "外面下雨會影響煞車嗎？", "電瓶為什麼壞得快？"])(
+    "反例「%s」→ 不強制 escalate",
+    async (q) => {
+      const r = await ask(wang, q, fakeAI(brake("前煞車來令片示意費用是 NT$3,000。")));
+      expect(r.escalate).toBe(false);
+    },
+  );
+});
+
 describe("ask：原廠文件片段", () => {
   it("問題挑到的片段放進提示詞；回答引用它 → 通過，來源標籤是「回廠服務流程手冊 p.X」", async () => {
     let prompt = "";

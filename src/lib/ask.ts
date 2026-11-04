@@ -71,6 +71,15 @@ function touchesMustReplace(vehicle: Vehicle, question: string): boolean {
   return vehicle.items.some((item) => judge(item).conclusion === "必須更換" && mentions(item, question));
 }
 
+// 議價、比價、要改結論：AI 不能處理，一律轉介專員。「Point 折抵」這類付款問題不算。
+const BARGAIN = /便宜一?點|算便宜|少算|打個?折|折扣|殺價|議價|比價|別家|外面.{0,4}(?:廠|店|修|換|保養)|改(?:成|為)?.{0,6}結論|更新結論|改.{0,2}工單/;
+// 顧客不滿：「不滿 30 歲」不算，只認明確的抱怨字眼。
+const COMPLAINT = /不相信|不信任|推銷|騙|生氣|不滿意|很不滿|對.{0,6}不滿|客訴|投訴|太扯|爛透/;
+
+export function needsHuman(question: string): boolean {
+  return BARGAIN.test(question) || COMPLAINT.test(question);
+}
+
 function parseReply(text: string): AIReply {
   const r = JSON.parse(text);
   const ok =
@@ -199,7 +208,8 @@ export async function ask(vehicle: Vehicle, question: string, callAI: CallAI): P
   const shown: Answer = blockedReason
     ? fallback(vehicle, question)
     : { answer: reply.answer, sources: reply.sources, escalate: reply.escalate };
-  if (touchesMustReplace(vehicle, question)) shown.escalate = true;
+  // AI 回「沒有這項資料，可以請專員說明」時，卡片也要顯示轉專員。
+  if (touchesMustReplace(vehicle, question) || needsHuman(question) || shown.answer.includes(NO_DATA)) shown.escalate = true;
 
   return blockedReason ? { ...shown, checkResult: "攔下", blockedReason, trace } : { ...shown, checkResult: "通過", trace };
 }
