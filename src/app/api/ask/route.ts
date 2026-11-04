@@ -4,7 +4,8 @@ import { callGemini } from "@/lib/gemini";
 import { findVehicle } from "@/lib/vehicles";
 
 const MAX_QUESTION_LENGTH = 200;
-const LIMIT_PER_MINUTE = 6;
+// 決賽現場多人共用同一個 Wi-Fi（同一個 IP），6 次會擋到一般人；60 次只擋程式狂刷。
+const LIMIT_PER_MINUTE = 60;
 
 // 每個 IP 每分鐘的提問次數。Serverless 上只是盡力而為，足夠擋住展示時被刷。
 const hits = new Map<string, number[]>();
