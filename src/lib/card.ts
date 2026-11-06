@@ -76,14 +76,23 @@ export const currentMeasurements = (items: CardItem[]): Record<string, number> =
 
 // 把畫面上技師改過的量測值套回車輛資料，AI 和接待摘要才會看到同一份。
 // 這裡的值來自瀏覽器：格式不對回傳 null，由 API 回錯誤；沒有變動的項目維持原樣（備註和 CCA 都不動）。
-const MAX_MEASUREMENT = 1000;
+// shortcut: 上限只擋明顯打錯的數字，不是原廠規格；拿到修護手冊後改成每個項目自己的範圍。
+const maxMeasurement = (unit: string) => (unit === "%" ? 100 : 30);
+const inRange = (unit: string, value: number) => Number.isFinite(value) && value >= 0 && value <= maxMeasurement(unit);
+
+// 技師輸入框用：合理回傳 null，否則回傳要顯示的訊息。
+export function measurementError(unit: string, raw: string): string | null {
+  if (raw.trim() === "") return "請輸入數值";
+  return inRange(unit, Number(raw)) ? null : `請輸入 0 到 ${maxMeasurement(unit)} ${unit}`;
+}
+
 export function applyMeasurements(vehicle: Vehicle, raw: unknown): Vehicle | null {
   if (raw === undefined) return vehicle;
   if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return null;
   let items = vehicle.items;
   for (const [id, value] of Object.entries(raw)) {
     const item = vehicle.items.find((i) => i.id === id);
-    if (!item?.measurement || typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > MAX_MEASUREMENT) return null;
+    if (!item?.measurement || typeof value !== "number" || !inRange(item.measurement.unit, value)) return null;
     if (item.measurement.value !== value) items = withMeasurement(items, id, value);
   }
   return items === vehicle.items ? vehicle : { ...vehicle, items };

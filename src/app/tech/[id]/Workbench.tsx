@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type ComponentProps } from "react";
-import { cardItems, withMeasurement } from "@/lib/card";
+import { cardItems, measurementError, withMeasurement } from "@/lib/card";
 import { staffLine } from "@/lib/handover";
 import { LABEL, type Conclusion } from "@/lib/rules";
 import type { InspectionItem } from "@/lib/vehicles";
@@ -25,6 +25,7 @@ export default function Workbench(props: {
 }) {
   const [items, setItems] = useState(props.items);
   const [entries, setEntries] = useState<FlowEntry[]>([]);
+  const [errors, setErrors] = useState<Record<string, string | null>>({});
   // 只在量測值改變時重算；DecisionCard 用 items 是否換了來判斷要不要清掉舊選擇。
   const cards = useMemo(() => cardItems(items), [items]);
 
@@ -32,9 +33,11 @@ export default function Workbench(props: {
     cardItems(list).find((i) => i.id === id)!.verdict.conclusion;
 
   function change(item: InspectionItem, raw: string) {
+    // 數值不合理時不重算：結論和 AI 都維持上一個有效值，並在輸入框下方提示。
+    const error = measurementError(item.measurement!.unit, raw);
+    setErrors((prev) => ({ ...prev, [item.id]: error }));
+    if (error) return;
     const value = Number(raw);
-    // 輸入到一半（空白）或不是數字時先不算。
-    if (raw.trim() === "" || !Number.isFinite(value)) return;
     const before = items.find((i) => i.id === item.id)!.measurement!;
     if (before.value === value) return;
     const next = withMeasurement(items, item.id, value);
@@ -71,8 +74,10 @@ export default function Workbench(props: {
             .filter((i) => i.measurement)
             .map((i) => {
               const conclusion = conclusionOf(items, i.id);
+              const error = errors[i.id];
+              const current = items.find((x) => x.id === i.id)!.measurement!;
               return (
-                <label key={i.id} className="flex items-center gap-3 py-3">
+                <label key={i.id} className="flex flex-wrap items-center gap-3 py-3">
                   <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-paper text-ink-2">
                     <Icon name={ITEM_ICON[i.id] ?? "wrench"} className="size-5" />
                   </span>
@@ -86,12 +91,21 @@ export default function Workbench(props: {
                     <input
                       type="number"
                       step="0.1"
+                      min="0"
+                      inputMode="decimal"
                       defaultValue={i.measurement!.value}
                       onChange={(e) => change(i, e.target.value)}
-                      className="w-20 rounded-xl border border-line bg-paper px-3 py-2 text-right text-lg font-bold sm:w-24 outline-none focus:border-ink-2 focus:bg-white"
+                      aria-invalid={error ? true : undefined}
+                      aria-describedby={error ? `error-${i.id}` : undefined}
+                      className={`w-20 rounded-xl border bg-paper px-3 py-2 text-right text-lg font-bold sm:w-24 outline-none focus:bg-white ${error ? "border-must" : "border-line focus:border-ink-2"}`}
                     />
                     <span className="w-7 text-muted">{i.measurement!.unit}</span>
                   </span>
+                  {error && (
+                    <span id={`error-${i.id}`} role="alert" className="w-full text-right text-sm font-semibold text-must">
+                      {error}。結論維持 {current.value} {current.unit} 的結果。
+                    </span>
+                  )}
                 </label>
               );
             })}

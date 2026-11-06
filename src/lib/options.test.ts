@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { cardContext } from "./answers";
 import { ask, optionAnswer, summarize } from "./ask";
-import { applyMeasurements, cardItems, cardProps, currentMeasurements, withMeasurement } from "./card";
+import { applyMeasurements, cardItems, cardProps, currentMeasurements, measurementError, withMeasurement } from "./card";
 import { choiceKey, handover, needsOptionPick, pruneChoices } from "./handover";
 import { vehicles } from "./vehicles";
 
@@ -346,6 +346,21 @@ describe("技師改值後，AI 看到同一份資料", () => {
     for (const bad of [null, "1", 1, [1], { tire: "1" }, { tire: Number.NaN }, { tire: -1 }, { tire: 1001 }, { 不存在: 1 }]) {
       expect(applyMeasurements(wang, bad)).toBeNull();
     }
+  });
+
+  it("反例：超出合理範圍的量測值，API 也拒絕", () => {
+    expect(applyMeasurements(wang, { tire: 30.1 })).toBeNull();
+    expect(applyMeasurements(wang, { battery: 100.1 })).toBeNull();
+    expect(applyMeasurements(wang, { tire: 30 })).not.toBeNull();
+    expect(applyMeasurements(wang, { battery: 100 })).not.toBeNull();
+  });
+
+  it("技師輸入：邊界值可以，空白和超出範圍回錯誤訊息", () => {
+    for (const ok of ["0", "1.4", "30"]) expect(measurementError("mm", ok)).toBeNull();
+    for (const ok of ["0", "100"]) expect(measurementError("%", ok)).toBeNull();
+    for (const empty of ["", "   "]) expect(measurementError("mm", empty)).toBe("請輸入數值");
+    for (const bad of ["-0.1", "30.1", "9999", "1e5", "abc", "Infinity"]) expect(measurementError("mm", bad)).toBe("請輸入 0 到 30 mm");
+    for (const bad of ["-5", "100.1"]) expect(measurementError("%", bad)).toBe("請輸入 0 到 100 %");
   });
 
   it("反例：目視項目沒有量測值，不能改", () => {
