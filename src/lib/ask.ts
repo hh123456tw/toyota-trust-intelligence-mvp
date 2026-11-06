@@ -210,7 +210,8 @@ function check(vehicle: Vehicle, reply: AIReply): string | undefined {
   for (const part of [...reply.answer.split(/[。！？!?；;\n]/), ...reply.answer.split(/[。！？!?；;，\n]/)]) {
     const named = options.filter((o) => part.includes(o.name));
     if (named.length !== 1) continue;
-    const wrong = amounts(part).find((a) => a !== named[0].price);
+    // 「NT$5,600 起」是整個項目的起價，不是這一款的價格。
+    const wrong = amounts(part.replace(/NT\$\s*[\d,]+\s*起/g, "")).find((a) => a !== named[0].price);
     if (wrong !== undefined) return `${named[0].name}是 ${formatPrice(named[0].price)}，回答卻寫 ${formatPrice(wrong)}`;
   }
 
@@ -243,7 +244,7 @@ function fallback(vehicle: Vehicle, question: string): Answer {
 // 問價格和優惠，由程式照清單回答：優惠不給 AI，這樣也不會有算錯或編造的金額。問哪款適合，才交給 AI。
 const PRICE_WORDS = /多少錢|價格|費用|優惠|打折|折扣|便宜/;
 // 問安全的走 AI 和轉專員，不能只回價格。
-const SAFETY_WORDS = /安全|危險|風險|會怎樣|會不會|打滑|不換/;
+const SAFETY_WORDS = /安全|危險|風險|會怎樣|打滑|不換/;
 
 export function optionAnswer(vehicle: Vehicle, question: string): (Answer & { itemId: string }) | undefined {
   // 問延後的，走原本的安全流程，不能被清單回答蓋掉。

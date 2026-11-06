@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { currentMeasurements } from "@/lib/card";
 import type { SummaryResult } from "@/lib/ask";
 import type { CardItem } from "@/lib/card";
@@ -37,7 +37,14 @@ export default function ReceptionSummary(props: {
     setConfirmed(false);
   }
 
+  // 產生到一半技師又改值：回來的是舊值的摘要，不能顯示，也不能讓專員確認。
+  const latestItems = useRef(props.items);
+  useEffect(() => {
+    latestItems.current = props.items;
+  }, [props.items]);
+
   async function generate() {
+    const sent = props.items;
     setBusy(true);
     setConfirmed(false);
     try {
@@ -47,6 +54,7 @@ export default function ReceptionSummary(props: {
         body: JSON.stringify({ vehicleId, summary: true, measurements: currentMeasurements(props.items) }),
       });
       const data = await res.json();
+      if (latestItems.current !== sent) return;
       setResult(data);
       onFlow(summaryFlow(res.status, data, sourceLabels));
     } catch {

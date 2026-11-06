@@ -165,6 +165,10 @@ describe("問價格、優惠由程式照清單回答", () => {
     expect(optionAnswer(lin, "輪胎多少錢，可以算便宜一點嗎")!.escalate).toBe(true);
   });
 
+  it("「會不會有優惠」不是問安全，照清單回答", () => {
+    expect(optionAnswer(lin, "輪胎多少錢，會不會有優惠？")!.answer).toContain("優惠中");
+  });
+
   it("反例：同時問價格和安全，安全優先，不走清單", () => {
     expect(optionAnswer(lin, "輪胎便宜但安全嗎？")).toBeUndefined();
     expect(optionAnswer(lin, "基本款便宜，會不會打滑？")).toBeUndefined();
@@ -283,6 +287,11 @@ describe("AI 依需求建議款式：程式檢查", () => {
     expect(r.checkResult).toBe("攔下");
     expect(r.blockedReason).toContain("長效款");
     expect((await askWith("長效款 NT$6,400。", "長效款")).checkResult).toBe("攔下");
+  });
+
+  it("同一句有項目起價和款式價格：通過", async () => {
+    const r = await askWith("輪胎 NT$5,600 起，可選長效款 NT$8,400，由你決定。", "長效款");
+    expect(r.blockedReason).toBeUndefined();
   });
 
   it("多款並列、各自正確的金額：通過", async () => {
