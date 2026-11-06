@@ -9,11 +9,11 @@ export const metadata: Metadata = { title: "真實 AI 實測紀錄｜Trust Intel
 
 // 建置時讀 repo 裡的原始紀錄，頁面是靜態的；紀錄不見就建置失敗，不顯示假數字。
 const RUNS = [
-  // 10/30 免費版發現第 5 題的問題、改了提示詞；11/5 換付費版後重跑 3 次。10/30 改提示詞後的 3 次紀錄留在 docs/eval/raw。
+  // 10/30 免費版發現第 5 題的問題、改了提示詞；11/7 加入款式建議後重跑 3 次。10/30、11/5 的其他紀錄留在 docs/eval/raw。
   { file: "2026-10-30_run0_before-prompt-fix.log", label: "改提示詞前" },
-  { file: "2026-11-05_run1.log", label: "第 1 次" },
-  { file: "2026-11-05_run2.log", label: "第 2 次" },
-  { file: "2026-11-05_run3.log", label: "第 3 次" },
+  { file: "2026-11-07_run1.log", label: "第 1 次" },
+  { file: "2026-11-07_run2.log", label: "第 2 次" },
+  { file: "2026-11-07_run3.log", label: "第 3 次" },
 ].map((r) => ({
   ...r,
   ...parseEvalLog(readFileSync(join(process.cwd(), "docs/eval/raw", r.file), "utf-8")),
@@ -86,7 +86,7 @@ export default function EvalPage() {
       </p>
       <h1 className="mt-2 text-2xl font-bold">用真的 Gemini 連跑 3 次，不挑最好的一次</h1>
       <p className="mt-2 text-sm text-muted">
-        2026-11-05，模型 gemini-3.5-flash-lite（付費版，和正式站相同）。真的 AI 每次回答都不一樣，所以同一份題目連跑多次，用通過率說話。
+        2026-11-07，模型 gemini-3.5-flash-lite（付費版，和正式站相同）。真的 AI 每次回答都不一樣，所以同一份題目連跑多次，用通過率說話。
         「改提示詞前」那次是 2026-10-30 用免費版跑的，留著說明當時修了什麼。
         下面每一題的回答都是 AI 的原文，取自原始紀錄。
       </p>
@@ -154,13 +154,22 @@ export default function EvalPage() {
         個月後回廠提醒」。提示詞加上「提到可延後的項目時，說出回廠提醒月數」後，連跑 3 次全過。這不是安全問題；煞車、輪胎等安全題 4
         次執行都沒有失守。
       </p>
+      <p className="mt-3 rounded-xl bg-paper px-3 py-2 text-sm text-muted">
+        2026-11-07 加入輪胎款式建議時，修正前的實測沒有全過：答案檢查把「煞車距離變長」當成提到煞車皮而誤攔；有幾題回「沒有這項資料」或少講「可延後」。
+        這些都沒有說錯維修結論。修正答案檢查和提示詞後，才是上面這 3 次。題目是修正時用過的題目，所以這 3 次是回歸驗證，不代表所有問法。
+        平均時間含 Gemini 忙碌時的重試，最慢那次就是重試造成的。
+      </p>
 
       <h2 className="mt-10 text-lg font-bold">逐題結果（點開看 AI 原文）</h2>
-      <p className="mt-1 text-xs text-muted">右邊 4 個圓點依序是：改提示詞前、第 1 次、第 2 次、第 3 次。綠色通過，紅色失敗。</p>
+      <p className="mt-1 text-xs text-muted">右邊的圓點依序是：改提示詞前、第 1 次、第 2 次、第 3 次（11/7 新增的款式題沒有「改提示詞前」）。綠色通過，紅色失敗。</p>
       <ul className="mt-3 space-y-2">
         {ids.map((n) => {
-          const per = RUNS.map((r) => ({ label: r.label, q: r.questions.find((q) => q.n === n)! }));
-          const first = per[1].q;
+          // 11/7 新增的款式題，改提示詞前那次沒有跑。
+          const per = RUNS.flatMap((r) => {
+            const q = r.questions.find((x) => x.n === n);
+            return q ? [{ label: r.label, q }] : [];
+          });
+          const first = per[per.length - 1].q;
           return (
             <li key={n}>
               <details className="rounded-2xl border border-line bg-white px-4 py-3">

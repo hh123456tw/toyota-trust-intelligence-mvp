@@ -35,7 +35,7 @@ function post(question: string, ip: string) {
 }
 
 describe("21 題實測", () => {
-  for (const q of questions.filter((q) => q.no <= 19)) {
+  for (const q of questions.filter((q) => q.no !== 20 && q.no !== 21)) {
     it(`#${q.no} ${q.question}`, async () => {
       const vehicle = findVehicle(q.vehicleId)!;
       await sleep(1_000); // 付費版沒有每分鐘 15 次的限制，稍微間隔就好

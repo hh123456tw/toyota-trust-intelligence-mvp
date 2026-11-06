@@ -50,7 +50,7 @@ export default function DecisionCard(props: {
   items: CardItem[];
   presets: Preset[];
   sourceLabels: Record<string, string>;
-  others: { id: string; owner: string }[];
+  others: { id: string; owner: string; optionHint?: string }[];
   // 技師頁傳入：流程紀錄併到技師頁自己的面板。沒傳時卡片頁自己顯示面板。
   onFlow?: (entry: FlowEntry) => void;
   // 技師頁傳入：顯示「模擬：AI 回答被竄改」按鈕。車主看的卡片頁不顯示。
@@ -123,6 +123,21 @@ export default function DecisionCard(props: {
       <div hidden={delivered}>
         <Progress steps={vehicle.progress} eta={vehicle.eta} />
 
+        {/* 這張卡沒有款式可選時，提示另一台車可以看。技師頁是錄影和示範用，不顯示。 */}
+        {!props.simulate &&
+          !items.some((i) => i.options) &&
+          others
+            .filter((o) => o.optionHint)
+            .map((o) => (
+              <Link
+                key={o.id}
+                href={`/card/${o.id}`}
+                className="mx-4 mt-3 flex min-h-11 items-center justify-between gap-2 rounded-2xl border border-line bg-white px-4 py-3 text-sm font-semibold shadow-sm"
+              >
+                <span>另一台車：{o.optionHint}</span>
+                <Icon name="chevron" className="size-4 shrink-0 -rotate-90" />
+              </Link>
+            ))}
         {vehicle.priceFirstNote && <PriceFirst note={vehicle.priceFirstNote} items={items} />}
 
         <section className="mt-3 space-y-3 px-4">

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { cardContext } from "./answers";
 import { ask, optionAnswer, summarize } from "./ask";
-import { applyMeasurements, cardItems, currentMeasurements, withMeasurement } from "./card";
+import { applyMeasurements, cardItems, cardProps, currentMeasurements, withMeasurement } from "./card";
 import { choiceKey, handover, needsOptionPick, pruneChoices } from "./handover";
 import { vehicles } from "./vehicles";
 
@@ -236,6 +236,13 @@ describe("AI 依需求建議款式：程式檢查", () => {
     expect((await askWith("你一定要選長效款。", "長效款")).checkResult).toBe("攔下");
   });
 
+  it("反例：AI 自己說款式符合安全標準，攔下（卡片沒有這項資料）", async () => {
+    const r = await askWith("基本款規格符合安全標準，由你決定。");
+    expect(r.checkResult).toBe("攔下");
+    expect(r.blockedReason).toContain("安全資料");
+    expect((await askWith("基本款胎噪 72 dB，安全上沒問題。")).checkResult).toBe("攔下");
+  });
+
   it("近似詞：說基本款規格、胎噪高一點，不是施壓，通過", async () => {
     expect((await askWith("基本款胎噪 72 dB，長效款胎噪 69 dB，建議長效款。", "長效款")).checkResult).toBe("通過");
   });
@@ -258,6 +265,10 @@ describe("AI 依需求建議款式：程式檢查", () => {
       const r = await askBudget("建議長效款，由你決定。", "長效款");
       expect(r.checkResult).toBe("攔下");
       expect(r.blockedReason).toContain("預算有限");
+    });
+
+    it("反例：問便宜又安全，卻建議最貴的款式，攔下", async () => {
+      expect((await askBudget("建議長效款，由你決定。", "長效款", "輪胎便宜但安全嗎？")).checkResult).toBe("攔下");
     });
 
     it("反例：「預算不是問題」不算預算有限，建議最貴款通過", async () => {
@@ -340,5 +351,56 @@ describe("技師改值後，AI 看到同一份資料", () => {
   it("反例：目視項目沒有量測值，不能改", () => {
     const visual = wang.items.find((i) => !i.measurement)!;
     expect(applyMeasurements(wang, { [visual.id]: 1 })).toBeNull();
+  });
+});
+
+describe("實測抓到的誤攔", () => {
+  const TIRE = [{ id: "item:tire", conclusion: "必須更換" }];
+  const reply = (answer: string, itemConclusions = TIRE) => async () =>
+    JSON.stringify({ answer, sources: ["item:tire"], escalate: true, itemConclusions });
+
+  it("輪胎的回答提到「煞車距離」，不等於建議換正常的煞車皮", async () => {
+    const r = await ask(lin, "輪胎可以延後嗎？", reply("輪胎量測為 1.4 mm，已低於安全門檻 1.6 mm，無法延後。胎紋不足會使煞車距離變長，建議盡快更換。"));
+    expect(r.blockedReason).toBeUndefined();
+  });
+
+  it("反例：真的建議換正常的煞車皮，還是要攔", async () => {
+    const r = await ask(lin, "輪胎可以延後嗎？", reply("輪胎無法延後。前煞車來令片也建議今天換。"));
+    expect(r.checkResult).toBe("攔下");
+    expect(r.blockedReason).toContain("前煞車來令片");
+  });
+
+  it("「若延後更換會降低煞車效能」是在講風險，不是說可以延後", async () => {
+    const r = await ask(wang, "煞車下個月再換可以嗎？", async () =>
+      JSON.stringify({
+        answer: "前煞車來令片量測只有 2 mm，已經低於安全門檻 3 mm，若延後更換可能會在行駛中降低煞車效能，建議這次就更換。",
+        sources: ["item:brake-pad"],
+        escalate: true,
+        itemConclusions: [{ id: "item:brake-pad", conclusion: "必須更換" }],
+      }),
+    );
+    expect(r.blockedReason).toBeUndefined();
+  });
+
+  it("反例：說若延後也沒關係，還是要攔", async () => {
+    const r = await ask(wang, "煞車下個月再換可以嗎？", async () =>
+      JSON.stringify({
+        answer: "前煞車來令片若延後更換也沒關係。",
+        sources: ["item:brake-pad"],
+        escalate: true,
+        itemConclusions: [{ id: "item:brake-pad", conclusion: "必須更換" }],
+      }),
+    );
+    expect(r.checkResult).toBe("攔下");
+  });
+});
+
+describe("另一台車的款式提示", () => {
+  it("王先生的卡提示林小姐的輪胎有款式可選", () => {
+    expect(cardProps(wang).others.find((o) => o.id === "lin")!.optionHint).toBe("林小姐的輪胎胎紋要換，有 3 款可選");
+  });
+
+  it("反例：王先生沒有必須更換且有款式的項目，林小姐的卡不提示", () => {
+    expect(cardProps(lin).others.find((o) => o.id === "wang")!.optionHint).toBeUndefined();
   });
 });

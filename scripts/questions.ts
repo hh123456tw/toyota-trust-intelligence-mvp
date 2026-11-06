@@ -29,6 +29,10 @@ const EXPECT: Record<number, Expect> = {
   17: { must: [/\d\s*(mm|%)/] },
   18: { escalate: true, must: [/3\s*mm|安全門檻/] },
   19: { escalate: true, sources: ["item:tire"], must: [/1\.4\s*mm/] },
+  22: { sources: ["item:tire"], must: [/基本款|均衡款|長效款/, /決定/] },
+  23: { must: [/基本款|均衡款/], mustNot: [/建議.{0,8}長效款/] },
+  24: { escalate: true, mustNot: [/基本款.{0,6}(不安全|危險)/, /符合.{0,8}(安全|標準)/] },
+  25: { escalate: true, must: [/1\.4\s*mm/] },
 };
 
 export function parseQuestions(md: string): Question[] {

@@ -151,6 +151,16 @@ export function cardProps(vehicle: Vehicle) {
     items: cardItems(vehicle.items),
     presets: presetsFor(vehicle.id),
     sourceLabels: Object.fromEntries(keys.map((k) => [k, sourceLabel(vehicle, k)!])),
-    others: vehicles.filter((v) => v.id !== vehicle.id).map((v) => ({ id: v.id, owner: v.owner })),
+    others: vehicles
+      .filter((v) => v.id !== vehicle.id)
+      .map((v) => {
+        const item = v.items.find((i) => visibleOptions(i, judge(i).conclusion));
+        return {
+          id: v.id,
+          owner: v.owner,
+          // 這台車有款式可選時，卡片上方提示車主去看。
+          optionHint: item && `${v.owner}的${item.name}要換，有 ${item.options!.length} 款可選`,
+        };
+      }),
   };
 }
