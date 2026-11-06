@@ -1,4 +1,5 @@
 // 展示用假資料。門檻數字是展示用，不代表原廠標準。
+import type { Conclusion } from "./rules";
 
 export type Measurement = {
   value: number;
@@ -18,6 +19,16 @@ export type MeasuredRule = {
 export type VisualRule = {
   kind: "visual";
   reminderMonths: number;
+};
+
+// 必須更換時車主可以選的產品（示意）。AI 拿得到款式和規格，可以依車主需求建議；拿不到優惠，建議不受折扣影響。
+export type ProductOption = {
+  id: string;
+  name: string;
+  use: string;
+  specs: string;
+  price: number;
+  sale?: { original: number; until: string };
 };
 
 export type InspectionItem = {
@@ -42,6 +53,11 @@ export type InspectionItem = {
   photo: string;
   // 示意費用（零件＋工資，NT$）。正式導入時來自服務廠工單報價。
   price: number;
+  // 判定必須更換時，卡片上直接說明不換的風險。
+  mustReplaceRisk?: string;
+  // 要換的時候一次換多少。費用是這個範圍的總價（示意）。
+  replaceScope?: string;
+  options?: ProductOption[];
 };
 
 export type DrivingSummary = {
@@ -80,6 +96,23 @@ const tireRule: MeasuredRule = { kind: "measured", mustBelow: 1.6, deferBelow: 3
 const batteryRule: MeasuredRule = { kind: "measured", deferBelow: 70, reminderMonths: 3 };
 const airFilterRule: VisualRule = { kind: "visual", reminderMonths: 6 };
 const wiperRule: VisualRule = { kind: "visual", reminderMonths: 3 };
+
+// 輪胎款式兩台車共用（示意），價格依更換條數計算。price 一律是最低款的價格，AI 和接待摘要講的「起」才對得上清單。
+const TIRE_BASE_PRICE = 2800;
+function tireOptions(count: number): ProductOption[] {
+  return [
+    { id: "basic", name: "基本款", use: "多半市區短程", specs: "預估壽命約 4 萬 km｜濕地抓地 B 級｜胎噪 72 dB", price: TIRE_BASE_PRICE * count },
+    {
+      id: "balanced",
+      name: "均衡款",
+      use: "市區和高速都會開",
+      specs: "預估壽命約 5 萬 km｜濕地抓地 B 級｜胎噪 70 dB",
+      price: 3200 * count,
+      sale: { original: 3600 * count, until: "11/30" },
+    },
+    { id: "long", name: "長效款", use: "常跑長途、年里程高", specs: "預估壽命約 6 萬 km｜濕地抓地 A 級｜胎噪 69 dB", price: 4200 * count },
+  ];
+}
 
 export const vehicles: Vehicle[] = [
   {
@@ -120,6 +153,8 @@ export const vehicles: Vehicle[] = [
         measuredAt: "10:42",
         photo: "/photos/brake-pad-worn.webp",
         price: 3000,
+        mustReplaceRisk: "來令片太薄時，煞車距離會變長，也可能磨傷煞車碟盤。",
+        replaceScope: "前輪左右一組，兩側一起換",
       },
       {
         id: "battery",
@@ -171,7 +206,10 @@ export const vehicles: Vehicle[] = [
         technicianNote: "四輪胎紋約 5.2 mm，磨耗平均。",
         measuredAt: "11:10",
         photo: "/photos/tire-ok.webp",
-        price: 12000,
+        price: TIRE_BASE_PRICE * 4,
+        mustReplaceRisk: "胎紋太淺時，雨天容易打滑，煞車距離也會變長。",
+        replaceScope: "四輪一起換（四輪磨耗平均）",
+        options: tireOptions(4),
       },
     ],
   },
@@ -210,7 +248,10 @@ export const vehicles: Vehicle[] = [
         technicianNote: "右前輪胎紋約 1.4 mm，已低於安全門檻 1.6 mm。",
         measuredAt: "10:05",
         photo: "/photos/tire-worn.webp",
-        price: 3200,
+        price: TIRE_BASE_PRICE * 2,
+        mustReplaceRisk: "胎紋太淺時，雨天容易打滑，煞車距離也會變長。",
+        replaceScope: "前輪左右一對，同軸一起換，兩側抓地力才一致",
+        options: tireOptions(2),
       },
       {
         id: "brake-pad",
@@ -224,6 +265,8 @@ export const vehicles: Vehicle[] = [
         measuredAt: "10:15",
         photo: "/photos/brake-pad-ok.webp",
         price: 3000,
+        mustReplaceRisk: "來令片太薄時，煞車距離會變長，也可能磨傷煞車碟盤。",
+        replaceScope: "前輪左右一組，兩側一起換",
       },
       {
         id: "battery",
@@ -260,6 +303,17 @@ export function trendText(item: InspectionItem): string | undefined {
   const now = item.measurement;
   if (!prev || !now) return undefined;
   return `半年前 ${prev.value} ${prev.unit} → 本次 ${now.value} ${now.unit}`;
+}
+
+// 折扣只改變「選哪一款」，不能推著車主提早換：可延後和正常的項目不顯示。由低價排到高價，不預選。
+export function visibleOptions(item: InspectionItem, conclusion: Conclusion): ProductOption[] | undefined {
+  if (conclusion !== "必須更換" || !item.options?.length) return undefined;
+  return [...item.options].sort((a, b) => a.price - b.price);
+}
+
+// 給 AI 和接待摘要的費用文字。必須更換且有款式時，費用依車主選的款式而定。
+export function priceLabel(item: Pick<InspectionItem, "price" | "options">, mustReplace: boolean): string {
+  return mustReplace && item.options?.length ? `${formatPrice(item.price)} 起（依款式）` : formatPrice(item.price);
 }
 
 export function formatPrice(price: number): string {

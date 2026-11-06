@@ -6,7 +6,8 @@ import type { Answer, Preset } from "@/lib/answers";
 import type { AskResult } from "@/lib/ask";
 import type { CardItem, Gauge } from "@/lib/card";
 import { askFlow, handoverFlow, presetFlow, type FlowEntry } from "@/lib/flow";
-import { choiceKey, handover, pruneChoices, type Choice } from "@/lib/handover";
+import { currentMeasurements } from "@/lib/card";
+import { choiceKey, handover, needsOptionPick, pruneChoices, type Choice } from "@/lib/handover";
 import { LABEL, type Conclusion } from "@/lib/rules";
 import { formatPrice, RULE_VERSION } from "@/lib/vehicles";
 import Icon, { ITEM_ICON, type IconName } from "../../Icon";
@@ -62,14 +63,17 @@ export default function DecisionCard(props: {
   // 車主在卡片上的選擇，交車說明要用，所以放在這一層。
   const [choices, setChoices] = useState<Record<string, Choice>>({});
   // 技師改值後（items 換了）立刻清掉結論已改變的選擇，在 render 中調整，不用 effect。
+  // 車主選的產品，和選擇一樣用 choiceKey 存。
+  const [picked, setPicked] = useState<Record<string, string>>({});
   const [seenItems, setSeenItems] = useState(items);
   if (items !== seenItems) {
     setSeenItems(items);
     setChoices((prev) => pruneChoices(prev, items));
+    setPicked((prev) => pruneChoices(prev, items));
   }
   const [delivered, setDelivered] = useState(false);
   const topRef = useRef<HTMLElement>(null);
-  const summary = handover(items, choices, vehicle.routine, vehicle.nextServiceKm);
+  const summary = handover(items, choices, vehicle.routine, vehicle.nextServiceKm, picked);
 
   function showHandover(open: boolean) {
     setDelivered(open);
@@ -129,6 +133,8 @@ export default function DecisionCard(props: {
               item={item}
               technician={vehicle.technician}
               choice={choices[choiceKey(item)]}
+              picked={picked[choiceKey(item)]}
+              onPick={(id) => setPicked((prev) => ({ ...prev, [choiceKey(item)]: id }))}
               onChoose={(c) =>
                 setChoices((prev) => {
                   const next = { ...prev };
@@ -162,6 +168,7 @@ export default function DecisionCard(props: {
 
         <Chat
           vehicleId={vehicle.id}
+          measurements={currentMeasurements(items)}
           presets={presets}
           sourceLabels={sourceLabels}
           onFlow={onFlow}
@@ -229,11 +236,15 @@ function ItemCard({
   item,
   technician,
   choice,
+  picked,
+  onPick,
   onChoose,
 }: {
   item: CardItem;
   technician: string;
   choice?: Choice;
+  picked?: string;
+  onPick: (id: string) => void;
   onChoose: (c: Choice | null) => void;
 }) {
   const { conclusion, reason, reminderMonths } = item.verdict;
@@ -241,6 +252,8 @@ function ItemCard({
   const setChoice = onChoose;
   const [escalated, setEscalated] = useState(false);
   const [showPhoto, setShowPhoto] = useState(conclusion === "必須更換");
+  const pickedOption = item.options?.find((o) => o.id === picked);
+  const needsPick = needsOptionPick(item, picked);
 
   return (
     <article className="overflow-hidden rounded-2xl border border-line bg-white shadow-sm">
@@ -265,9 +278,16 @@ function ItemCard({
 
         <dl className="mt-3 space-y-1.5 rounded-xl bg-paper px-3 py-2.5 text-sm">
           {item.trend && <Row label="量測趨勢">{item.trend}</Row>}
+          {item.replaceScope && <Row label="更換範圍">{item.replaceScope}</Row>}
           {item.price !== undefined && (
             <Row label="示意費用">
-              <span className="font-bold">{formatPrice(item.price)}</span>
+              <span className="font-bold">
+                {item.options
+                  ? pickedOption
+                    ? formatPrice(pickedOption.price)
+                    : `${formatPrice(item.options[0].price)} 起`
+                  : formatPrice(item.price)}
+              </span>
               <span className="text-muted">（零件＋工資，實際以服務廠報價為準）</span>
             </Row>
           )}
@@ -324,6 +344,18 @@ function ItemCard({
               <Icon name="shield" className="mt-px size-4 shrink-0" />
               這是安全項目，已低於安全門檻，今天需要更換，不提供延後。
             </p>
+            {item.risk && (
+              <p className="mt-2 rounded-xl border border-must/30 bg-white px-3 py-2.5 text-sm leading-relaxed">
+                <span className="font-bold text-must">不換的風險：</span>
+                {item.risk}
+              </p>
+            )}
+            {item.options && (
+              <OptionList item={item} picked={picked} locked={choice === "today"} onPick={onPick} />
+            )}
+            {needsPick && !choice && !escalated && (
+              <p className="mt-2 text-sm font-medium">請先選一款，才能授權今天處理。</p>
+            )}
             {!choice && !escalated && (
               <div className="mt-2 grid grid-cols-2 gap-2">
                 <button
@@ -335,16 +367,17 @@ function ItemCard({
                 </button>
                 <button
                   onClick={() => setChoice("today")}
-                  className="min-h-11 rounded-xl bg-must text-sm font-semibold text-white transition-opacity active:opacity-80"
+                  disabled={needsPick}
+                  className="min-h-11 rounded-xl bg-must text-sm font-semibold text-white transition-opacity active:opacity-80 disabled:opacity-40"
                 >
-                  今天授權處理
+                  {needsPick ? "先選一款" : "今天授權處理"}
                 </button>
               </div>
             )}
             {choice === "today" && (
               <p className="mt-2 flex items-center gap-2 rounded-xl bg-ok-soft px-3 py-2.5 text-sm font-medium text-ok">
                 <Icon name="check" className="size-4 shrink-0" />
-                已授權今天處理，專員確認後開始施工。
+                已授權今天處理{pickedOption && `（${pickedOption.name}）`}，專員確認後開始施工。
               </p>
             )}
             {escalated && !choice && (
@@ -359,7 +392,7 @@ function ItemCard({
                   setChoice(null);
                   setEscalated(false);
                 }}
-                className="mt-1 min-h-9 text-xs text-muted underline"
+                className="mt-1 min-h-11 text-xs text-muted underline"
               >
                 重新選擇
               </button>
@@ -398,7 +431,7 @@ function ItemCard({
               </p>
             )}
             {choice && (
-              <button onClick={() => setChoice(null)} className="mt-1 min-h-9 text-xs text-muted underline">
+              <button onClick={() => setChoice(null)} className="mt-1 min-h-11 text-xs text-muted underline">
                 重新選擇
               </button>
             )}
@@ -406,6 +439,58 @@ function ItemCard({
         )}
       </div>
     </article>
+  );
+}
+
+// 必須更換時的產品清單：由低價排到高價、不預選、卡片上不標推薦（要車主問了，AI 才依需求建議）。規格和價格都是示意。
+function OptionList({
+  item,
+  picked,
+  locked,
+  onPick,
+}: {
+  item: CardItem;
+  picked?: string;
+  locked: boolean;
+  onPick: (id: string) => void;
+}) {
+  return (
+    <fieldset className={`mt-3 ${locked ? "opacity-60" : ""}`} disabled={locked}>
+      <legend className="text-sm font-bold">選擇要換的款式</legend>
+      <p className="mt-0.5 text-xs text-muted">由低價排到高價，由你決定。不確定選哪款，可以告訴下面的 AI 你平常怎麼開（規格和價格皆為示意）。</p>
+      {locked && <p className="mt-1 text-xs font-medium">已授權。要改款式，請按下方「重新選擇」。</p>}
+      <div className="mt-2 space-y-2">
+        {item.options!.map((o) => (
+          <label
+            key={o.id}
+            className={`flex items-start gap-2.5 rounded-xl border p-3 text-sm ${locked ? "cursor-not-allowed" : "cursor-pointer"} ${
+              picked === o.id ? "border-ink bg-paper" : "border-line bg-white"
+            }`}
+          >
+            <input
+              type="radio"
+              name={`option-${item.id}`}
+              checked={picked === o.id}
+              onChange={() => onPick(o.id)}
+              className="mt-1 size-4 shrink-0"
+            />
+            <span className="min-w-0 flex-1">
+              <span className="flex flex-wrap items-baseline justify-between gap-x-2">
+                <span className="font-bold">{o.name}</span>
+                <span className="font-bold tabular-nums">{formatPrice(o.price)}</span>
+              </span>
+              {o.sale && (
+                <span className="mt-1 block text-xs font-semibold text-defer">
+                  優惠中：原價 {formatPrice(o.sale.original)}，至 {o.sale.until}（示意）
+                </span>
+              )}
+              <span className="mt-1 block text-xs text-ink-2">適合：{o.use}</span>
+              <span className="mt-0.5 block text-xs text-muted">{o.specs}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
   );
 }
 
@@ -548,12 +633,13 @@ function GaugeBar({ gauge, conclusion }: { gauge: Gauge; conclusion: Conclusion 
 
 function Chat(props: {
   vehicleId: string;
+  measurements: Record<string, number>;
   presets: Preset[];
   sourceLabels: Record<string, string>;
   onFlow: (entry: FlowEntry) => void;
   simulate?: boolean;
 }) {
-  const { vehicleId, presets, sourceLabels, onFlow } = props;
+  const { vehicleId, measurements, presets, sourceLabels, onFlow } = props;
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -580,7 +666,7 @@ function Chat(props: {
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vehicleId, question }),
+        body: JSON.stringify({ vehicleId, question, measurements }),
       });
       const data = await res.json();
       push(res.ok ? { role: "ai", answer: data } : { role: "error", text: data.error });
@@ -601,7 +687,7 @@ function Chat(props: {
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vehicleId, simulate: "tampered" }),
+        body: JSON.stringify({ vehicleId, simulate: "tampered", measurements }),
       });
       const data = await res.json();
       push(res.ok ? { role: "simulated", result: data } : { role: "error", text: data.error });

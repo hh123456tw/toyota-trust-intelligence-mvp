@@ -117,6 +117,8 @@ export default function Workbench(props: {
             <DecisionCard
               {...props.card}
               items={cards}
+              // 常見問題是預寫的，改值後結論可能不同，先收起來，改問 AI。
+              presets={items === props.items ? props.card.presets : []}
               simulate
               onFlow={(e) => setEntries((prev) => [...prev, e])}
             />

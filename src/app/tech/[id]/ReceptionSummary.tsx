@@ -1,5 +1,6 @@
 "use client";
 
+import { currentMeasurements } from "@/lib/card";
 import { useState } from "react";
 import type { SummaryResult } from "@/lib/ask";
 import type { CardItem } from "@/lib/card";
@@ -38,7 +39,7 @@ export default function ReceptionSummary(props: {
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vehicleId, summary: true }),
+        body: JSON.stringify({ vehicleId, summary: true, measurements: currentMeasurements(props.items) }),
       });
       const data = await res.json();
       setResult(data);

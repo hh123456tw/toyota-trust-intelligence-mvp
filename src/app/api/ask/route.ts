@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { ask, simulateTampered, summarize } from "@/lib/ask";
+import { applyMeasurements } from "@/lib/card";
 import { callGemini } from "@/lib/gemini";
 import { findVehicle } from "@/lib/vehicles";
 
@@ -20,10 +21,12 @@ function rateLimited(ip: string): boolean {
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
-  const vehicle = findVehicle(String(body?.vehicleId ?? ""));
+  const found = findVehicle(String(body?.vehicleId ?? ""));
   const question = String(body?.question ?? "").trim();
 
-  if (!vehicle) return Response.json({ error: "找不到這台車" }, { status: 404 });
+  if (!found) return Response.json({ error: "找不到這台車" }, { status: 404 });
+  const vehicle = applyMeasurements(found, body?.measurements);
+  if (!vehicle) return Response.json({ error: "量測值格式不正確" }, { status: 400 });
 
   // 技師頁的「模擬：AI 回答被竄改」：不呼叫 AI，回傳結果標 simulated。
   if (body?.simulate === "tampered") {

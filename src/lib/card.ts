@@ -3,7 +3,7 @@
 import { presetsFor, sourceLabel, validSources } from "./answers";
 import { EXCERPTS } from "./manual";
 import { judge, type Conclusion, type Verdict } from "./rules";
-import { trendText, vehicles, type InspectionItem, type Vehicle } from "./vehicles";
+import { trendText, vehicles, visibleOptions, type InspectionItem, type ProductOption, type Vehicle } from "./vehicles";
 
 // 決策卡上的一個檢查項目。
 export type CardItem = {
@@ -17,6 +17,11 @@ export type CardItem = {
   trend?: string;
   // 示意費用：只有必須更換、可延後的項目有。
   price?: number;
+  // 只有必須更換的項目有：不換的風險、可選的產品。
+  risk?: string;
+  // 必須更換、可延後的項目才有：要換的時候一次換多少。
+  replaceScope?: string;
+  options?: ProductOption[];
   // 量測型項目的刻度條：本次、上次量測和門檻。只供畫面顯示，結論仍以 verdict 為準。
   gauge?: Gauge;
   verdict: Verdict;
@@ -46,6 +51,9 @@ export function cardItems(items: InspectionItem[]): CardItem[] {
         cca: item.cca,
         trend: trendText(item),
         price: verdict.conclusion === "正常" ? undefined : item.price,
+        risk: verdict.conclusion === "必須更換" ? item.mustReplaceRisk : undefined,
+        replaceScope: verdict.conclusion === "正常" ? undefined : item.replaceScope,
+        options: visibleOptions(item, verdict.conclusion),
         gauge:
           item.rule.kind === "measured" && item.measurement
             ? {
@@ -60,6 +68,25 @@ export function cardItems(items: InspectionItem[]): CardItem[] {
       };
     })
     .sort((a, b) => ORDER[a.verdict.conclusion] - ORDER[b.verdict.conclusion]);
+}
+
+// 畫面目前的量測值，追問和接待摘要時一起送給 API。
+export const currentMeasurements = (items: CardItem[]): Record<string, number> =>
+  Object.fromEntries(items.flatMap((i) => (i.gauge ? [[i.id, i.gauge.value]] : [])));
+
+// 把畫面上技師改過的量測值套回車輛資料，AI 和接待摘要才會看到同一份。
+// 這裡的值來自瀏覽器：格式不對回傳 null，由 API 回錯誤；沒有變動的項目維持原樣（備註和 CCA 都不動）。
+const MAX_MEASUREMENT = 1000;
+export function applyMeasurements(vehicle: Vehicle, raw: unknown): Vehicle | null {
+  if (raw === undefined) return vehicle;
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return null;
+  let items = vehicle.items;
+  for (const [id, value] of Object.entries(raw)) {
+    const item = vehicle.items.find((i) => i.id === id);
+    if (!item?.measurement || typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > MAX_MEASUREMENT) return null;
+    if (item.measurement.value !== value) items = withMeasurement(items, id, value);
+  }
+  return items === vehicle.items ? vehicle : { ...vehicle, items };
 }
 
 // 技師改一個量測值：回傳新陣列，不改原始資料。原備註描述舊值，一併換掉。

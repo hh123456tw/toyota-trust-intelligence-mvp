@@ -1,6 +1,6 @@
 import { excerptLabel } from "./manual";
 import { judge } from "./rules";
-import { formatPrice, trendText, type Vehicle } from "./vehicles";
+import { formatPrice, trendText, type Vehicle, priceLabel, visibleOptions } from "./vehicles";
 
 // 來源代號：item:<檢查項目 id>、trend:<檢查項目 id>（量測趨勢）、doc:<片段 id>（原廠文件片段）或 driving（行車摘要）。
 export type Answer = {
@@ -127,7 +127,15 @@ export function cardContext(vehicle: Vehicle) {
         使用紀錄: item.history ?? null,
         結論: v.conclusion,
         // 卡片上只顯示必須更換、可延後項目的價格，AI 也只拿得到這些。
-        示意費用: v.conclusion === "正常" ? null : formatPrice(item.price),
+        示意費用: v.conclusion === "正常" ? null : priceLabel(item, v.conclusion === "必須更換"),
+        更換範圍: v.conclusion === "正常" ? null : (item.replaceScope ?? null),
+        // 只有必須更換的項目有。故意不放優惠：建議要看車主怎麼開，不看折扣。
+        可選款式: visibleOptions(item, v.conclusion)?.map((o) => ({
+          款式: o.name,
+          適合: o.use,
+          規格: o.specs,
+          示意費用: formatPrice(o.price),
+        })),
         結論理由: v.reason,
         回廠提醒月數: v.reminderMonths ?? null,
       };

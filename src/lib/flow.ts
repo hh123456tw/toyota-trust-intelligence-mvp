@@ -30,6 +30,9 @@ export function askFlow(
     return { title, steps: [`失敗：${"error" in data ? data.error : "未知錯誤"}`], aiCalls: status === 502 ? 1 : 0 };
   }
   const { trace, checkResult, blockedReason } = data;
+  if (trace.noAI) {
+    return { title, steps: ["使用卡片上的款式清單回答，不呼叫 AI", `引用的來源：${list(trace.aiSources, labels, "無")}`], aiCalls: 0 };
+  }
   return {
     title,
     steps: [
