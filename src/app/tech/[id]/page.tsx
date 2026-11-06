@@ -1,7 +1,13 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cardProps } from "@/lib/card";
 import { findVehicle, vehicles } from "@/lib/vehicles";
 import Workbench from "./Workbench";
+
+export async function generateMetadata(props: PageProps<"/tech/[id]">): Promise<Metadata> {
+  const vehicle = findVehicle((await props.params).id);
+  return vehicle ? { title: `技師輸入：${vehicle.owner}的車｜Trust Intelligence` } : {};
+}
 
 export function generateStaticParams() {
   return vehicles.map((v) => ({ id: v.id }));

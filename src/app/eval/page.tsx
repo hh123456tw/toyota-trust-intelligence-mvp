@@ -173,7 +173,7 @@ export default function EvalPage() {
           return (
             <li key={n}>
               <details className="rounded-2xl border border-line bg-white px-4 py-3">
-                <summary className="flex cursor-pointer list-none items-start gap-3">
+                <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3">
                   <span className="w-7 shrink-0 font-bold text-muted">#{n}</span>
                   <span className="min-w-0 flex-1 font-semibold">{first.question}</span>
                   <span className="flex shrink-0 gap-1" aria-label={per.map((p) => `${p.label}${p.q.pass ? "通過" : "失敗"}`).join("，")}>
@@ -213,7 +213,7 @@ export default function EvalPage() {
         {AFTER.map((r) => (
           <li key={r.file}>
             <details className="rounded-2xl border border-line bg-white px-4 py-3">
-              <summary className="flex cursor-pointer list-none items-center gap-3">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3">
                 <span className="flex-1 font-semibold">{r.label}</span>
                 <span className="text-sm text-muted">
                   {r.summaries.filter((s) => s.pass).length} / {r.summaries.length} 通過

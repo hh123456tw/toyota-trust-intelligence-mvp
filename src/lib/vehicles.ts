@@ -134,9 +134,9 @@ export const vehicles: Vehicle[] = [
     nextServiceKm: 5000,
     progress: [
       { stage: "接待完成", time: "10:05" },
-      { stage: "技師檢查完成", time: "11:20" },
-      { stage: "車主確認中", time: "11:25" },
-      { stage: "施工與品檢" },
+      { stage: "技師檢查", time: "11:20" },
+      { stage: "車主確認", time: "11:25" },
+      { stage: "施工品檢" },
       { stage: "完工交車" },
     ],
     eta: "16:20",
@@ -231,9 +231,9 @@ export const vehicles: Vehicle[] = [
     nextServiceKm: 5000,
     progress: [
       { stage: "接待完成", time: "09:30" },
-      { stage: "技師檢查完成", time: "10:40" },
-      { stage: "車主確認中", time: "10:45" },
-      { stage: "施工與品檢" },
+      { stage: "技師檢查", time: "10:40" },
+      { stage: "車主確認", time: "10:45" },
+      { stage: "施工品檢" },
       { stage: "完工交車" },
     ],
     items: [

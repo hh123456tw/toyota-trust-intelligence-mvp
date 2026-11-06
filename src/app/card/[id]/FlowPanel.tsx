@@ -8,7 +8,7 @@ import Icon from "../../Icon";
 export default function FlowPanel({ entries }: { entries: FlowEntry[] }) {
   return (
     <details open className="group rounded-2xl border border-line bg-white p-4 shadow-sm">
-      <summary className="flex cursor-pointer list-none items-center gap-3">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3">
         <span className="grid size-9 place-items-center rounded-xl bg-ink-2 text-white">
           <Icon name="cpu" className="size-5" />
         </span>

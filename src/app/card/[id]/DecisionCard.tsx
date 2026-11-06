@@ -560,15 +560,15 @@ function Progress({ steps, eta }: { steps: { stage: string; time?: string }[]; e
                 i < current ? "border-ok bg-ok" : i === current ? "border-brand bg-white ring-4 ring-brand/20" : "border-line bg-white"
               }`}
             />
-            <p className={`mt-1.5 text-[11px] leading-tight ${i === current ? "font-bold" : "text-muted"}`}>
+            <p className={`mt-1.5 text-xs leading-tight ${i === current ? "font-bold" : "text-muted"}`}>
               {s.stage}
               {i === current && <span className="sr-only">（目前階段）</span>}
             </p>
-            <p className="text-[11px] text-muted">{s.time ?? "—"}</p>
+            <p className="text-xs text-muted">{s.time ?? "—"}</p>
           </li>
         ))}
       </ol>
-      <p className="mt-2 text-[11px] text-muted">進度由工單事件更新（示意資料）</p>
+      <p className="mt-2 text-xs text-muted">進度由工單事件更新（示意資料）</p>
     </section>
   );
 }
@@ -632,7 +632,7 @@ function GaugeBar({ gauge, conclusion }: { gauge: Gauge; conclusion: Conclusion 
           style={{ left: `${pct(value)}%` }}
         />
       </div>
-      <div className="relative mt-1 h-4 text-[11px] text-muted">
+      <div className="relative mt-1 h-4 text-xs text-muted">
         {mustBelow !== undefined && (
           <span className="absolute -translate-x-1/2" style={{ left: `${must}%` }}>
             安全門檻 {mustBelow}
@@ -731,7 +731,7 @@ function Chat(props: {
           <button
             key={p.question}
             onClick={() => askPreset(p)}
-            className="min-h-10 rounded-full border border-line bg-paper px-3.5 text-sm font-medium transition-colors hover:border-ink-2/40 active:bg-line"
+            className="min-h-11 rounded-full border border-line bg-paper px-3.5 text-sm font-medium transition-colors hover:border-ink-2/40 active:bg-line"
           >
             {p.question}
           </button>
