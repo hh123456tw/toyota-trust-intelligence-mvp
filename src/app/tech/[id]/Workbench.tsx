@@ -101,8 +101,7 @@ export default function Workbench(props: {
           vehicleId={props.card.vehicle.id}
           sourceLabels={props.card.sourceLabels}
           onFlow={(e) => setEntries((prev) => [...prev, e])}
-          edited={items !== props.items}
-          line={staffLine(cardItems(props.items))}
+          line={staffLine(cards)}
           items={cards}
         />
 

@@ -165,6 +165,12 @@ describe("問價格、優惠由程式照清單回答", () => {
     expect(optionAnswer(lin, "輪胎多少錢，可以算便宜一點嗎")!.escalate).toBe(true);
   });
 
+  it("反例：同時問價格和安全，安全優先，不走清單", () => {
+    expect(optionAnswer(lin, "輪胎便宜但安全嗎？")).toBeUndefined();
+    expect(optionAnswer(lin, "基本款便宜，會不會打滑？")).toBeUndefined();
+    expect(optionAnswer(lin, "不換輪胎比較便宜嗎？")).toBeUndefined();
+  });
+
   it("反例：問哪款適合、問風險、問別的項目，都不走清單", () => {
     expect(optionAnswer(lin, "哪一款輪胎比較適合我？")).toBeUndefined();
     expect(optionAnswer(lin, "基本款安全嗎？")).toBeUndefined();
@@ -263,6 +269,24 @@ describe("AI 依需求建議款式：程式檢查", () => {
     it("反例：沒提預算時，建議較貴的款式不算違規", async () => {
       expect((await askBudget("建議長效款，由你決定。", "長效款", "我常跑高速，選哪款？")).checkResult).toBe("通過");
     });
+  });
+
+  it("反例：只講款式名稱也不能說可以延後", async () => {
+    const r = await askWith("長效款可延後更換。", "長效款");
+    expect(r.checkResult).toBe("攔下");
+    expect(r.blockedReason).toContain("延後");
+    expect((await askWith("基本款可以撐到下個月再換。", "基本款")).checkResult).toBe("攔下");
+  });
+
+  it("反例：款式和金額要配對，別款的價格也不行", async () => {
+    const r = await askWith("建議長效款，費用 NT$5,600。", "長效款");
+    expect(r.checkResult).toBe("攔下");
+    expect(r.blockedReason).toContain("長效款");
+    expect((await askWith("長效款 NT$6,400。", "長效款")).checkResult).toBe("攔下");
+  });
+
+  it("多款並列、各自正確的金額：通過", async () => {
+    expect((await askWith("基本款 NT$5,600，長效款 NT$8,400，建議長效款，由你決定。", "長效款")).blockedReason).toBeUndefined();
   });
 
   it("反例：這台車沒有清單卻建議款式，攔下", async () => {

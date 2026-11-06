@@ -1,7 +1,7 @@
 "use client";
 
-import { currentMeasurements } from "@/lib/card";
 import { useState } from "react";
+import { currentMeasurements } from "@/lib/card";
 import type { SummaryResult } from "@/lib/ask";
 import type { CardItem } from "@/lib/card";
 import { staffConfirmFlow, summaryFlow, type FlowEntry } from "@/lib/flow";
@@ -16,12 +16,10 @@ const TONE: Record<Conclusion, { bar: string; text: string }> = {
 };
 
 // 接待摘要：給服務專員看，AI 把整張決策卡整理成 30 秒能講完的版本。
-// edited：技師改過量測值。AI 只讀原始資料（同追問的已知限制），所以改值後不再產生。
 export default function ReceptionSummary(props: {
   vehicleId: string;
   sourceLabels: Record<string, string>;
   onFlow: (entry: FlowEntry) => void;
-  edited: boolean;
   // 專員建議說法：由規則引擎結論組成（staffLine），不經 AI。
   line: string;
   // 一項一行的清單：結論和理由都來自規則引擎，不經 AI。
@@ -31,6 +29,13 @@ export default function ReceptionSummary(props: {
   const [result, setResult] = useState<SummaryResult | { error: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  // 技師改值後舊摘要就過期了：清掉，重新產生時會帶新值。
+  const [seenItems, setSeenItems] = useState(props.items);
+  if (props.items !== seenItems) {
+    setSeenItems(props.items);
+    setResult(null);
+    setConfirmed(false);
+  }
 
   async function generate() {
     setBusy(true);
@@ -65,16 +70,14 @@ export default function ReceptionSummary(props: {
         </div>
         <button
           onClick={generate}
-          disabled={busy || props.edited}
+          disabled={busy}
           className="min-h-11 shrink-0 rounded-xl bg-ink px-4 font-semibold text-white transition-opacity disabled:opacity-40"
         >
           {busy ? "整理中…" : "產生摘要"}
         </button>
       </div>
-      {props.edited && <p className="text-sm text-muted">技師已改值：摘要只依原始量測產生，展示時請先產生摘要再改值。</p>}
-      {/* 改值後摘要和建議說法都依舊資料，不再顯示，也不能確認。 */}
-      {result && !props.edited && "error" in result && <p className="text-sm text-muted">{result.error}</p>}
-      {result && !props.edited && !("error" in result) && (
+      {result && "error" in result && <p className="text-sm text-muted">{result.error}</p>}
+      {result && !("error" in result) && (
         <div className="space-y-3 rounded-xl bg-paper p-3">
           {/* 精簡清單：一項一行，只當參考；重點是下面的 AI 摘要和專員建議說法。 */}
           <div>

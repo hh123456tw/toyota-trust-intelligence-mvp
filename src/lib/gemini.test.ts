@@ -32,6 +32,15 @@ describe("callGemini 重試", () => {
     expect(f).toHaveBeenCalledTimes(3);
   });
 
+  it("反例：逾時不重試，直接回錯誤", async () => {
+    const f = vi.fn(async () => {
+      throw new DOMException("逾時", "TimeoutError");
+    });
+    vi.stubGlobal("fetch", f);
+    await expect(callGemini("k", "s", "u")).rejects.toThrow("逾時");
+    expect(f).toHaveBeenCalledTimes(1);
+  });
+
   it("反例：400、401、402 不重試", async () => {
     for (const status of [400, 401, 402]) {
       const f = stubFetch(fail(status));

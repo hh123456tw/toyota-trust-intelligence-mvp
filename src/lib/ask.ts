@@ -175,8 +175,14 @@ function check(vehicle: Vehicle, reply: AIReply): string | undefined {
   );
   if (unlisted) return `回答提到必須更換的${unlisted.name}，卻沒有列出它的結論`;
 
+  // 款式名稱也算提到那個項目：「長效款可以延後」等於說輪胎可以延後。
+  let itemText = reply.answer;
+  for (const i of vehicle.items) {
+    for (const o of visibleOptions(i, judge(i).conclusion) ?? []) itemText = itemText.replaceAll(o.name, i.name);
+  }
+
   // 逐子句檢查：子句點名的項目是主詞；沒點名就沿用同一句提到的項目。
-  for (const sentence of reply.answer.split(/[。！？!?；;\n]/)) {
+  for (const sentence of itemText.split(/[。！？!?；;\n]/)) {
     const inSentence = vehicle.items.filter((i) => mentions(i, sentence));
     for (const clause of sentence.split(/[，,]/)) {
       const named = inSentence.filter((i) => mentions(i, clause));
@@ -198,6 +204,14 @@ function check(vehicle: Vehicle, reply: AIReply): string | undefined {
   for (const clause of reply.answer.split(/[。！？!?；;，,\n]/)) {
     const named = options.find((o) => clause.includes(o.name));
     if (named && PRESSURE_WORDS.test(clause)) return `回答對${named.name}的說法帶有壓力：${clause.trim()}`;
+  }
+  // 只提到一款的句子或子句，金額就要是那一款的價格。提到多款時由下面的整體金額檢查把關。
+  // 不切半形逗號：NT$5,600 是一個金額。
+  for (const part of [...reply.answer.split(/[。！？!?；;\n]/), ...reply.answer.split(/[。！？!?；;，\n]/)]) {
+    const named = options.filter((o) => part.includes(o.name));
+    if (named.length !== 1) continue;
+    const wrong = amounts(part).find((a) => a !== named[0].price);
+    if (wrong !== undefined) return `${named[0].name}是 ${formatPrice(named[0].price)}，回答卻寫 ${formatPrice(wrong)}`;
   }
 
   // 金額只能是卡片上顯示的價格（必須更換、可延後的項目，加上可選款式）。
@@ -228,10 +242,12 @@ function fallback(vehicle: Vehicle, question: string): Answer {
 
 // 問價格和優惠，由程式照清單回答：優惠不給 AI，這樣也不會有算錯或編造的金額。問哪款適合，才交給 AI。
 const PRICE_WORDS = /多少錢|價格|費用|優惠|打折|折扣|便宜/;
+// 問安全的走 AI 和轉專員，不能只回價格。
+const SAFETY_WORDS = /安全|危險|風險|會怎樣|會不會|打滑|不換/;
 
 export function optionAnswer(vehicle: Vehicle, question: string): (Answer & { itemId: string }) | undefined {
   // 問延後的，走原本的安全流程，不能被清單回答蓋掉。
-  if (touchesMustReplace(vehicle, question) || !PRICE_WORDS.test(question)) return undefined;
+  if (touchesMustReplace(vehicle, question) || SAFETY_WORDS.test(question) || !PRICE_WORDS.test(question)) return undefined;
   for (const item of vehicle.items) {
     const options = visibleOptions(item, judge(item).conclusion);
     if (!options) continue;
