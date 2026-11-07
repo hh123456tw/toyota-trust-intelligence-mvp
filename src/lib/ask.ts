@@ -2,6 +2,7 @@
 
 import { cardContext, contextSources, presetsFor, sourceLabel, type Answer } from "./answers";
 import { findExcerpts, hasKeyword, OTHER_PARTS } from "./manual";
+import { preferenceSummaryLine } from "./preferences";
 import { judge, type Conclusion } from "./rules";
 import { formatPrice, priceLabel, visibleOptions, type InspectionItem, type Vehicle } from "./vehicles";
 
@@ -44,7 +45,12 @@ const SYSTEM_PROMPT = `你是和泰汽車服務廠的維修說明助理，用繁
 7. 車主問該選哪一款時，從卡片資料的「可選款式」建議一款，說明理由，並說最後由車主決定。車主說的需求優先於行車摘要；車主沒說需求才看行車摘要。車主說預算有限時，優先考慮較低價的款式，不要建議最貴的一款。資料不足時，分情況說明，不要硬選。
    只能依用車情況建議，不能因為比較貴建議；不能說其他款不安全，也不能說一定要選哪一款。款式、規格、價格只能照抄。
    車主問某一款安不安全：只列卡片上的規格，不要評斷安不安全，也不要改推別款，把 escalate 設為 true。
-   回答提到的項目照規則 5 列進 itemConclusions。recommendedOption 填建議的款式名稱，沒有建議就填空字串。車主沒問款式時，不要主動建議。`;
+   回答提到的項目照規則 5 列進 itemConclusions。recommendedOption 填建議的款式名稱，沒有建議就填空字串。車主沒問款式時，不要主動建議。
+8. 卡片資料的「車主偏好」只決定先講什麼、怎麼說，不能改變結論、安全門檻和價格。
+   處理方式是「能等就等」時，可延後的項目講結論和回廠提醒月數，不要說「建議換」「今天換」；「一次處理完」時可以建議今天一起換。必須更換的項目不論偏好都不能說可以等。
+   車主問款式時，車主沒說需求就參考「最在意」：價格看示意費用，耐用度看適合和規格，安靜和舒適看規格。
+9. 不能說外面的保養廠比較差、比較貴或修不好，也不要拿外面和原廠比較。
+   車主問「過保還要回原廠嗎」「為什麼要在原廠做」這類問題時，引用卡片資料的「在原廠做的差別」，sources 填它的來源代號（dealer:…）。`;
 
 export const RESPONSE_SCHEMA = {
   type: "OBJECT",
@@ -166,6 +172,10 @@ const DISCOUNT_WORDS = /優惠|打折|折扣|特價/;
 // 不能用安全或「非選不可」壓車主選特定款式：清單上的款式都符合原廠規格。
 const PRESSURE_WORDS = /不安全|不夠安全|危險|一定要選|必須選|非選不可|不要選|別選/;
 
+// 不能貶低外面的保養廠：同一子句提到外面又有比較字眼才算，只提到「外面」（車主問外面換）不算。
+const OUTSIDE = /外面|別家|其他的?(?:保養廠|修車廠|車廠)|一般的?(?:保養廠|修車廠)/;
+const WORSE_THAN = /(?:比較|較|更)(?:貴|差|爛)|修不好|不專業|技術不好|品質不好/;
+
 // 卡片沒有款式的安全認證資料，AI 說「符合安全標準」就是編的。
 const UNSUPPORTED_SAFETY = /符合.{0,8}(?:安全|標準)|很安全|比較安全|更安全|安全上/;
 
@@ -198,6 +208,8 @@ function check(vehicle: Vehicle, reply: AIReply): string | undefined {
         const real: Conclusion = judge(item).conclusion;
         if (real === "必須更換" && defers(clause, sentence, named.length > 0)) return `${item.name}是必須更換，回答卻說可以延後`;
         if (real === "正常" && hasWord(clause, UPSELL_WORDS)) return `${item.name}是正常，回答卻建議更換`;
+        if (real === "可延後" && vehicle.preferences?.handling === "能等就等" && hasWord(clause, UPSELL_WORDS))
+          return `車主選了能等就等，回答卻建議今天換${item.name}`;
       }
     }
   }
@@ -210,6 +222,7 @@ function check(vehicle: Vehicle, reply: AIReply): string | undefined {
     if (DISCOUNT_WORDS.test(reply.answer)) return "建議款式時不能用優惠當理由";
   }
   for (const clause of reply.answer.split(/[。！？!?；;，,\n]/)) {
+    if (OUTSIDE.test(clause) && WORSE_THAN.test(clause)) return `回答拿外面的保養廠比較：${clause.trim()}`;
     const named = options.find((o) => clause.includes(o.name));
     if (named && PRESSURE_WORDS.test(clause)) return `回答對${named.name}的說法帶有壓力：${clause.trim()}`;
   }
@@ -340,7 +353,8 @@ const SUMMARY_PROMPT = `你是和泰汽車服務廠的接待助理。把卡片�
 4. 正常的項目合成一句，例如「X、Y 狀況正常，今天不用處理。」不要推銷。
 5. sources 列出用到的每一個來源代號。itemConclusions 列出卡片上每一個檢查項目：id 填來源代號，conclusion 照抄結論。
 6. escalate 一律填 false。
-7. 不要提可選款式，也不要建議款式；recommendedOption 填空字串。`;
+7. 不要提可選款式，也不要建議款式；recommendedOption 填空字串。
+8. 不要寫車主偏好，系統會另外接在摘要最後。`;
 
 export type SummaryResult = Answer & { checkResult: "通過" | "攔下"; blockedReason?: string };
 
@@ -355,6 +369,7 @@ export function ruleSummary(vehicle: Vehicle): Answer {
   ];
   const ok = by("正常");
   if (ok.length) lines.push(`${ok.map((i) => i.name).join("、")}狀況正常，今天不用處理。`);
+  lines.push(preferenceSummaryLine(vehicle.preferences));
   return { answer: lines.join(""), sources: vehicle.items.map((i) => `item:${i.id}`), escalate: false };
 }
 
@@ -369,5 +384,5 @@ export async function summarize(vehicle: Vehicle, callAI: CallAI): Promise<Summa
       : check(vehicle, reply);
   return blockedReason
     ? { ...ruleSummary(vehicle), checkResult: "攔下", blockedReason }
-    : { answer: reply.answer, sources: reply.sources, escalate: false, checkResult: "通過" };
+    : { answer: reply.answer + preferenceSummaryLine(vehicle.preferences), sources: reply.sources, escalate: false, checkResult: "通過" };
 }

@@ -61,3 +61,10 @@ export function preferenceLabels(p: OwnerPreferences): string[] {
     p.recentIssue && `最近${p.recentIssue}異常`,
   ].filter((s): s is string => !!s);
 }
+
+// 接待摘要最後那一行：由規則產生，不交給 AI 寫。用語和「你的偏好」區塊相同；車主描述只轉給技師，不寫進摘要。
+export function preferenceSummaryLine(p: OwnerPreferences | undefined): string {
+  const labels = p ? preferenceLabels(p) : [];
+  if (!labels.length) return "";
+  return `車主偏好：${labels.join("、")}。${p!.recentIssue === "有" ? "車主提到最近有異常，請技師確認。" : ""}`;
+}

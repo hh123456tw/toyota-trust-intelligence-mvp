@@ -358,3 +358,97 @@ describe("simulateTampered：展示用的竄改回答", () => {
     await expect(simulateTampered(ok)).rejects.toThrow();
   });
 });
+
+describe("ask：車主偏好（#23）", () => {
+  const battery = (answer: string, extra: object = {}) =>
+    reply(answer, { sources: ["item:battery"], itemConclusions: [{ id: "item:battery", conclusion: "可延後" }], ...extra });
+  const withHandling = (handling?: "一次處理完" | "能等就等") => ({ ...wang, preferences: handling ? { ...wang.preferences, handling } : undefined });
+  // 記下 AI 收到的提示詞和使用者內容。
+  function capture() {
+    const seen = { system: "", user: "" };
+    const call = async (system: string, user: string) => {
+      Object.assign(seen, { system, user });
+      return JSON.stringify(battery("電瓶可延後，3 個月後會提醒你回廠。"));
+    };
+    return { seen, call };
+  }
+
+  it("AI 收到的卡片資料包含車主偏好，不含只給技師的異常描述", async () => {
+    const v = { ...wang, preferences: { handling: "能等就等" as const, recentIssue: "有" as const, issueNote: "起步有異音" } };
+    const { seen, call } = capture();
+    await ask(v, "電瓶要換嗎？", call);
+    expect(seen.user).toContain('"車主偏好"');
+    expect(seen.user).toContain("能等就等");
+    expect(seen.user).not.toContain("起步有異音");
+  });
+
+  it("提示詞：偏好不能改變結論、不能說外面比較差或比較貴、被問要不要回原廠時引用 dealer 來源", async () => {
+    const { seen, call } = capture();
+    await ask(wang, "電瓶要換嗎？", call);
+    expect(seen.system).toContain("車主偏好");
+    expect(seen.system).toContain("不能改變結論");
+    expect(seen.system).toMatch(/外面的保養廠.*比較差.*比較貴|外面的保養廠.*比較貴.*比較差/);
+    expect(seen.system).toContain("在原廠做的差別");
+    expect(seen.system).toContain("dealer:");
+  });
+
+  it("選能等就等：回答「電瓶建議今天換」被攔下", async () => {
+    const r = await ask(wang, "電瓶要換嗎？", fakeAI(battery("電瓶建議今天換。")));
+    expect(r.checkResult).toBe("攔下");
+    expect(r.blockedReason).toContain("能等就等");
+  });
+
+  it("反例：選能等就等，說「電瓶不建議今天換」或講可延後，通過", async () => {
+    for (const answer of ["電瓶不建議今天換，3 個月後會提醒你回廠。", "電瓶可延後，3 個月後會提醒你回廠。"]) {
+      expect((await ask(wang, "電瓶要換嗎？", fakeAI(battery(answer)))).checkResult).toBe("通過");
+    }
+  });
+
+  it("選一次處理完：同一句通過", async () => {
+    const r = await ask(withHandling("一次處理完"), "電瓶要換嗎？", fakeAI(battery("電瓶建議今天換。")));
+    expect(r.checkResult).toBe("通過");
+  });
+
+  it("沒有偏好：同一句通過，卡片資料的車主偏好是 null", async () => {
+    const { seen, call } = capture();
+    await ask(withHandling(), "電瓶要換嗎？", call);
+    expect(seen.user).toContain('"車主偏好": null');
+    expect((await ask(withHandling(), "電瓶要換嗎？", fakeAI(battery("電瓶建議今天換。")))).checkResult).toBe("通過");
+  });
+
+  it("不論偏好，把必須更換說成可以等都被攔下", async () => {
+    for (const v of [withHandling("能等就等"), withHandling("一次處理完"), withHandling()]) {
+      const r = await ask(v, "煞車狀況如何？", fakeAI(brake("煞車可以延後一個月再處理。")));
+      expect(r.blockedReason).toBe("前煞車來令片是必須更換，回答卻說可以延後");
+    }
+  });
+
+  it("回答說外面的保養廠比較貴、比較差或修不好：攔下", async () => {
+    for (const answer of ["外面的保養廠零件比較貴。", "外面修車廠的品質比較差。", "這種問題外面修不好。", "別家保養廠技術較差。"]) {
+      const r = await ask(wang, "外面換比較便宜吧？", fakeAI(battery(answer)));
+      expect(r.checkResult, answer).toBe("攔下");
+      expect(r.blockedReason).toContain("外面");
+    }
+  });
+
+  it("反例：只提到外面但沒有比較（車主自己問外面換），通過", async () => {
+    const answers = [
+      "外面換也可以，由你決定。在原廠更換的原廠零件有零件保固。",
+      "原廠零件比較貴一點，外面也可以換，由你決定。",
+      "電瓶可延後，3 個月後會提醒你回廠；外面下雨時記得開大燈。",
+    ];
+    for (const answer of answers) {
+      const r = await ask(wang, "外面換比較便宜吧？", fakeAI(battery(answer, { sources: ["item:battery", "dealer:parts-warranty"] })));
+      expect(r.checkResult, answer).toBe("通過");
+    }
+  });
+  it("有偏好（最在意耐用度、一次處理完）時，預算有限仍不能建議最貴款", async () => {
+    const v = { ...lin, preferences: { priority: "耐用度" as const, handling: "一次處理完" as const } };
+    const r = await ask(v, "我預算有限，輪胎選哪款？", fakeAI({
+      answer: "建議長效款，由你決定。", sources: ["item:tire"], escalate: false,
+      itemConclusions: [{ id: "item:tire", conclusion: "必須更換" }], recommendedOption: "長效款",
+    }));
+    expect(r.checkResult).toBe("攔下");
+    expect(r.blockedReason).toContain("預算有限");
+  });
+});
