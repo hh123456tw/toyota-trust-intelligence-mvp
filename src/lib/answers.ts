@@ -116,6 +116,8 @@ export function cardContext(vehicle: Vehicle) {
     里程: `${vehicle.mileageKm} km`,
     保固: vehicle.warranty ?? null,
     技師: vehicle.technician,
+    // 異常描述只轉給技師，不給 AI。
+    車主偏好: vehicle.preferences ? { ...vehicle.preferences, issueNote: undefined } : null,
     行車摘要: { 來源代號: "driving", ...vehicle.drivingSummary },
     檢查項目: vehicle.items.map((item) => {
       const v = judge(item);
