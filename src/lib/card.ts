@@ -2,6 +2,7 @@
 
 import { presetsFor, sourceLabel, validSources } from "./answers";
 import { EXCERPTS } from "./manual";
+import { preferenceLabels, preferenceNote, type OwnerPreferences } from "./preferences";
 import { judge, type Conclusion, type Verdict } from "./rules";
 import { trendText, vehicles, visibleOptions, type InspectionItem, type ProductOption, type Vehicle } from "./vehicles";
 
@@ -22,6 +23,8 @@ export type CardItem = {
   // 必須更換、可延後的項目才有：要換的時候一次換多少。
   replaceScope?: string;
   options?: ProductOption[];
+  // 只有可延後的項目、而且車主有填偏好時才有（規則產生）。
+  preferenceNote?: string;
   // 量測型項目的刻度條：本次、上次量測和門檻。只供畫面顯示，結論仍以 verdict 為準。
   gauge?: Gauge;
   verdict: Verdict;
@@ -37,7 +40,7 @@ export type Gauge = {
 
 const ORDER: Record<Conclusion, number> = { 必須更換: 0, 可延後: 1, 正常: 2 };
 
-export function cardItems(items: InspectionItem[]): CardItem[] {
+export function cardItems(items: InspectionItem[], preferences?: OwnerPreferences): CardItem[] {
   return items
     .map((item) => {
       const verdict = judge(item);
@@ -54,6 +57,7 @@ export function cardItems(items: InspectionItem[]): CardItem[] {
         risk: verdict.conclusion === "必須更換" ? item.mustReplaceRisk : undefined,
         replaceScope: verdict.conclusion === "正常" ? undefined : item.replaceScope,
         options: visibleOptions(item, verdict.conclusion),
+        preferenceNote: preferenceNote(preferences, verdict),
         gauge:
           item.rule.kind === "measured" && item.measurement
             ? {
@@ -157,8 +161,11 @@ export function cardProps(vehicle: Vehicle) {
       drivingNote: `${vehicle.drivingSummary.period}：${vehicle.drivingSummary.note}`,
       drivingAdvice: drivingAdvice(vehicle),
       priceFirstNote: priceFirstNote(vehicle),
+      // 原始偏好隨追問和接待摘要送回 API；顯示用的答案另外算好。
+      preferences: vehicle.preferences,
+      preferenceLabels: vehicle.preferences && preferenceLabels(vehicle.preferences),
     },
-    items: cardItems(vehicle.items),
+    items: cardItems(vehicle.items, vehicle.preferences),
     presets: presetsFor(vehicle.id),
     sourceLabels: Object.fromEntries(keys.map((k) => [k, sourceLabel(vehicle, k)!])),
     others: vehicles

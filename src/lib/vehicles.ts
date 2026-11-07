@@ -1,4 +1,5 @@
 // 展示用假資料。門檻數字是展示用，不代表原廠標準。
+import type { OwnerPreferences } from "./preferences";
 import type { Conclusion } from "./rules";
 
 export type Measurement = {
@@ -80,6 +81,8 @@ export type Vehicle = {
   drivingSummary: DrivingSummary;
   // APP 互動紀錄（示意，需車主授權）：車主在 App 追問費用的次數。決定決策卡要不要先列費用。
   appRecord?: { period: string; priceQuestions: number };
+  // 車主偏好（示意）。決策卡依它調整「依你的偏好」那一句，結論、價格不變。
+  preferences?: OwnerPreferences;
   // 定期保養本來就會做的項目（不經規則引擎），交車說明列在「今天完成」。
   routine: string[];
   // 下次定期保養還有幾公里，交車說明的「下次提醒」用。
@@ -133,6 +136,8 @@ export const vehicles: Vehicle[] = [
       note: "約 78% 的行程在 10 公里內，多為市區通勤短程，每週約發動 11 次。",
     },
     appRecord: { period: "近 6 個月", priceQuestions: 4 },
+    // 示範：王先生已填好偏好（下週要載家人長途）。
+    preferences: { handling: "能等就等", priority: "價格", longTrip: "有", recentIssue: "沒有" },
     routine: ["機油與機油芯"],
     nextServiceKm: 5000,
     progress: [

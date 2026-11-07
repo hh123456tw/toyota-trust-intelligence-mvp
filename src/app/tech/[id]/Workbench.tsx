@@ -27,7 +27,8 @@ export default function Workbench(props: {
   const [entries, setEntries] = useState<FlowEntry[]>([]);
   const [errors, setErrors] = useState<Record<string, string | null>>({});
   // 只在量測值改變時重算；DecisionCard 用 items 是否換了來判斷要不要清掉舊選擇。
-  const cards = useMemo(() => cardItems(items), [items]);
+  const preferences = props.card.vehicle.preferences;
+  const cards = useMemo(() => cardItems(items, preferences), [items, preferences]);
 
   const conclusionOf = (list: InspectionItem[], id: string) =>
     cardItems(list).find((i) => i.id === id)!.verdict.conclusion;
@@ -117,6 +118,7 @@ export default function Workbench(props: {
           onFlow={(e) => setEntries((prev) => [...prev, e])}
           line={staffLine(cards)}
           items={cards}
+          preferences={preferences}
         />
 
         <FlowPanel entries={entries} />

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { currentMeasurements } from "@/lib/card";
 import type { SummaryResult } from "@/lib/ask";
 import type { CardItem } from "@/lib/card";
+import type { OwnerPreferences } from "@/lib/preferences";
 import { staffConfirmFlow, summaryFlow, type FlowEntry } from "@/lib/flow";
 import { LABEL, type Conclusion } from "@/lib/rules";
 import Icon, { ITEM_ICON } from "../../Icon";
@@ -24,6 +25,8 @@ export default function ReceptionSummary(props: {
   line: string;
   // 一項一行的清單：結論和理由都來自規則引擎，不經 AI。
   items: CardItem[];
+  // 車主偏好，和量測值一起送給 API。
+  preferences?: OwnerPreferences;
 }) {
   const { vehicleId, sourceLabels, onFlow } = props;
   const [result, setResult] = useState<SummaryResult | { error: string } | null>(null);
@@ -51,7 +54,12 @@ export default function ReceptionSummary(props: {
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vehicleId, summary: true, measurements: currentMeasurements(props.items) }),
+        body: JSON.stringify({
+          vehicleId,
+          summary: true,
+          measurements: currentMeasurements(props.items),
+          preferences: props.preferences,
+        }),
       });
       const data = await res.json();
       if (latestItems.current !== sent) return;
