@@ -1,3 +1,4 @@
+import { DEALER_FACTS, dealerFactLabel, dealerSource } from "./dealer";
 import { excerptLabel } from "./manual";
 import { judge } from "./rules";
 import { formatPrice, trendText, type Vehicle, priceLabel, visibleOptions } from "./vehicles";
@@ -30,6 +31,7 @@ export function sourceLabel(vehicle: Vehicle, key: string): string | undefined {
     return trend && `量測趨勢：${item.name} ${trend}`;
   }
   if (key.startsWith("doc:")) return excerptLabel(key);
+  if (key.startsWith("dealer:")) return dealerFactLabel(key);
   return undefined;
 }
 
@@ -103,7 +105,7 @@ export function presetsFor(vehicleId: string): Preset[] {
 
 // 卡片資料裡的每一個來源代號。流程面板用來列出給了 AI 哪些資料。
 export function contextSources(vehicle: Vehicle): string[] {
-  return [...vehicle.items.flatMap((i) => (trendText(i) ? [`item:${i.id}`, `trend:${i.id}`] : [`item:${i.id}`])), "driving"];
+  return [...vehicle.items.flatMap((i) => (trendText(i) ? [`item:${i.id}`, `trend:${i.id}`] : [`item:${i.id}`])), "driving", ...DEALER_FACTS.map(dealerSource)];
 }
 
 // 給 AI 的卡片資料：只包含它可以引用的內容。
@@ -141,5 +143,7 @@ export function cardContext(vehicle: Vehicle) {
         回廠提醒月數: v.reminderMonths ?? null,
       };
     }),
+    // 車主問要不要回原廠時可以引用；只有事實，不和外面的保養廠比較。
+    在原廠做的差別: DEALER_FACTS.map((f) => ({ 來源代號: dealerSource(f), 項目: f.title, 內容: f.text })),
   };
 }
