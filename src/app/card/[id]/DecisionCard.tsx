@@ -12,6 +12,7 @@ import type { OwnerPreferences } from "@/lib/preferences";
 import { LABEL, type Conclusion } from "@/lib/rules";
 import { formatPrice, RULE_VERSION } from "@/lib/vehicles";
 import Icon, { ITEM_ICON, type IconName } from "../../Icon";
+import DealerFacts from "./DealerFacts";
 import FlowPanel from "./FlowPanel";
 import HandoverView from "./HandoverView";
 
@@ -477,6 +478,7 @@ function ItemCard({
                 重新選擇
               </button>
             )}
+            {item.dealerFacts && <DealerFacts facts={item.dealerFacts} />}
           </div>
         )}
       </div>

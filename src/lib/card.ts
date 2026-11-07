@@ -1,6 +1,7 @@
 // 把檢查項目轉成決策卡要顯示的樣子。結論一律交給規則引擎重算。
 
 import { presetsFor, sourceLabel, validSources } from "./answers";
+import { DEALER_FACTS, dealerSource, type DealerFact } from "./dealer";
 import { EXCERPTS } from "./manual";
 import { preferenceLabels, preferenceNote, type OwnerPreferences } from "./preferences";
 import { judge, type Conclusion, type Verdict } from "./rules";
@@ -25,6 +26,8 @@ export type CardItem = {
   options?: ProductOption[];
   // 只有可延後的項目、而且車主有填偏好時才有（規則產生）。
   preferenceNote?: string;
+  // 只有可延後的項目有：在原廠做的差別（示意），卡片預設收起。
+  dealerFacts?: DealerFact[];
   // 量測型項目的刻度條：本次、上次量測和門檻。只供畫面顯示，結論仍以 verdict 為準。
   gauge?: Gauge;
   verdict: Verdict;
@@ -58,6 +61,7 @@ export function cardItems(items: InspectionItem[], preferences?: OwnerPreference
         replaceScope: verdict.conclusion === "正常" ? undefined : item.replaceScope,
         options: visibleOptions(item, verdict.conclusion),
         preferenceNote: preferenceNote(preferences, verdict),
+        dealerFacts: verdict.conclusion === "可延後" ? DEALER_FACTS : undefined,
         gauge:
           item.rule.kind === "measured" && item.measurement
             ? {
@@ -143,6 +147,7 @@ export function cardProps(vehicle: Vehicle) {
     "driving",
     ...vehicle.items.flatMap((i) => [`item:${i.id}`, `trend:${i.id}`]),
     ...EXCERPTS.map((e) => `doc:${e.id}`),
+    ...DEALER_FACTS.map(dealerSource),
   ]);
   return {
     vehicle: {

@@ -202,6 +202,8 @@ describe("ask：流程面板的資料清單", () => {
       "item:tire",
       "trend:tire",
       "driving",
+      "dealer:record",
+      "dealer:parts-warranty",
       "doc:checkout",
     ]);
   });
