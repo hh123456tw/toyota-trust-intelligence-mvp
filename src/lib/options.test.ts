@@ -363,6 +363,11 @@ describe("技師改值後，AI 看到同一份資料", () => {
     for (const bad of ["-5", "100.1"]) expect(measurementError("%", bad)).toBe("請輸入 0 到 100 %");
   });
 
+  it("保固狀態：王先生的 AI 資料有「剛過原廠保固」，林小姐沒有設定就給 null", () => {
+    expect(cardContext(wang).保固).toBe("剛過原廠保固");
+    expect(cardContext(lin).保固).toBeNull();
+  });
+
   it("反例：目視項目沒有量測值，不能改", () => {
     const visual = wang.items.find((i) => !i.measurement)!;
     expect(applyMeasurements(wang, { [visual.id]: 1 })).toBeNull();

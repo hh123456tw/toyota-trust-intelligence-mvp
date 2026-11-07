@@ -20,6 +20,7 @@ type VehicleInfo = {
   model: string;
   plate: string;
   mileageKm: number;
+  warranty?: string;
   technician: string;
   inspectedAt: string;
   routine: string[];
@@ -101,6 +102,7 @@ export default function DecisionCard(props: {
             {vehicle.plate}
           </span>
           <span className="text-white/80">{vehicle.mileageKm.toLocaleString()} km</span>
+          {vehicle.warranty && <span className="text-white/80">{vehicle.warranty}</span>}
         </div>
         <p className="mt-2 text-sm text-white/70">
           {vehicle.inspectedAt}・{vehicle.technician}檢查

@@ -73,6 +73,8 @@ export type Vehicle = {
   model: string;
   plate: string;
   mileageKm: number;
+  // 保固狀態（示意）。卡片上方顯示，AI 也讀得到。
+  warranty?: string;
   technician: string;
   inspectedAt: string;
   drivingSummary: DrivingSummary;
@@ -121,6 +123,7 @@ export const vehicles: Vehicle[] = [
     model: "TOYOTA COROLLA CROSS",
     plate: "ABC-1234",
     mileageKm: 58200,
+    warranty: "剛過原廠保固",
     technician: "陳技師",
     inspectedAt: "2026-09-25",
     drivingSummary: {

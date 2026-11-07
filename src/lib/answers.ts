@@ -112,6 +112,7 @@ export function cardContext(vehicle: Vehicle) {
     車主: vehicle.owner,
     車型: vehicle.model,
     里程: `${vehicle.mileageKm} km`,
+    保固: vehicle.warranty ?? null,
     技師: vehicle.technician,
     行車摘要: { 來源代號: "driving", ...vehicle.drivingSummary },
     檢查項目: vehicle.items.map((item) => {

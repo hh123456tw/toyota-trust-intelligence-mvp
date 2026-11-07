@@ -147,6 +147,7 @@ export function cardProps(vehicle: Vehicle) {
       model: vehicle.model,
       plate: vehicle.plate,
       mileageKm: vehicle.mileageKm,
+      warranty: vehicle.warranty,
       technician: vehicle.technician,
       inspectedAt: vehicle.inspectedAt,
       routine: vehicle.routine,
