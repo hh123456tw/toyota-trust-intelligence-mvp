@@ -14,7 +14,7 @@ export function cleanPreferences(draft: OwnerPreferences): OwnerPreferences {
 export type StoredPreferences = OwnerPreferences | "skipped" | undefined;
 
 const keyOf = (vehicleId: string) => `owner-preferences:${vehicleId}`;
-// 這次開著的頁面寫過的值。瀏覽器不能存檔（無痕、被封鎖）時，卡片仍照改過的值顯示。
+// 瀏覽器不能存檔（無痕、被封鎖）時，這次開著的頁面寫過的值。只有這時才蓋過 localStorage。
 const memory = new Map<string, string>();
 const listeners = new Set<() => void>();
 
@@ -32,19 +32,24 @@ export function readPreferences(vehicleId: string): string | null {
 export function savePreferences(vehicleId: string, value: OwnerPreferences | "skipped") {
   const key = keyOf(vehicleId);
   const raw = JSON.stringify(value);
-  memory.set(key, raw);
   try {
-    globalThis.localStorage?.setItem(key, raw);
+    if (!globalThis.localStorage) throw new Error("沒有 localStorage");
+    globalThis.localStorage.setItem(key, raw);
+    memory.delete(key);
   } catch {
     // 存不了就只留在這次的頁面；重新整理後回到預設。
+    memory.set(key, raw);
   }
   listeners.forEach((l) => l());
 }
 
+// 同一頁的改動由 savePreferences 通知；另一個分頁（例如技師頁）改的，瀏覽器發 storage 事件。
 export function subscribePreferences(listener: () => void) {
   listeners.add(listener);
+  globalThis.window?.addEventListener("storage", listener);
   return () => {
     listeners.delete(listener);
+    globalThis.window?.removeEventListener("storage", listener);
   };
 }
 

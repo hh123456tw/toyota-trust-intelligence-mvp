@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { parsePreferences, PREFERENCE_QUESTIONS } from "@/lib/preferences";
 import { checkCase, parseQuestions } from "./questions";
 
 const md = readFileSync(new URL("./測試題_追問AI.md", import.meta.url), "utf-8");
@@ -39,6 +40,17 @@ describe("parseQuestions", () => {
   it("不認識的偏好名稱不算（例如「顏色改成紅色」）", () => {
     const [q] = parseQuestions("| 99 | 顏色改成紅色，問「電瓶要換嗎？」 | x |");
     expect(q.preferences).toBeUndefined();
+  });
+
+  // 偏好的題目名稱和選項只定義在 preferences.ts 一處；問卷、API 驗證、實測題目共用。
+  it("每一題偏好、每個選項都讀得出來，讀出的值 API 收得下", () => {
+    for (const p of PREFERENCE_QUESTIONS) {
+      for (const option of p.options) {
+        const [q] = parseQuestions(`| 99 | ${p.label}改成${option}，問「電瓶要換嗎？」 | x |`);
+        expect(q.preferences).toEqual({ [p.key]: option });
+        expect(parsePreferences(q.preferences)).toEqual({ [p.key]: option });
+      }
+    }
   });
 });
 

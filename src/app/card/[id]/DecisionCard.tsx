@@ -77,8 +77,8 @@ export default function DecisionCard(props: {
     setPicked((prev) => pruneChoices(prev, items));
   }
   // 車主在卡片上填的偏好：存在這支手機，改了「依你的偏好」那一句立即更新，結論和價格不變。
-  const [stored, savePrefs] = useOwnerPreferences(vehicle.id, vehicle.preferences);
-  const preferences = typeof stored === "object" ? stored : undefined;
+  // 「依你的偏好」那一句只在這裡算（依目前偏好），伺服器給的項目不帶這一句。
+  const { stored, preferences, save: savePrefs } = useOwnerPreferences(vehicle.id, vehicle.preferences);
   const [delivered, setDelivered] = useState(false);
   const topRef = useRef<HTMLElement>(null);
   const summary = handover(items, choices, vehicle.routine, vehicle.nextServiceKm, picked);
@@ -130,7 +130,7 @@ export default function DecisionCard(props: {
 
       {/* 交車說明開著時只隱藏決策卡，不卸載：追問紀錄、照片展開狀態都留著。 */}
       <div hidden={delivered}>
-        <PreferencesPanel value={stored} onSave={savePrefs} />
+        <PreferencesPanel value={stored} saved={preferences} onSave={savePrefs} />
 
         <Progress steps={vehicle.progress} eta={vehicle.eta} />
 

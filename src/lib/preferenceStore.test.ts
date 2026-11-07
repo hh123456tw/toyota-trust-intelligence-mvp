@@ -30,6 +30,28 @@ describe("savePreferences / readPreferences：存在這支手機的瀏覽器", (
     expect(seen).toHaveBeenCalledTimes(1);
   });
 
+  // 審查發現：卡片頁改了偏好，技師頁（另一個分頁）原本讀記憶體裡的舊值，也收不到通知。
+  it("另一個分頁改了偏好：這一頁收到 storage 事件，讀到新值", () => {
+    const data = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => data.get(k) ?? null,
+      setItem: (k: string, v: string) => data.set(k, v),
+    });
+    vi.stubGlobal("window", new EventTarget());
+    savePreferences("wang-tabs", { handling: "能等就等" });
+    const seen = vi.fn();
+    const stop = subscribePreferences(seen);
+    // 另一個分頁寫進同一份 localStorage，瀏覽器對其他分頁發出 storage 事件。
+    data.set("owner-preferences:wang-tabs", JSON.stringify({ handling: "一次處理完" }));
+    window.dispatchEvent(new Event("storage"));
+    stop();
+    expect(seen).toHaveBeenCalledTimes(1);
+    expect(readPreferences("wang-tabs")).toBe(JSON.stringify({ handling: "一次處理完" }));
+    // 取消訂閱後不再收到通知。
+    window.dispatchEvent(new Event("storage"));
+    expect(seen).toHaveBeenCalledTimes(1);
+  });
+
   it("沒有 localStorage（伺服器端）也不出錯", () => {
     vi.stubGlobal("localStorage", undefined);
     expect(readPreferences("none")).toBeNull();

@@ -26,8 +26,14 @@ export const DEFER_WORDS = new RegExp(`${DEFER_CORE}|下次|下個月`);
 const DEFER_NOT_TIME = new RegExp(DEFER_CORE);
 // 推銷類字詞：對「正常」項目不能出現。
 const UPSELL_WORDS = /建議.{0,4}換|需要.{0,2}換|最好.{0,4}換|今天換|應該.{0,2}換|該換了|順便換/;
-// 車主選能等就等時，可延後的項目也不能「建議…處理」；「建議 3 個月後再處理」是延後，不算。
-const WAIT_UPSELL = new RegExp(`${UPSELL_WORDS.source}|建議(?:(?!後).){0,8}(?:處理|更換)`);
+// 車主選能等就等時，可延後的項目先看「什麼時候」處理：今天、現在、出遠門前處理就攔。
+// 沒說時間的「建議換／建議處理」也攔；同一子句說了以後的時間（下個月、下次、3 個月後、回廠）就是延後，不攔。
+const NOW_ACT = /(?:今天|現在|馬上|立刻|立即|盡快|儘快|趁早|(?:出遠門|出發|出遊|長途|遠行)之?前)(?:(?![不別沒無]).){0,6}(?:換|處理|修)/;
+const ADVICE_ACT = new RegExp(`${UPSELL_WORDS.source}|建議.{0,8}(?:處理|更換)`);
+const LATER = /下個月|下次|之後|以後|個月後|後再|回廠/;
+function waitUpsell(clause: string): boolean {
+  return hasWord(clause, NOW_ACT) || (hasWord(clause, ADVICE_ACT) && !LATER.test(clause));
+}
 // 否定前綴：「不建議延後」「無法延後」「不需要換」這類句子是正確說法，先移除再比對。
 const NEGATION = "(?:不建議|不需要|不用|不必|不能|無法|無須|無需|不可以?|不宜|不應該?|不要|別|不)再?(?:幫你|幫您|替你|替您)?(?:改為|改成|變成)?可?";
 
@@ -51,7 +57,8 @@ const SYSTEM_PROMPT = `你是和泰汽車服務廠的維修說明助理，用繁
 8. 卡片資料的「車主偏好」只決定先講什麼、怎麼說，不能改變結論、安全門檻和價格。
    處理方式是「能等就等」時，可延後的項目講結論和回廠提醒月數，不要說「建議換」「今天換」；「一次處理完」時可以建議今天一起換。必須更換的項目不論偏好都不能說可以等。
    車主近期有長途行程時，可延後的項目說「出發前可以請專員安排再測一次」；處理方式是「能等就等」時，不要建議出發前處理或更換。
-   車主問款式時，車主沒說需求就參考「最在意」：價格看示意費用，耐用度看適合和規格，安靜和舒適看規格。
+   車主問款式時，車主沒說需求就參考「最在意」：價格看示意費用，耐用度看適合和規格，安靜和舒適看規格。卡片資料的「上次選的款式等級」有值時也可以參考，但要說出理由。
+   車主偏好的最近有異常是「有」，或車主說最近有異常時，不能依此判斷安不安全，只說會請技師確認。
 9. 不能說外面的保養廠比較差、比較貴或修不好，也不要拿外面和原廠比較。
    車主問「過保還要回原廠嗎」「為什麼要在原廠做」這類問題時，引用卡片資料的「在原廠做的差別」，sources 填它的來源代號（dealer:…）；回答提到的檢查項目仍要照規則 5 列進 itemConclusions。`;
 
@@ -123,8 +130,8 @@ const IF_THEN_RISK = `(?:${IF.source})(?:WORDS).*?(?:${RISK.source})`;
 const REASSURE = /不大|不高|很低|較低|沒有?(?:關係|問題|影響|風險|危險)|還好|也可以|也行|無妨/;
 
 function hasWord(clause: string, words: RegExp): boolean {
-  // 時間可以在延後字詞前或後：「無法下個月再換」「不建議延後到下個月」。
-  let stripped = clause.replace(new RegExp(`${NEGATION}(?:下個月|下次保養|下次)?(?:${words.source})${NEGATED_TIME}`, "g"), "");
+  // 時間可以在延後字詞前或後：「無法（等到）下個月再換」「不建議延後到下個月」。
+  let stripped = clause.replace(new RegExp(`${NEGATION}(?:等到|等)?(?:下個月|下次保養|下次)?(?:${words.source})${NEGATED_TIME}`, "g"), "");
   if (!REASSURE.test(clause)) stripped = stripped.replace(new RegExp(IF_THEN_RISK.replace("WORDS", words.source), "g"), "");
   return words.test(stripped);
 }
@@ -176,9 +183,28 @@ const DISCOUNT_WORDS = /優惠|打折|折扣|特價/;
 // 不能用安全或「非選不可」壓車主選特定款式：清單上的款式都符合原廠規格。
 const PRESSURE_WORDS = /不安全|不夠安全|危險|一定要選|必須選|非選不可|不要選|別選/;
 
-// 不能貶低外面的保養廠：同一子句提到外面又有比較字眼才算，只提到「外面」（車主問外面換）不算。
-const OUTSIDE = /外面|別家|其他的?(?:保養廠|修車廠|車廠)|一般的?(?:保養廠|修車廠)/;
-const WORSE_THAN = /(?:比較|較|更)(?:貴|差|爛)|修不好|不專業|技術不好|品質不好/;
+// 不能貶低外面的保養廠：主詞是外面、又有比較字眼才算，只提到「外面」（車主問外面換）不算。
+// 「外面下雨」「外面天氣」的外面是戶外，不是保養廠。
+const OUTSIDE = /外面(?!下雨|天氣|很熱|很冷|溫度|氣溫)|別家|其他的?(?:保養廠|修車廠|車廠)|一般的?(?:保養廠|修車廠)/;
+// 「比較差異」「比較差別」是在比較，不是說比較差。
+const WORSE_THAN = /(?:比較|較|更)(?:貴|差(?![異別])|爛)|修不好|不專業|技術(?:不好|較?差)|品質(?:不好|較?差)/;
+const NOT_WORSE = new RegExp(`(?:不一定|不見得|未必|並沒有|沒有|沒|不會|並不)(?:${WORSE_THAN.source})`, "g");
+// 直接拿外面和原廠比：「原廠比外面好」「外面比原廠貴」。
+const VERSUS = new RegExp(`比\\s*(?:${OUTSIDE.source})|(?:${OUTSIDE.source}).{0,10}比\\s*(?:原廠|和泰|我們|這裡)`);
+// 只有主詞的子句（「外面的保養廠，品質比較差」的前半），主詞延續到同一句的下一個子句。
+const OUTSIDE_ONLY = new RegExp(`^\\s*(?:${OUTSIDE.source})的?(?:保養廠|修車廠|車廠|店)?(?:的話|呢|來說)?\\s*$`);
+
+function badmouthsOutside(answer: string): string | undefined {
+  for (const sentence of answer.split(/[。！？!?；;\n]/)) {
+    let carried = false;
+    for (const clause of sentence.split(/[，,]/)) {
+      if (VERSUS.test(clause)) return clause.trim();
+      if ((carried || OUTSIDE.test(clause)) && WORSE_THAN.test(clause.replace(NOT_WORSE, ""))) return clause.trim();
+      carried = OUTSIDE_ONLY.test(clause);
+    }
+  }
+  return undefined;
+}
 
 // 卡片沒有款式的安全認證資料，AI 說「符合安全標準」就是編的。
 const UNSUPPORTED_SAFETY = /符合.{0,8}(?:安全|標準)|很安全|比較安全|更安全|安全上/;
@@ -208,8 +234,9 @@ function check(vehicle: Vehicle, reply: AIReply): string | undefined {
   for (const sentence of itemText.split(/[。！？!?；;\n]/)) {
     const inSentence = vehicle.items.filter((i) => mentions(i, sentence));
     // 沒點名項目的句子承接上一句（「電瓶可延後。建議出遠門前處理。」）；只用在能等就等這條，其他規則照舊，避免誤攔。
-    const deferred = inSentence.length ? undefined : previous.find((i) => judge(i).conclusion === "可延後");
-    if (deferred && vehicle.preferences?.handling === "能等就等" && sentence.split(/[，,]/).some((c) => hasWord(c, WAIT_UPSELL)))
+    // 上一句只講一個可延後項目才承接；講了多個項目時不知道承接哪一個，不判違規。
+    const deferred = !inSentence.length && previous.length === 1 && judge(previous[0]).conclusion === "可延後" ? previous[0] : undefined;
+    if (deferred && vehicle.preferences?.handling === "能等就等" && sentence.split(/[，,]/).some(waitUpsell))
       return `車主選了能等就等，回答卻建議今天換${deferred.name}`;
     if (inSentence.length) previous = inSentence;
     for (const clause of sentence.split(/[，,]/)) {
@@ -218,7 +245,7 @@ function check(vehicle: Vehicle, reply: AIReply): string | undefined {
         const real: Conclusion = judge(item).conclusion;
         if (real === "必須更換" && defers(clause, sentence, named.length > 0)) return `${item.name}是必須更換，回答卻說可以延後`;
         if (real === "正常" && hasWord(clause, UPSELL_WORDS)) return `${item.name}是正常，回答卻建議更換`;
-        if (real === "可延後" && vehicle.preferences?.handling === "能等就等" && hasWord(clause, WAIT_UPSELL))
+        if (real === "可延後" && vehicle.preferences?.handling === "能等就等" && waitUpsell(clause))
           return `車主選了能等就等，回答卻建議今天換${item.name}`;
       }
     }
@@ -231,8 +258,9 @@ function check(vehicle: Vehicle, reply: AIReply): string | undefined {
     if (!reply.answer.includes(recommended)) return `recommendedOption 是${recommended}，回答卻沒有提到`;
     if (DISCOUNT_WORDS.test(reply.answer)) return "建議款式時不能用優惠當理由";
   }
+  const outside = badmouthsOutside(reply.answer);
+  if (outside !== undefined) return `回答拿外面的保養廠比較：${outside}`;
   for (const clause of reply.answer.split(/[。！？!?；;，,\n]/)) {
-    if (OUTSIDE.test(clause) && WORSE_THAN.test(clause)) return `回答拿外面的保養廠比較：${clause.trim()}`;
     const named = options.find((o) => clause.includes(o.name));
     if (named && PRESSURE_WORDS.test(clause)) return `回答對${named.name}的說法帶有壓力：${clause.trim()}`;
   }

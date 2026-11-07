@@ -83,6 +83,8 @@ export type Vehicle = {
   appRecord?: { period: string; priceQuestions: number };
   // 車主偏好（示意）。決策卡依它調整「依你的偏好」那一句，結論、價格不變。
   preferences?: OwnerPreferences;
+  // 車主上次選的款式等級（例如「均衡款」）。只留介面：示範資料不提供，正式版由和泰系統帶入。
+  lastOptionGrade?: string;
   // 定期保養本來就會做的項目（不經規則引擎），交車說明列在「今天完成」。
   routine: string[];
   // 下次定期保養還有幾公里，交車說明的「下次提醒」用。

@@ -15,6 +15,16 @@ describe("POST /api/ask：偏好格式檢查", () => {
     }
   });
 
+  // 審查發現：用「key in 物件」判斷會認到繼承的屬性（toString、constructor、__proto__），toString 會拋錯變 500。
+  it("偏好欄位名稱是物件內建屬性時回 400，不拋錯", async () => {
+    for (const preferences of ['{"toString":"x"}', '{"constructor":"x"}', '{"__proto__":"x"}', '{"hasOwnProperty":"能等就等"}']) {
+      const raw = `{"vehicleId":"wang","simulate":"tampered","preferences":${preferences}}`;
+      const res = await POST(new Request("http://local/api/ask", { method: "POST", body: raw }) as unknown as NextRequest);
+      expect(res.status, preferences).toBe(400);
+      expect((await res.json()).error).toBe("偏好格式不正確");
+    }
+  });
+
   it("反例：合法偏好、沒送偏好都照常處理", async () => {
     for (const body of [{ preferences: { handling: "一次處理完" } }, {}]) {
       const res = await post({ vehicleId: "wang", simulate: "tampered", ...body });

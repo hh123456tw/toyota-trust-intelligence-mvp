@@ -9,33 +9,31 @@ import {
   subscribePreferences,
   type StoredPreferences,
 } from "@/lib/preferenceStore";
-import { MAX_ISSUE_NOTE, preferenceLabels, type OwnerPreferences } from "@/lib/preferences";
+import { MAX_ISSUE_NOTE, PREFERENCE_QUESTIONS, preferenceLabels, type OwnerPreferences } from "@/lib/preferences";
 
-// 卡片頁和技師頁共用：同一支手機讀同一份保存的偏好，改了兩邊一起更新。
+// 卡片頁和技師頁共用：同一支手機讀同一份保存的偏好，改了兩邊一起更新（另一個分頁改的也會更新）。
+// stored 可能是「skipped」；preferences 是實際要用的偏好，跳過或沒填時是 undefined。
 export function useOwnerPreferences(vehicleId: string, fallback: OwnerPreferences | undefined) {
   // 伺服器端沒有瀏覽器保存，先用預設；載入後換成這支手機存的值。
   const raw = useSyncExternalStore(subscribePreferences, () => readPreferences(vehicleId), () => null);
-  const value = useMemo(() => storedPreferences(raw, fallback), [raw, fallback]);
-  return [value, (v: OwnerPreferences | "skipped") => savePreferences(vehicleId, v)] as const;
+  const stored = useMemo(() => storedPreferences(raw, fallback), [raw, fallback]);
+  return {
+    stored,
+    preferences: typeof stored === "object" ? stored : undefined,
+    save: (v: OwnerPreferences | "skipped") => savePreferences(vehicleId, v),
+  };
 }
-
-// 4 題點選。不問系統已經知道的事（例如行車摘要的短程比例）。
-const QUESTIONS = [
-  { key: "handling", text: "這次想一次處理完，還是能等就等？", options: ["一次處理完", "能等就等"] },
-  { key: "priority", text: "選零件最在意什麼？", options: ["價格", "耐用度", "安靜和舒適"] },
-  { key: "longTrip", text: "接下來 3 個月有沒有長途行程或載家人出遊？", options: ["有", "沒有"] },
-  { key: "recentIssue", text: "最近開車有沒有覺得哪裡怪怪的？", options: ["有", "沒有"] },
-] as const;
 
 const CHIP = "min-h-11 rounded-xl border px-3 text-sm font-semibold transition-colors";
 
+// 4 題點選（題目在 PREFERENCE_QUESTIONS）。不問系統已經知道的事（例如行車摘要的短程比例）。
 export default function PreferencesPanel(props: {
   value: StoredPreferences;
+  saved: OwnerPreferences | undefined;
   onSave: (v: OwnerPreferences | "skipped") => void;
 }) {
-  const { value, onSave } = props;
+  const { value, saved, onSave } = props;
   const [draft, setDraft] = useState<OwnerPreferences | null>(null);
-  const saved = typeof value === "object" ? value : undefined;
 
   return (
     <section aria-label="你的偏好" className="mx-4 mt-3 rounded-2xl border border-line bg-white p-4 shadow-sm">
@@ -51,7 +49,7 @@ export default function PreferencesPanel(props: {
           }}
         >
           <p className="text-sm text-muted">約 1 分鐘，每題都可以跳過。</p>
-          {QUESTIONS.map((q) => (
+          {PREFERENCE_QUESTIONS.map((q) => (
             <fieldset key={q.key}>
               <legend className="text-sm font-semibold">{q.text}</legend>
               <div className="mt-2 flex flex-wrap gap-2">
