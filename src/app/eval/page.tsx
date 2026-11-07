@@ -40,7 +40,7 @@ const ROUNDS = [
 
 const AFTER = RUNS.slice(2);
 const failedAfter = AFTER.flatMap((r) => r.questions.filter((q) => !q.pass).map((q) => ({ label: r.label, q })));
-// 接待摘要字數：王先生的摘要最後接規則產生的偏好行，AI 寫的部分 = 合計 − 偏好行。
+// 檢查結果摘要字數：王先生的摘要最後接規則產生的偏好行，AI 寫的部分 = 合計 − 偏好行。
 const wangLine = preferenceSummaryLine(findVehicle("wang")!.preferences);
 const range = (xs: number[]) => `${Math.min(...xs)}–${Math.max(...xs)}`;
 const wangChars = AFTER.flatMap((r) => r.summaries.filter((s) => s.owner === "王先生").map((s) => s.chars));
@@ -130,7 +130,7 @@ export default function EvalPage() {
           </dd>
         </div>
         <div className="rounded-2xl border border-line bg-white p-4">
-          <dt className="text-xs text-muted">接待摘要（審查修正後）</dt>
+          <dt className="text-xs text-muted">檢查結果摘要（審查修正後）</dt>
           <dd className="mt-1 text-2xl font-bold text-brand">
             {summaryPassed} / {summaryTotal}
           </dd>
@@ -152,7 +152,7 @@ export default function EvalPage() {
             <tr className="border-b border-line">
               <th className="py-2 pr-3 font-semibold">執行</th>
               <th className="py-2 pr-3 font-semibold">測試題（含系統題）</th>
-              <th className="py-2 pr-3 font-semibold">接待摘要</th>
+              <th className="py-2 pr-3 font-semibold">檢查結果摘要</th>
               <th className="py-2 font-semibold">合計</th>
             </tr>
           </thead>
@@ -184,7 +184,7 @@ export default function EvalPage() {
             <tr className="border-b border-line">
               <th className="py-2 pr-3 font-semibold">輪次（各 3 次）</th>
               <th className="py-2 pr-3 font-semibold">真實 Gemini 追問</th>
-              <th className="py-2 font-semibold">接待摘要</th>
+              <th className="py-2 font-semibold">檢查結果摘要</th>
             </tr>
           </thead>
           <tbody>
@@ -281,7 +281,7 @@ export default function EvalPage() {
         ))}
       </ul>
 
-      <h2 className="mt-10 text-lg font-bold">接待摘要原文（審查修正後）</h2>
+      <h2 className="mt-10 text-lg font-bold">檢查結果摘要原文（審查修正後）</h2>
       <p className="mt-1 text-sm text-muted">
         王先生的摘要最後多一行「{wangLine}」，由規則產生（{wangLine.length} 字），不交給 AI 寫；「沒有異常」這類不影響專員開口的項目不列。
         加上這行後合計 {range(wangChars)} 字，{wangChars.length} 次中有 {over120} 次超過提示詞要求的 120 字；AI 寫的部分是{" "}

@@ -121,7 +121,7 @@ export default function PreferencesPanel(props: {
         </>
       ) : (
         <>
-          <p className="mt-1 text-sm">{value === "skipped" ? "你跳過了偏好問卷，卡片照常顯示。" : "等待時花 1 分鐘，告訴我們你的偏好。"}</p>
+          <p className="mt-1 text-sm">{value === "skipped" ? "你跳過了偏好問卷，卡片照常顯示。" : "接待時（或預約時）花 1 分鐘告訴我們你的偏好，等待時也可以修改。"}</p>
           <div className="mt-2 flex flex-wrap gap-2">
             <button type="button" onClick={() => setDraft({})} className={`${CHIP} border-ink bg-ink text-white`}>
               {value === "skipped" ? "填偏好" : "開始填"}

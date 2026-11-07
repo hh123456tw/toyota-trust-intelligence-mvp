@@ -529,14 +529,14 @@ function OptionList({
   );
 }
 
-// 費用先列：APP 互動紀錄顯示車主常問費用時，在項目卡片前先列出有費用的項目。
+// 費用先列：上次回廠的追問紀錄顯示車主常問費用時，在項目卡片前先列出有費用的項目。
 function PriceFirst({ note, items }: { note: string; items: CardItem[] }) {
   const priced = items.filter((i) => i.price !== undefined);
   if (priced.length === 0) return null;
   return (
     <section className="mx-4 mt-3 rounded-2xl border border-line bg-white p-4 shadow-sm">
       <h2 className="text-sm font-bold">費用一覽</h2>
-      <p className="mt-0.5 text-xs text-muted">{note}（依 APP 互動紀錄，示意）</p>
+      <p className="mt-0.5 text-xs text-muted">{note}</p>
       <ul className="mt-3 space-y-2">
         {priced.map((i) => {
           const look = LOOK[i.verdict.conclusion];

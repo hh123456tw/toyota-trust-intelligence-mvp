@@ -15,7 +15,7 @@ function fakeAI(answer: string, extra: object = {}) {
     JSON.stringify({ answer, sources: ["item:brake-pad", "item:battery"], escalate: false, itemConclusions: ALL, ...extra });
 }
 
-describe("summarize：接待摘要", () => {
+describe("summarize：檢查結果摘要", () => {
   it("正確的摘要 → 通過，原文顯示", async () => {
     const r = await summarize({ ...wang, preferences: undefined }, fakeAI(GOOD));
     expect(r.checkResult).toBe("通過");
@@ -52,7 +52,7 @@ describe("summarize：接待摘要", () => {
   });
 });
 
-describe("接待摘要的車主偏好行（#24）", () => {
+describe("檢查結果摘要的車主偏好行（#24）", () => {
   // 王先生的示範偏好：能等就等、最在意價格、近期有長途行程、最近沒有異常。「沒有異常」不列。
   const WANG_LINE = "車主偏好：能等就等、最在意價格、近期有長途行程。";
   const noPrefs = { ...wang, preferences: undefined };

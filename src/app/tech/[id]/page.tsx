@@ -19,5 +19,5 @@ export default async function TechPage(props: PageProps<"/tech/[id]">) {
   const vehicle = findVehicle(id);
   if (!vehicle) notFound();
 
-  return <Workbench card={cardProps(vehicle)} items={vehicle.items} technician={vehicle.technician} />;
+  return <Workbench card={cardProps(vehicle)} vehicle={vehicle} />;
 }

@@ -79,8 +79,8 @@ export type Vehicle = {
   technician: string;
   inspectedAt: string;
   drivingSummary: DrivingSummary;
-  // APP 互動紀錄（示意，需車主授權）：車主在 App 追問費用的次數。決定決策卡要不要先列費用。
-  appRecord?: { period: string; priceQuestions: number };
+  // 上次回廠的紀錄（示意）：車主在決策卡追問費用的次數。決定決策卡要不要先列費用，檢查結果摘要也會列出。
+  lastVisitRecord?: { priceQuestions: number };
   // 車主偏好（示意）。決策卡依它調整「依你的偏好」那一句，結論、價格不變。
   preferences?: OwnerPreferences;
   // 車主上次選的款式等級（例如「均衡款」）。只留介面：示範資料不提供，正式版由和泰系統帶入。
@@ -104,7 +104,7 @@ const batteryRule: MeasuredRule = { kind: "measured", deferBelow: 70, reminderMo
 const airFilterRule: VisualRule = { kind: "visual", reminderMonths: 6 };
 const wiperRule: VisualRule = { kind: "visual", reminderMonths: 3 };
 
-// 輪胎款式兩台車共用（示意），價格依更換條數計算。price 一律是最低款的價格，AI 和接待摘要講的「起」才對得上清單。
+// 輪胎款式兩台車共用（示意），價格依更換條數計算。price 一律是最低款的價格，AI 和檢查結果摘要講的「起」才對得上清單。
 const TIRE_BASE_PRICE = 2800;
 function tireOptions(count: number): ProductOption[] {
   return [
@@ -137,7 +137,7 @@ export const vehicles: Vehicle[] = [
       weeklyStarts: 11,
       note: "約 78% 的行程在 10 公里內，多為市區通勤短程，每週約發動 11 次。",
     },
-    appRecord: { period: "近 6 個月", priceQuestions: 4 },
+    lastVisitRecord: { priceQuestions: 4 },
     // 示範：王先生已填好偏好（下週要載家人長途）。
     preferences: { handling: "能等就等", priority: "價格", longTrip: "有", recentIssue: "沒有" },
     routine: ["機油與機油芯"],
@@ -321,7 +321,7 @@ export function visibleOptions(item: InspectionItem, conclusion: Conclusion): Pr
   return [...item.options].sort((a, b) => a.price - b.price);
 }
 
-// 給 AI 和接待摘要的費用文字。必須更換且有款式時，費用依車主選的款式而定。
+// 給 AI 和檢查結果摘要的費用文字。必須更換且有款式時，費用依車主選的款式而定。
 export function priceLabel(item: Pick<InspectionItem, "price" | "options">, mustReplace: boolean): string {
   return mustReplace && item.options?.length ? `${formatPrice(item.price)} 起（依款式）` : formatPrice(item.price);
 }

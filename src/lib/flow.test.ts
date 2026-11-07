@@ -112,7 +112,7 @@ describe("presetFlow：常見問題", () => {
   });
 });
 
-describe("summaryFlow：接待摘要的流程紀錄", () => {
+describe("summaryFlow：檢查結果摘要的流程紀錄", () => {
   const ok = { answer: "x", sources: ["item:brake-pad"], escalate: false, checkResult: "通過" as const };
 
   it("通過時列出來源與「通過」，AI 呼叫 1 次", () => {

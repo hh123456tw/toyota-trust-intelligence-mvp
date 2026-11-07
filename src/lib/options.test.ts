@@ -121,7 +121,7 @@ describe("價格資料", () => {
     }
   });
 
-  it("price 是最低款的價格，AI 和接待摘要講的「起」才對得上清單", () => {
+  it("price 是最低款的價格，AI 和檢查結果摘要講的「起」才對得上清單", () => {
     for (const v of vehicles) for (const i of v.items) {
       if (i.options) expect(i.price).toBe(Math.min(...i.options.map((o) => o.price)));
     }
@@ -314,7 +314,7 @@ describe("AI 依需求建議款式：程式檢查", () => {
     expect(r.checkResult).toBe("攔下");
   });
 
-  it("反例：接待摘要不能建議款式", async () => {
+  it("反例：檢查結果摘要不能建議款式", async () => {
     const r = await summarize(lin, async () =>
       JSON.stringify({ answer: "輪胎胎紋必須更換。建議長效款。", sources: ["item:tire"], escalate: false, itemConclusions: TIRE, recommendedOption: "長效款" }),
     );

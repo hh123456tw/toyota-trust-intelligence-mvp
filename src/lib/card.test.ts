@@ -58,12 +58,13 @@ describe("gauge：量測刻度條", () => {
   });
 });
 
-describe("priceFirstNote：APP 互動紀錄決定是否先列費用", () => {
+describe("priceFirstNote：上次回廠的追問紀錄決定是否先列費用", () => {
   const lin = findVehicle("lin")!;
-  const withQuestions = (n: number) => ({ ...wang, appRecord: { period: "近 6 個月", priceQuestions: n } });
+  const withQuestions = (n: number) => ({ ...wang, lastVisitRecord: { priceQuestions: n } });
 
   it("王先生問過 4 次費用 → 先列費用，說明寫出次數", () => {
-    expect(priceFirstNote(wang)).toBe("近 6 個月你在 App 問過 4 次費用，先把費用列在這裡。");
+    expect(priceFirstNote(wang)).toBe("上次回廠時，你在決策卡追問了 4 次費用（示意），先把費用列在這裡。");
+    expect(priceFirstNote(wang)).not.toContain("App");
   });
 
   it("剛好 3 次 → 先列；2 次 → 不先列", () => {
@@ -71,7 +72,7 @@ describe("priceFirstNote：APP 互動紀錄決定是否先列費用", () => {
     expect(priceFirstNote(withQuestions(PRICE_FIRST_MIN_QUESTIONS - 1))).toBeUndefined();
   });
 
-  it("林小姐沒有 APP 互動紀錄 → 不先列", () => {
+  it("林小姐沒有追問紀錄 → 不先列", () => {
     expect(priceFirstNote(lin)).toBeUndefined();
   });
 

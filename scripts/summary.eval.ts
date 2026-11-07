@@ -1,4 +1,4 @@
-// 接待摘要實測：用真的 Gemini 對每台車產生 3 次摘要，印出結果，答案檢查都要通過。
+// 檢查結果摘要實測：用真的 Gemini 對每台車產生 3 次摘要，印出結果，答案檢查都要通過。
 // 執行：npm run eval:21（和 21 題一起跑；需要 .env.local 裡的 GEMINI_API_KEY）
 import { describe, expect, it } from "vitest";
 import { summarize } from "@/lib/ask";
@@ -10,7 +10,7 @@ const apiKey = process.env.GEMINI_API_KEY;
 if (!apiKey) throw new Error("缺少 GEMINI_API_KEY：請在 .env.local 設定後再執行");
 
 
-describe("接待摘要（真的 Gemini）", () => {
+describe("檢查結果摘要（真的 Gemini）", () => {
   for (const v of vehicles) {
     for (const n of [1, 2, 3]) {
       it(`${v.owner} 第 ${n} 次`, async () => {
