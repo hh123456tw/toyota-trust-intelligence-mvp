@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { presetsFor } from "./answers";
+import { cardContext, presetsFor } from "./answers";
 import { findVehicle } from "./vehicles";
 
 describe("王先生展示資料", () => {
@@ -16,5 +16,11 @@ describe("王先生展示資料", () => {
     expect(battery.answer.answer).toContain("60%");
     const all = presetsFor("wang").map((p) => p.answer.answer).join();
     expect(all).not.toMatch(/\b(80|68)%/);
+  });
+});
+
+describe("AI 卡片資料", () => {
+  it("追問紀錄不說來自 App", () => {
+    expect(JSON.stringify(cardContext(findVehicle("wang")!))).not.toContain("App");
   });
 });

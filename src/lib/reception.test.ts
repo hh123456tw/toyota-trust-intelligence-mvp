@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { cardContext } from "./answers";
 import { receptionSummary } from "./reception";
 import { findVehicle, type Vehicle } from "./vehicles";
 
@@ -63,11 +62,5 @@ describe("receptionSummary：接待摘要（規則產生）", () => {
       "資料來源：保修紀錄的待修建議項目（示意）",
       "行車摘要（近 3 個月）：短程比例 20%，每週發動約 6 次。",
     ]);
-  });
-});
-
-describe("AI 卡片資料", () => {
-  it("不再出現「在 App 問過」", () => {
-    expect(JSON.stringify(cardContext(wang))).not.toContain("App 問過");
   });
 });

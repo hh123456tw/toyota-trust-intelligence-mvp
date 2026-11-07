@@ -122,7 +122,7 @@ export default function InspectionSummary(props: {
           </div>
           <div className="rounded-xl border border-line bg-white p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="font-bold">{result.checkResult === "攔下" ? "規則版摘要（未經 AI）" : "AI 30 秒摘要"}</p>
+              <p className="font-bold">{result.checkResult === "攔下" ? "規則版摘要（未經 AI）" : "AI 檢查結果摘要"}</p>
               <p
                 className={`flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${result.checkResult === "攔下" ? "bg-defer-soft text-defer" : "bg-ok-soft text-ok"}`}
               >

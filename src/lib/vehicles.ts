@@ -79,7 +79,7 @@ export type Vehicle = {
   technician: string;
   inspectedAt: string;
   drivingSummary: DrivingSummary;
-  // 上次回廠的紀錄（示意）：車主在決策卡追問費用的次數。決定決策卡要不要先列費用，檢查結果摘要也會列出。
+  // 上次回廠的紀錄（示意）：車主在決策卡追問費用的次數。決定決策卡要不要先列費用，接待摘要也會列出。
   lastVisitRecord?: { priceQuestions: number };
   // 車主偏好（示意）。決策卡依它調整「依你的偏好」那一句，結論、價格不變。
   preferences?: OwnerPreferences;

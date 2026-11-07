@@ -119,14 +119,18 @@ export function withMeasurement(items: InspectionItem[], id: string, value: numb
   );
 }
 
-// 車主上次回廠在決策卡追問費用達這個次數，決策卡就先列出費用，檢查結果摘要也提醒先講價格。
+// 車主上次回廠在決策卡追問費用達這個次數，決策卡就先列出費用，接待摘要也提醒先講價格。
 export const PRICE_FIRST_MIN_QUESTIONS = 3;
+
+// 決策卡和接待摘要共用的追問紀錄說法和門檻。
+export const priceQuestionText = (n: number) => `在決策卡追問了 ${n} 次費用（示意）`;
+export const wantsPriceFirst = (n: number) => n >= PRICE_FIRST_MIN_QUESTIONS;
 
 // 依上次回廠的追問紀錄決定是否先列費用；回傳說明文字，沒有紀錄或次數不夠回傳 undefined。
 export function priceFirstNote(vehicle: Vehicle): string | undefined {
   const r = vehicle.lastVisitRecord;
-  if (!r || r.priceQuestions < PRICE_FIRST_MIN_QUESTIONS) return undefined;
-  return `上次回廠時，你在決策卡追問了 ${r.priceQuestions} 次費用（示意），先把費用列在這裡。`;
+  if (!r || !wantsPriceFirst(r.priceQuestions)) return undefined;
+  return `上次回廠時，你${priceQuestionText(r.priceQuestions)}，先把費用列在這裡。`;
 }
 
 // 短程比例達這個百分比，行車摘要加上電瓶充電的建議。
