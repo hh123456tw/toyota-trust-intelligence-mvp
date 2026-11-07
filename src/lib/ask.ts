@@ -2,6 +2,7 @@
 
 import { cardContext, contextSources, presetsFor, sourceLabel, type Answer } from "./answers";
 import { findExcerpts, hasKeyword, OTHER_PARTS } from "./manual";
+import { preferenceSummaryLine } from "./preferences";
 import { judge, type Conclusion } from "./rules";
 import { formatPrice, priceLabel, visibleOptions, type InspectionItem, type Vehicle } from "./vehicles";
 
@@ -340,7 +341,8 @@ const SUMMARY_PROMPT = `你是和泰汽車服務廠的接待助理。把卡片�
 4. 正常的項目合成一句，例如「X、Y 狀況正常，今天不用處理。」不要推銷。
 5. sources 列出用到的每一個來源代號。itemConclusions 列出卡片上每一個檢查項目：id 填來源代號，conclusion 照抄結論。
 6. escalate 一律填 false。
-7. 不要提可選款式，也不要建議款式；recommendedOption 填空字串。`;
+7. 不要提可選款式，也不要建議款式；recommendedOption 填空字串。
+8. 不要寫車主偏好，系統會另外接在摘要最後。`;
 
 export type SummaryResult = Answer & { checkResult: "通過" | "攔下"; blockedReason?: string };
 
@@ -355,6 +357,7 @@ export function ruleSummary(vehicle: Vehicle): Answer {
   ];
   const ok = by("正常");
   if (ok.length) lines.push(`${ok.map((i) => i.name).join("、")}狀況正常，今天不用處理。`);
+  lines.push(preferenceSummaryLine(vehicle.preferences));
   return { answer: lines.join(""), sources: vehicle.items.map((i) => `item:${i.id}`), escalate: false };
 }
 
@@ -369,5 +372,5 @@ export async function summarize(vehicle: Vehicle, callAI: CallAI): Promise<Summa
       : check(vehicle, reply);
   return blockedReason
     ? { ...ruleSummary(vehicle), checkResult: "攔下", blockedReason }
-    : { answer: reply.answer, sources: reply.sources, escalate: false, checkResult: "通過" };
+    : { answer: reply.answer + preferenceSummaryLine(vehicle.preferences), sources: reply.sources, escalate: false, checkResult: "通過" };
 }
