@@ -6,6 +6,7 @@ import { POST } from "@/app/api/ask/route";
 import { sourceLabel, presetsFor } from "@/lib/answers";
 import { ask } from "@/lib/ask";
 import { callGemini } from "@/lib/gemini";
+import { applyPreferences } from "@/lib/preferences";
 import { findVehicle } from "@/lib/vehicles";
 import { checkCase, parseQuestions } from "./questions";
 import { sleep, withRetry } from "./retry";
@@ -37,7 +38,10 @@ function post(question: string, ip: string) {
 describe("21 題實測", () => {
   for (const q of questions.filter((q) => q.no !== 20 && q.no !== 21)) {
     it(`#${q.no} ${q.question}`, async () => {
-      const vehicle = findVehicle(q.vehicleId)!;
+      const base = findVehicle(q.vehicleId)!;
+      // 題目要改偏好時，和 API 一樣經過 applyPreferences；格式錯就讓這題失敗，不偷偷用預設。
+      const vehicle = q.preferences ? applyPreferences(base, { ...base.preferences, ...q.preferences }) : base;
+      if (!vehicle) throw new Error(`第 ${q.no} 題的偏好格式不正確：${JSON.stringify(q.preferences)}`);
       await sleep(1_000); // 付費版沒有每分鐘 15 次的限制，稍微間隔就好
       let raw = "";
       let ms = 0;
@@ -49,7 +53,7 @@ describe("21 題實測", () => {
       });
       const problems = checkCase(q.no, r);
       console.log(
-        `#${q.no} ${problems.length ? "失敗" : "通過"}｜${q.question}\n  預期：${q.expected}\n  回答：${r.answer}\n  來源：${r.sources.join(", ")}｜專員：${r.escalate}｜答案檢查：${r.checkResult}${r.blockedReason ? `（${r.blockedReason}）` : ""}｜AI 回應：${(ms / 1000).toFixed(1)} 秒${r.checkResult === "攔下" ? `\n  AI 原回答：${raw}` : ""}${problems.length ? `\n  問題：${problems.join("；")}` : ""}`,
+        `#${q.no} ${problems.length ? "失敗" : "通過"}｜${q.question}${q.preferences ? `（偏好改成${Object.values(q.preferences).join("、")}）` : ""}\n  預期：${q.expected}\n  回答：${r.answer}\n  來源：${r.sources.join(", ")}｜專員：${r.escalate}｜答案檢查：${r.checkResult}${r.blockedReason ? `（${r.blockedReason}）` : ""}｜AI 回應：${(ms / 1000).toFixed(1)} 秒${r.checkResult === "攔下" ? `\n  AI 原回答：${raw}` : ""}${problems.length ? `\n  問題：${problems.join("；")}` : ""}`,
       );
       expect(problems).toEqual([]);
     }, 600_000); // 限流時會等好幾輪重試
