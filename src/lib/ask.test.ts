@@ -442,6 +442,41 @@ describe("ask：車主偏好（#23）", () => {
       expect(r.checkResult, answer).toBe("通過");
     }
   });
+  // 11/7 #25 實測 run1 重現：真實 Gemini 說「無法下個月再換」，否定詞後面先接時間再接「再換」，被誤攔。
+  it("反例：「輪胎無法下個月再換」是正確說法，不攔", async () => {
+    const r = await ask(lin, "輪胎可以下個月再換嗎？", fakeAI({
+      answer: "輪胎量測 1.4 mm，低於安全門檻 1.6 mm，必須更換，不能延後。輪胎無法下個月再換，建議今天處理。",
+      sources: ["item:tire"], escalate: true, itemConclusions: [{ id: "item:tire", conclusion: "必須更換" }],
+    }));
+    expect(r.checkResult).toBe("通過");
+  });
+
+  it("沒有否定詞的「輪胎下個月再換也可以」仍然攔下", async () => {
+    const r = await ask(lin, "輪胎可以下個月再換嗎？", fakeAI({
+      answer: "輪胎量測 1.4 mm，下個月再換也可以。",
+      sources: ["item:tire"], escalate: true, itemConclusions: [{ id: "item:tire", conclusion: "必須更換" }],
+    }));
+    expect(r.blockedReason).toBe("輪胎胎紋是必須更換，回答卻說可以延後");
+  });
+
+  // 11/7 #27 實測 run1 重現：能等就等時，Gemini 說「建議在出遠門前處理」，原本只認「換」字，沒攔到。
+  it("選能等就等：「電瓶建議在出遠門前處理」被攔下；選一次處理完時通過", async () => {
+    const answer = "電瓶健康度 60%，結論為可延後，3 個月後會提醒你回廠。因為有安全風險，建議在出遠門前處理比較安心。";
+    expect((await ask(wang, "電瓶撐得住嗎？", fakeAI(battery(answer)))).blockedReason).toContain("能等就等");
+    expect((await ask(withHandling("一次處理完"), "電瓶撐得住嗎？", fakeAI(battery(answer)))).checkResult).toBe("通過");
+  });
+
+  it("反例：沒點名項目的句子承接必須更換的煞車時，不套能等就等這條", async () => {
+    const r = await ask(wang, "煞車要換嗎？", fakeAI(brake("煞車只剩 2 mm，低於安全門檻 3 mm，必須更換。建議今天處理。", { escalate: true })));
+    expect(r.checkResult).toBe("通過");
+  });
+
+  it("反例：選能等就等，「建議出發前請專員再測一次」「3 個月後再處理」通過", async () => {
+    for (const answer of ["電瓶可延後，3 個月後會提醒你回廠，建議出發前請專員再測一次。", "電瓶可延後，3 個月後再處理就好。", "電瓶可延後，建議 3 個月後回廠再處理。","電瓶不建議今天處理，3 個月後會提醒你回廠。"]) {
+      expect((await ask(wang, "電瓶撐得住嗎？", fakeAI(battery(answer)))).checkResult, answer).toBe("通過");
+    }
+  });
+
   it("有偏好（最在意耐用度、一次處理完）時，預算有限仍不能建議最貴款", async () => {
     const v = { ...lin, preferences: { priority: "耐用度" as const, handling: "一次處理完" as const } };
     const r = await ask(v, "我預算有限，輪胎選哪款？", fakeAI({

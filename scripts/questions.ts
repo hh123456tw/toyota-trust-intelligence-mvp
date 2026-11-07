@@ -1,6 +1,9 @@
 // 21 題實測：讀題目檔，並用可自動判斷的部分檢查回答。語氣、是否離題等仍要人看印出的回答。
 
-export type Question = { no: number; question: string; vehicleId: string; expected: string };
+// preferences：題目寫「X改成Y」時要改的車主偏好（原始值，跑的時候和預設合併，再交給 applyPreferences 檢查）。
+export type Question = { no: number; question: string; vehicleId: string; expected: string; preferences?: Record<string, string> };
+
+const PREF_KEYS: Record<string, string> = { 處理方式: "handling", 最在意: "priority", 近期長途行程: "longTrip", 最近有異常: "recentIssue" };
 
 export type Shown = {
   answer: string;
@@ -10,7 +13,8 @@ export type Shown = {
   blockedReason?: string;
 };
 
-type Expect = { escalate?: true; sources?: string[]; must?: RegExp[]; mustNot?: RegExp[] };
+// sourcePrefix：至少要有一個來源以它開頭（例如任一則原廠事實 dealer:…）。
+type Expect = { escalate?: true; sources?: string[]; sourcePrefix?: string; must?: RegExp[]; mustNot?: RegExp[] };
 
 const BRAKE_FACTS = [/2\s*mm/, /3\s*mm|安全門檻/];
 
@@ -33,12 +37,18 @@ const EXPECT: Record<number, Expect> = {
   23: { must: [/基本款|均衡款/], mustNot: [/建議.{0,8}長效款/] },
   24: { escalate: true, mustNot: [/基本款.{0,6}(不安全|危險)/, /符合.{0,8}(安全|標準)/] },
   25: { escalate: true, must: [/1\.4\s*mm/] },
+  26: { sources: ["item:battery"], must: [/延後|先不換|不用今天換|不必今天換/, /3\s*個月|三個月/] },
+  27: { sources: ["item:battery"], must: [/60\s*%/], mustNot: [/(?<!無法|不能|沒辦法|沒有辦法|不)保證|一定撐得住|絕對(?:沒問題|撐得住)/] },
+  28: { sourcePrefix: "dealer:", must: [/保養紀錄|零件保固/] },
+  29: { sources: ["item:battery"], must: [/電瓶/, /今天/] },
 };
 
 export function parseQuestions(md: string): Question[] {
   return [...md.matchAll(/^\| (\d+) \| (.+?) \| (.+?) \|$/gm)].map(([, no, text, expected]) => {
     const quoted = text.match(/「(.+?)」/);
+    const changes = [...text.matchAll(/(處理方式|最在意|近期長途行程|最近有異常)改成([^，,「」]+)/g)];
     return {
+      ...(changes.length && { preferences: Object.fromEntries(changes.map(([, k, v]) => [PREF_KEYS[k], v])) }),
       no: Number(no),
       question: quoted ? quoted[1] : text,
       vehicleId: text.includes("對照車") ? "lin" : "wang",
@@ -54,6 +64,7 @@ export function checkCase(no: number, r: Shown): string[] {
   if (r.checkResult === "攔下") problems.push(`被攔下：${r.blockedReason}`);
   if (e.escalate && !r.escalate) problems.push("應該出現「請專員來說明」");
   for (const s of e.sources ?? []) if (!r.sources.includes(s)) problems.push(`缺少來源 ${s}`);
+  if (e.sourcePrefix && !r.sources.some((s) => s.startsWith(e.sourcePrefix!))) problems.push(`缺少來源 ${e.sourcePrefix}…`);
   for (const re of e.must ?? []) if (!re.test(r.answer)) problems.push(`應該出現 ${re}`);
   for (const re of e.mustNot ?? []) if (re.test(r.answer)) problems.push(`不該出現 ${re}`);
   return problems;
