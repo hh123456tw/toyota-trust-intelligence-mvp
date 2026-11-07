@@ -4,12 +4,13 @@ import { useMemo, useState, type ComponentProps } from "react";
 import { cardItems, measurementError, withMeasurement } from "@/lib/card";
 import { staffLine } from "@/lib/handover";
 import { LABEL, type Conclusion } from "@/lib/rules";
-import type { InspectionItem } from "@/lib/vehicles";
+import { receptionSummary } from "@/lib/reception";
+import type { InspectionItem, Vehicle } from "@/lib/vehicles";
 import DecisionCard from "../../card/[id]/DecisionCard";
 import FlowPanel from "../../card/[id]/FlowPanel";
 import { useOwnerPreferences } from "../../card/[id]/PreferencesPanel";
 import Icon, { ITEM_ICON } from "../../Icon";
-import ReceptionSummary from "./ReceptionSummary";
+import InspectionSummary from "./InspectionSummary";
 import type { FlowEntry } from "@/lib/flow";
 
 const PILL: Record<Conclusion, string> = {
@@ -21,15 +22,17 @@ const PILL: Record<Conclusion, string> = {
 // 只用前端狀態：改值後直接交給規則引擎重算，不經過後端或 AI。
 export default function Workbench(props: {
   card: ComponentProps<typeof DecisionCard>;
-  items: InspectionItem[];
-  technician: string;
+  vehicle: Vehicle;
 }) {
-  const [items, setItems] = useState(props.items);
+  const { vehicle } = props;
+  const [items, setItems] = useState(vehicle.items);
   const [entries, setEntries] = useState<FlowEntry[]>([]);
   const [errors, setErrors] = useState<Record<string, string | null>>({});
   // 只在量測值改變時重算；DecisionCard 用 items 是否換了來判斷要不要清掉舊選擇。
-  // 和車主手機畫面讀同一份保存的偏好，接待摘要也帶著送出。
-  const { preferences } = useOwnerPreferences(props.card.vehicle.id, props.card.vehicle.preferences);
+  // 和車主手機畫面讀同一份保存的偏好：接待摘要直接用，檢查結果摘要帶著送出。
+  const { preferences } = useOwnerPreferences(vehicle.id, vehicle.preferences);
+  // 接待摘要只讀上次的資料，技師改值不影響；偏好改了才重算。
+  const reception = useMemo(() => receptionSummary({ ...vehicle, preferences }), [vehicle, preferences]);
   const cards = useMemo(() => cardItems(items), [items]);
 
   const conclusionOf = (list: InspectionItem[], id: string) =>
@@ -66,62 +69,89 @@ export default function Workbench(props: {
           <div className="min-w-40 flex-1">
             <p className="text-xs font-medium tracking-wider text-white/70">技師輸入頁</p>
             <h1 className="text-xl font-bold">
-              {props.technician}・{props.card.vehicle.plate}
+              {vehicle.technician}・{vehicle.plate}
             </h1>
           </div>
           <p className="w-full text-sm text-white/80 sm:w-auto sm:max-w-72 sm:text-right">改量測值，決策卡的結論立刻由規則引擎重算。</p>
         </div>
 
-        <div className="divide-y divide-line rounded-2xl border border-line bg-white px-4 shadow-sm">
-          {props.items
-            .filter((i) => i.measurement)
-            .map((i) => {
-              const conclusion = conclusionOf(items, i.id);
-              const error = errors[i.id];
-              const current = items.find((x) => x.id === i.id)!.measurement!;
-              return (
-                <label key={i.id} className="flex flex-wrap items-center gap-3 py-3">
-                  <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-paper text-ink-2">
-                    <Icon name={ITEM_ICON[i.id] ?? "wrench"} className="size-5" />
-                  </span>
-                  <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
-                    <span className="font-semibold whitespace-nowrap">{i.name}</span>
-                    <span className={`rounded-full px-2.5 py-0.5 text-sm font-semibold whitespace-nowrap ${PILL[conclusion]}`}>
-                      {LABEL[conclusion]}
-                    </span>
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      inputMode="decimal"
-                      defaultValue={i.measurement!.value}
-                      onChange={(e) => change(i, e.target.value)}
-                      aria-invalid={error ? true : undefined}
-                      aria-describedby={error ? `error-${i.id}` : undefined}
-                      className={`w-20 rounded-xl border bg-paper px-3 py-2 text-right text-lg font-bold sm:w-24 outline-none focus:bg-white ${error ? "border-must" : "border-line focus:border-ink-2"}`}
-                    />
-                    <span className="w-7 text-muted">{i.measurement!.unit}</span>
-                  </span>
-                  {error && (
-                    <span id={`error-${i.id}`} role="alert" className="w-full text-right text-sm font-semibold text-must">
-                      {error}。結論維持 {current.value} {current.unit} 的結果。
-                    </span>
-                  )}
-                </label>
-              );
-            })}
-        </div>
+        <section aria-labelledby="reception-title" className="space-y-3">
+          <h2 id="reception-title" className="text-sm font-bold tracking-wider text-muted">
+            接待時
+          </h2>
+          <div className="rounded-2xl border border-line bg-white p-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-paper text-ink-2">
+                <Icon name="doc" className="size-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-bold">接待摘要</h3>
+                <p className="text-sm text-muted">技師檢查前，專員開口前先看。由規則產生，不經 AI。</p>
+              </div>
+            </div>
+            <ul className="mt-3 list-disc space-y-1 pl-5 leading-relaxed">
+              {reception.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </div>
+        </section>
 
-        <ReceptionSummary
-          vehicleId={props.card.vehicle.id}
-          sourceLabels={props.card.sourceLabels}
-          onFlow={(e) => setEntries((prev) => [...prev, e])}
-          line={staffLine(cards)}
-          items={cards}
-          preferences={preferences}
-        />
+        <section aria-labelledby="inspected-title" className="space-y-3">
+          <h2 id="inspected-title" className="text-sm font-bold tracking-wider text-muted">
+            檢查後
+          </h2>
+          <div className="divide-y divide-line rounded-2xl border border-line bg-white px-4 shadow-sm">
+            {vehicle.items
+              .filter((i) => i.measurement)
+              .map((i) => {
+                const conclusion = conclusionOf(items, i.id);
+                const error = errors[i.id];
+                const current = items.find((x) => x.id === i.id)!.measurement!;
+                return (
+                  <label key={i.id} className="flex flex-wrap items-center gap-3 py-3">
+                    <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-paper text-ink-2">
+                      <Icon name={ITEM_ICON[i.id] ?? "wrench"} className="size-5" />
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
+                      <span className="font-semibold whitespace-nowrap">{i.name}</span>
+                      <span className={`rounded-full px-2.5 py-0.5 text-sm font-semibold whitespace-nowrap ${PILL[conclusion]}`}>
+                        {LABEL[conclusion]}
+                      </span>
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        inputMode="decimal"
+                        defaultValue={i.measurement!.value}
+                        onChange={(e) => change(i, e.target.value)}
+                        aria-invalid={error ? true : undefined}
+                        aria-describedby={error ? `error-${i.id}` : undefined}
+                        className={`w-20 rounded-xl border bg-paper px-3 py-2 text-right text-lg font-bold sm:w-24 outline-none focus:bg-white ${error ? "border-must" : "border-line focus:border-ink-2"}`}
+                      />
+                      <span className="w-7 text-muted">{i.measurement!.unit}</span>
+                    </span>
+                    {error && (
+                      <span id={`error-${i.id}`} role="alert" className="w-full text-right text-sm font-semibold text-must">
+                        {error}。結論維持 {current.value} {current.unit} 的結果。
+                      </span>
+                    )}
+                  </label>
+                );
+              })}
+          </div>
+
+          <InspectionSummary
+            vehicleId={vehicle.id}
+            sourceLabels={props.card.sourceLabels}
+            onFlow={(e) => setEntries((prev) => [...prev, e])}
+            line={staffLine(cards)}
+            items={cards}
+            preferences={preferences}
+          />
+        </section>
 
         <FlowPanel entries={entries} />
       </section>
@@ -135,7 +165,7 @@ export default function Workbench(props: {
               {...props.card}
               items={cards}
               // 常見問題是預寫的，改值後結論可能不同，先收起來，改問 AI。
-              presets={items === props.items ? props.card.presets : []}
+              presets={items === vehicle.items ? props.card.presets : []}
               simulate
               onFlow={(e) => setEntries((prev) => [...prev, e])}
             />

@@ -1,4 +1,4 @@
-// 實測專用設定（npm run eval:21：21 題＋接待摘要）。不在 npm test 範圍內，會呼叫真的 Gemini。
+// 實測專用設定（npm run eval:21：21 題＋檢查結果摘要）。不在 npm test 範圍內，會呼叫真的 Gemini。
 import { fileURLToPath } from "node:url";
 import { loadEnv } from "vite";
 import { defineConfig } from "vitest/config";

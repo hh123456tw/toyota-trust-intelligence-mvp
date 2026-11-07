@@ -62,7 +62,7 @@ export function preferenceLabels(p: OwnerPreferences): string[] {
   ].filter((s): s is string => !!s);
 }
 
-// 接待摘要最後那一行：由規則產生，不交給 AI 寫。只列會影響專員怎麼開口的項目：
+// 檢查結果摘要最後那一行：由規則產生，不交給 AI 寫。只列會影響專員怎麼開口的項目：
 // 「沒有長途行程」「沒有異常」不列；有異常時只寫請技師確認。車主描述只轉給技師，不寫進摘要。
 export function preferenceSummaryLine(p: OwnerPreferences | undefined): string {
   if (!p) return "";

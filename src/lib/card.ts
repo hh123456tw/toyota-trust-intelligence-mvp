@@ -76,11 +76,11 @@ export function cardItems(items: InspectionItem[]): CardItem[] {
     .sort((a, b) => ORDER[a.verdict.conclusion] - ORDER[b.verdict.conclusion]);
 }
 
-// 畫面目前的量測值，追問和接待摘要時一起送給 API。
+// 畫面目前的量測值，追問和檢查結果摘要時一起送給 API。
 export const currentMeasurements = (items: CardItem[]): Record<string, number> =>
   Object.fromEntries(items.flatMap((i) => (i.gauge ? [[i.id, i.gauge.value]] : [])));
 
-// 把畫面上技師改過的量測值套回車輛資料，AI 和接待摘要才會看到同一份。
+// 把畫面上技師改過的量測值套回車輛資料，AI 和檢查結果摘要才會看到同一份。
 // 這裡的值來自瀏覽器：格式不對回傳 null，由 API 回錯誤；沒有變動的項目維持原樣（備註和 CCA 都不動）。
 // shortcut: 上限只擋明顯打錯的數字，不是原廠規格；拿到修護手冊後改成每個項目自己的範圍。
 const maxMeasurement = (unit: string) => (unit === "%" ? 100 : 30);
@@ -119,14 +119,14 @@ export function withMeasurement(items: InspectionItem[], id: string, value: numb
   );
 }
 
-// 車主在 App 追問費用達這個次數，決策卡就先列出費用。
+// 車主上次回廠在決策卡追問費用達這個次數，決策卡就先列出費用，檢查結果摘要也提醒先講價格。
 export const PRICE_FIRST_MIN_QUESTIONS = 3;
 
-// 依 APP 互動紀錄決定是否先列費用；回傳說明文字，沒有紀錄或次數不夠回傳 undefined。
+// 依上次回廠的追問紀錄決定是否先列費用；回傳說明文字，沒有紀錄或次數不夠回傳 undefined。
 export function priceFirstNote(vehicle: Vehicle): string | undefined {
-  const r = vehicle.appRecord;
+  const r = vehicle.lastVisitRecord;
   if (!r || r.priceQuestions < PRICE_FIRST_MIN_QUESTIONS) return undefined;
-  return `${r.period}你在 App 問過 ${r.priceQuestions} 次費用，先把費用列在這裡。`;
+  return `上次回廠時，你在決策卡追問了 ${r.priceQuestions} 次費用（示意），先把費用列在這裡。`;
 }
 
 // 短程比例達這個百分比，行車摘要加上電瓶充電的建議。
@@ -164,7 +164,7 @@ export function cardProps(vehicle: Vehicle) {
       drivingNote: `${vehicle.drivingSummary.period}：${vehicle.drivingSummary.note}`,
       drivingAdvice: drivingAdvice(vehicle),
       priceFirstNote: priceFirstNote(vehicle),
-      // 預設偏好：畫面換成這支手機存的值，再隨追問和接待摘要送回 API。
+      // 預設偏好：畫面換成這支手機存的值，再隨追問和檢查結果摘要送回 API。
       preferences: vehicle.preferences,
     },
     items: cardItems(vehicle.items),

@@ -54,9 +54,9 @@ export function presetFlow(preset: Preset, labels: Labels): FlowEntry {
   };
 }
 
-// 接待摘要：AI 讀整張卡；攔下時畫面改顯示規則版摘要。
+// 檢查結果摘要：AI 讀整張卡；攔下時畫面改顯示規則版摘要。
 export function summaryFlow(status: number, data: SummaryResult | { error: string }, labels: Labels): FlowEntry {
-  const title = "接待摘要：AI 整理給專員";
+  const title = "檢查結果摘要：AI 整理給專員";
   if (status !== 200 || "error" in data) {
     return { title, steps: [`失敗：${"error" in data ? data.error : "未知錯誤"}`], aiCalls: status === 502 ? 1 : 0 };
   }

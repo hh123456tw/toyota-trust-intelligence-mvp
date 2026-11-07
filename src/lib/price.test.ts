@@ -66,7 +66,7 @@ describe("答案檢查：金額", () => {
     expect(r.checkResult).toBe("通過");
   });
 
-  it("規則版接待摘要帶價格，本身通過金額檢查", () => {
+  it("規則版檢查結果摘要帶價格，本身通過金額檢查", () => {
     const s = ruleSummary(wang).answer;
     expect(s).toContain("NT$3,000");
     expect(amounts(s)).toEqual([3000, 3500]);

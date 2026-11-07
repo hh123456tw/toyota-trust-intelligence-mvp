@@ -380,7 +380,7 @@ export async function simulateTampered(vehicle: Vehicle): Promise<AskResult & { 
   return { ...result, simulated: true, question };
 }
 
-// 接待摘要：AI 把同一張卡整理成服務專員 30 秒能講完的版本。
+// 檢查結果摘要：AI 把同一張卡整理成服務專員 30 秒能講完的版本。
 // 走同一套答案檢查；另外必須更換、可延後的項目一個都不能漏。沒通過就改用規則版摘要。
 const SUMMARY_PROMPT = `你是和泰汽車服務廠的接待助理。把卡片資料整理成服務專員 30 秒能講完的接待摘要，繁體中文，120 字內。
 
@@ -418,7 +418,7 @@ export async function summarize(vehicle: Vehicle, callAI: CallAI): Promise<Summa
   const blockedReason = missing
     ? `摘要漏了${judge(missing).conclusion}的${missing.name}`
     : reply.recommendedOption?.trim()
-      ? "接待摘要不能建議款式"
+      ? "檢查結果摘要不能建議款式"
       : check(vehicle, reply);
   return blockedReason
     ? { ...ruleSummary(vehicle), checkResult: "攔下", blockedReason }

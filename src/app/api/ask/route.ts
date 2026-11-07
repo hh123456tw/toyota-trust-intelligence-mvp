@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: (err as Error).message }, { status: 400 });
     }
   }
-  // 技師頁的「接待摘要」：不需要問題，其餘（限流、金鑰、錯誤處理）和追問相同。
+  // 技師頁的「檢查結果摘要」：不需要問題，其餘（限流、金鑰、錯誤處理）和追問相同。
   const summary = body?.summary === true;
   if (!summary && (!question || question.length > MAX_QUESTION_LENGTH)) {
     return Response.json({ error: `問題請在 ${MAX_QUESTION_LENGTH} 字以內` }, { status: 400 });

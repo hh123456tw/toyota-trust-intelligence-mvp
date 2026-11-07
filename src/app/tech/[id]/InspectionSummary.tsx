@@ -16,8 +16,8 @@ const TONE: Record<Conclusion, { bar: string; text: string }> = {
   正常: { bar: "border-l-ok", text: "text-ok" },
 };
 
-// 接待摘要：給服務專員看，AI 把整張決策卡整理成 30 秒能講完的版本。
-export default function ReceptionSummary(props: {
+// 檢查結果摘要：技師檢查後給服務專員看，AI 把整張決策卡整理成 30 秒能講完的版本。
+export default function InspectionSummary(props: {
   vehicleId: string;
   sourceLabels: Record<string, string>;
   onFlow: (entry: FlowEntry) => void;
@@ -81,7 +81,7 @@ export default function ReceptionSummary(props: {
           <Icon name="sparkle" className="size-5" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="font-bold">接待摘要（專員版）</p>
+          <h3 className="font-bold">檢查結果摘要</h3>
           <p className="text-sm text-muted">AI 整理成 30 秒能講完的版本，專員確認後向車主說明。</p>
         </div>
         <button
