@@ -7,6 +7,7 @@ import { LABEL, type Conclusion } from "@/lib/rules";
 import type { InspectionItem } from "@/lib/vehicles";
 import DecisionCard from "../../card/[id]/DecisionCard";
 import FlowPanel from "../../card/[id]/FlowPanel";
+import { useOwnerPreferences } from "../../card/[id]/PreferencesPanel";
 import Icon, { ITEM_ICON } from "../../Icon";
 import ReceptionSummary from "./ReceptionSummary";
 import type { FlowEntry } from "@/lib/flow";
@@ -27,7 +28,9 @@ export default function Workbench(props: {
   const [entries, setEntries] = useState<FlowEntry[]>([]);
   const [errors, setErrors] = useState<Record<string, string | null>>({});
   // 只在量測值改變時重算；DecisionCard 用 items 是否換了來判斷要不要清掉舊選擇。
-  const preferences = props.card.vehicle.preferences;
+  // 和車主手機畫面讀同一份保存的偏好，接待摘要也帶著送出。
+  const [stored] = useOwnerPreferences(props.card.vehicle.id, props.card.vehicle.preferences);
+  const preferences = typeof stored === "object" ? stored : undefined;
   const cards = useMemo(() => cardItems(items, preferences), [items, preferences]);
 
   const conclusionOf = (list: InspectionItem[], id: string) =>
