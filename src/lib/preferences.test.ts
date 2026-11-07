@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { cardProps } from "./card";
-import { applyPreferences } from "./preferences";
+import { applyPreferences, preferenceLabels, preferenceNote } from "./preferences";
+import { judge } from "./rules";
 import { findVehicle, type Vehicle } from "./vehicles";
 
 const wang = findVehicle("wang")!;
@@ -56,8 +57,10 @@ describe("applyPreferences：把瀏覽器送來的偏好套進車輛資料", () 
 });
 
 describe("可延後項目的「依你的偏好」那一句", () => {
+  // 這一句只由畫面依目前偏好算（preferenceNote），伺服器給的卡片項目不帶。
   const items = (v: Vehicle) => cardProps(v).items;
-  const noteOf = (v: Vehicle, id: string) => items(v).find((i) => i.id === id)!.preferenceNote;
+  const noteOf = (v: Vehicle, id: string) => preferenceNote(v.preferences, judge(v.items.find((i) => i.id === id)!));
+  const notes = (v: Vehicle) => v.items.map((i) => preferenceNote(v.preferences, judge(i)));
   const withPrefs = (prefs: object, v: Vehicle = wang) => applyPreferences(v, prefs)!;
   // 空氣濾網目視需留意 → 可延後，回廠提醒 6 個月，用來確認 N 取規則的月數。
   const dirtyFilter = { ...wang, items: wang.items.map((i) => (i.id === "air-filter" ? { ...i, visualOk: false } : i)) };
@@ -89,16 +92,21 @@ describe("可延後項目的「依你的偏好」那一句", () => {
       for (const id of ["tire", "air-filter", "wiper"]) expect(noteOf(v, id)).toBeUndefined(); // 目前不用換
     }
     const linPrefs = withPrefs({ handling: "能等就等", longTrip: "有" }, lin);
-    for (const i of items(linPrefs)) expect(i.preferenceNote).toBeUndefined(); // 林小姐沒有可延後項目
+    for (const n of notes(linPrefs)) expect(n).toBeUndefined(); // 林小姐沒有可延後項目
   });
 
   it("沒有偏好：所有項目都沒有這一句", () => {
-    for (const i of items(lin)) expect(i.preferenceNote).toBeUndefined();
+    for (const n of notes(lin)) expect(n).toBeUndefined();
+    for (const n of notes({ ...wang, preferences: undefined })) expect(n).toBeUndefined();
+  });
+
+  it("伺服器給的卡片項目不帶這一句（只留畫面一個來源）", () => {
+    for (const i of items(wang)) expect(i.preferenceNote).toBeUndefined();
   });
 
   it("同一台車換不同偏好：結論、安全門檻、價格、顯示的項目、款式清單和排序完全相同", () => {
     const tireMust = { ...wang, items: wang.items.map((i) => (i.id === "tire" ? { ...i, measurement: { value: 1, unit: "mm" } } : i)) };
-    const strip = (v: Vehicle) => items(v).map(({ preferenceNote, ...rest }) => (void preferenceNote, rest));
+    const strip = (v: Vehicle) => items(v);
     const variants = [
       { ...tireMust, preferences: undefined },
       withPrefs({ handling: "能等就等", priority: "價格", longTrip: "有", recentIssue: "沒有" }, tireMust),
@@ -114,17 +122,16 @@ describe("可延後項目的「依你的偏好」那一句", () => {
 describe("決策卡上方的「你的偏好」", () => {
   it("王先生預設已填好：顯示 4 個偏好答案", () => {
     expect(cardProps(wang).vehicle.preferences).toEqual({ handling: "能等就等", priority: "價格", longTrip: "有", recentIssue: "沒有" });
-    expect(cardProps(wang).vehicle.preferenceLabels).toEqual(["能等就等", "最在意價格", "近期有長途行程", "最近沒有異常"]);
+    expect(preferenceLabels(cardProps(wang).vehicle.preferences!)).toEqual(["能等就等", "最在意價格", "近期有長途行程", "最近沒有異常"]);
   });
 
   it("另一組偏好的顯示文字", () => {
     const v = applyPreferences(lin, { handling: "一次處理完", priority: "安靜和舒適", longTrip: "沒有", recentIssue: "有" })!;
-    expect(cardProps(v).vehicle.preferenceLabels).toEqual(["一次處理完", "最在意安靜和舒適", "近期沒有長途行程", "最近有異常"]);
-    expect(cardProps(applyPreferences(lin, { priority: "耐用度" })!).vehicle.preferenceLabels).toEqual(["最在意耐用度"]);
+    expect(preferenceLabels(v.preferences!)).toEqual(["一次處理完", "最在意安靜和舒適", "近期沒有長途行程", "最近有異常"]);
+    expect(preferenceLabels({ priority: "耐用度" })).toEqual(["最在意耐用度"]);
   });
 
   it("反例：林小姐沒有預設偏好，卡片沒有這個區塊", () => {
     expect(cardProps(lin).vehicle.preferences).toBeUndefined();
-    expect(cardProps(lin).vehicle.preferenceLabels).toBeUndefined();
   });
 });

@@ -392,6 +392,22 @@ describe("ask：車主偏好（#23）", () => {
     expect(seen.system).toContain("dealer:");
   });
 
+  it("上次選的款式等級只留介面：示範資料是 null，有值時 AI 收得到，提示詞說有值時可參考", async () => {
+    const { seen, call } = capture();
+    await ask(wang, "電瓶要換嗎？", call);
+    expect(seen.user).toContain('"上次選的款式等級": null');
+    expect(seen.system).toMatch(/上次選的款式等級[^\n]*有值[^\n]*參考/);
+    await ask({ ...lin, lastOptionGrade: "均衡款" }, "輪胎選哪款？", call);
+    expect(seen.user).toContain('"上次選的款式等級": "均衡款"');
+  });
+
+  it("提示詞：車主說最近有異常時，AI 不能依此判斷安不安全，只說會請技師確認", async () => {
+    const { seen, call } = capture();
+    await ask(wang, "電瓶要換嗎？", call);
+    expect(seen.system).toMatch(/最近有異常[^\n]*不能[^\n]*判斷[^\n]*安不安全/);
+    expect(seen.system).toMatch(/最近有異常[^\n]*請技師確認/);
+  });
+
   it("選能等就等：回答「電瓶建議今天換」被攔下", async () => {
     const r = await ask(wang, "電瓶要換嗎？", fakeAI(battery("電瓶建議今天換。")));
     expect(r.checkResult).toBe("攔下");
@@ -401,6 +417,19 @@ describe("ask：車主偏好（#23）", () => {
   it("反例：選能等就等，說「電瓶不建議今天換」或講可延後，通過", async () => {
     for (const answer of ["電瓶不建議今天換，3 個月後會提醒你回廠。", "電瓶可延後，3 個月後會提醒你回廠。"]) {
       expect((await ask(wang, "電瓶要換嗎？", fakeAI(battery(answer)))).checkResult).toBe("通過");
+    }
+  });
+
+  // 審查發現：原本只看「建議」後面有沒有「後」，「建議下個月換」被誤攔，「今天更換比較好」沒攔到。改看處理的時間。
+  it("選能等就等：說今天或出遠門前處理，攔下", async () => {
+    for (const answer of ["電瓶建議今天換。", "電瓶今天更換比較好。", "電瓶最好今天處理。", "電瓶可延後，建議出遠門前處理。", "電瓶可延後，現在就換比較安心。"]) {
+      expect((await ask(wang, "電瓶要換嗎？", fakeAI(battery(answer)))).blockedReason, answer).toContain("能等就等");
+    }
+  });
+
+  it("反例：選能等就等，說以後再處理或不建議今天換，通過", async () => {
+    for (const answer of ["電瓶建議下個月換。", "電瓶建議下次保養時再處理。", "電瓶建議等下次回廠處理。", "電瓶 3 個月後再處理。", "電瓶不建議今天換。", "電瓶今天不用換。", "電瓶今天先不換，3 個月後會提醒你回廠。"]) {
+      expect((await ask(wang, "電瓶要換嗎？", fakeAI(battery(answer)))).checkResult, answer).toBe("通過");
     }
   });
 
@@ -431,6 +460,21 @@ describe("ask：車主偏好（#23）", () => {
     }
   });
 
+  // 審查發現：原本只看同一子句有沒有「外面」加「比較差」，跨逗號、「比原廠貴」漏攔，否定和「比較差異」誤攔。
+  it("說外面比較貴、比原廠差，或原廠比外面好（含跨逗號）：攔下", async () => {
+    for (const answer of ["外面比較貴。", "外面的保養廠，品質比較差。", "外面的保養廠比原廠貴。", "原廠比外面好。", "外面修不好。"]) {
+      const r = await ask(wang, "外面換比較便宜吧？", fakeAI(battery(answer)));
+      expect(r.blockedReason, answer).toContain("外面");
+    }
+  });
+
+  it("反例：否定比較、「比較差異」、外面下雨、外面換也可以：通過", async () => {
+    for (const answer of ["外面不一定比較貴。", "外面沒有比較差。", "和外面的保養廠比較差異在保養紀錄。", "外面下雨時路況比較差。", "外面換也可以。"]) {
+      const r = await ask(wang, "外面換比較便宜吧？", fakeAI(battery(answer, { sources: ["item:battery", "dealer:parts-warranty"] })));
+      expect(r.checkResult, answer).toBe("通過");
+    }
+  });
+
   it("反例：只提到外面但沒有比較（車主自己問外面換），通過", async () => {
     const answers = [
       "外面換也可以，由你決定。在原廠更換的原廠零件有零件保固。",
@@ -451,6 +495,23 @@ describe("ask：車主偏好（#23）", () => {
     expect(r.checkResult).toBe("通過");
   });
 
+  // 審查發現：否定詞和時間中間有「等到」，原本認不出是否定，誤攔。
+  it("反例：「輪胎無法等到下個月再換」「不能等到下次再換」是正確說法，不攔", async () => {
+    for (const answer of ["輪胎無法等到下個月再換，必須更換。", "輪胎胎紋 1.4 mm，不能等到下次再換。"]) {
+      const r = await ask(lin, "輪胎可以下個月再換嗎？", fakeAI({
+        answer, sources: ["item:tire"], escalate: true, itemConclusions: [{ id: "item:tire", conclusion: "必須更換" }],
+      }));
+      expect(r.checkResult, answer).toBe("通過");
+    }
+  });
+
+  it("沒有否定詞的「輪胎可以等到下個月再換」仍然攔下", async () => {
+    const r = await ask(lin, "輪胎可以下個月再換嗎？", fakeAI({
+      answer: "輪胎可以等到下個月再換。", sources: ["item:tire"], escalate: true, itemConclusions: [{ id: "item:tire", conclusion: "必須更換" }],
+    }));
+    expect(r.blockedReason).toBe("輪胎胎紋是必須更換，回答卻說可以延後");
+  });
+
   it("沒有否定詞的「輪胎下個月再換也可以」仍然攔下", async () => {
     const r = await ask(lin, "輪胎可以下個月再換嗎？", fakeAI({
       answer: "輪胎量測 1.4 mm，下個月再換也可以。",
@@ -469,6 +530,18 @@ describe("ask：車主偏好（#23）", () => {
   it("反例：沒點名項目的句子承接必須更換的煞車時，不套能等就等這條", async () => {
     const r = await ask(wang, "煞車要換嗎？", fakeAI(brake("煞車只剩 2 mm，低於安全門檻 3 mm，必須更換。建議今天處理。", { escalate: true })));
     expect(r.checkResult).toBe("通過");
+  });
+
+  // 審查發現：前句同時講電瓶和煞車，「建議今天處理」承接哪一項不明確，原本當成電瓶而誤攔。
+  it("反例：前句有多個項目時，沒點名項目的下一句不承接，不攔", async () => {
+    const answer = "電瓶可延後，煞車必須更換。建議今天處理。";
+    const r = await ask(wang, "電瓶和煞車呢？", fakeAI(battery(answer, { sources: ["item:battery", "item:brake-pad"], itemConclusions: [{ id: "item:battery", conclusion: "可延後" }, ...BRAKE] })));
+    expect(r.checkResult).toBe("通過");
+  });
+
+  it("前句只有一個可延後項目時才承接：「電瓶可延後。建議今天處理。」攔下", async () => {
+    const r = await ask(wang, "電瓶呢？", fakeAI(battery("電瓶可延後。建議今天處理。")));
+    expect(r.blockedReason).toContain("能等就等");
   });
 
   it("反例：選能等就等，「建議出發前請專員再測一次」「3 個月後再處理」通過", async () => {

@@ -2,22 +2,22 @@
 import type { Verdict } from "./rules";
 import type { Vehicle } from "./vehicles";
 
+// 偏好的題目和選項只定義在這裡：問卷（text）、API 驗證（options）、實測題目的「X改成Y」（label）共用。
 // 處理方式、最在意是長期偏好；近期長途行程、最近有異常是本次情境。全部可選。
-export type OwnerPreferences = {
-  handling?: "一次處理完" | "能等就等";
-  priority?: "價格" | "耐用度" | "安靜和舒適";
-  longTrip?: "有" | "沒有";
-  recentIssue?: "有" | "沒有";
+export const PREFERENCE_QUESTIONS = [
+  { key: "handling", label: "處理方式", text: "這次想一次處理完，還是能等就等？", options: ["一次處理完", "能等就等"] },
+  { key: "priority", label: "最在意", text: "選零件最在意什麼？", options: ["價格", "耐用度", "安靜和舒適"] },
+  { key: "longTrip", label: "近期長途行程", text: "接下來 3 個月有沒有長途行程或載家人出遊？", options: ["有", "沒有"] },
+  { key: "recentIssue", label: "最近有異常", text: "最近開車有沒有覺得哪裡怪怪的？", options: ["有", "沒有"] },
+] as const;
+
+type Question = (typeof PREFERENCE_QUESTIONS)[number];
+export type OwnerPreferences = { [Q in Question as Q["key"]]?: Q["options"][number] } & {
   // 只有最近有異常時可以附：車主自己的描述，只轉給技師。
   issueNote?: string;
 };
 
-const CHOICES: Record<Exclude<keyof OwnerPreferences, "issueNote">, readonly string[]> = {
-  handling: ["一次處理完", "能等就等"],
-  priority: ["價格", "耐用度", "安靜和舒適"],
-  longTrip: ["有", "沒有"],
-  recentIssue: ["有", "沒有"],
-};
+const CHOICES: Record<string, readonly string[]> = Object.fromEntries(PREFERENCE_QUESTIONS.map((q) => [q.key, q.options]));
 export const MAX_ISSUE_NOTE = 200;
 
 // 和 applyMeasurements 同一種寫法：值來自瀏覽器，格式不對回傳 null，由 API 回錯誤；沒送就回傳原本的車輛資料。
@@ -34,7 +34,7 @@ export function parsePreferences(raw: unknown): OwnerPreferences | null {
   for (const [key, value] of Object.entries(prefs)) {
     if (key === "issueNote") {
       if (prefs.recentIssue !== "有" || typeof value !== "string" || value.length > MAX_ISSUE_NOTE) return null;
-    } else if (!(key in CHOICES) || !CHOICES[key as keyof typeof CHOICES].includes(value as string)) {
+    } else if (!Object.hasOwn(CHOICES, key) || !CHOICES[key].includes(value as string)) {
       return null;
     }
   }
@@ -62,9 +62,10 @@ export function preferenceLabels(p: OwnerPreferences): string[] {
   ].filter((s): s is string => !!s);
 }
 
-// 接待摘要最後那一行：由規則產生，不交給 AI 寫。用語和「你的偏好」區塊相同；車主描述只轉給技師，不寫進摘要。
+// 接待摘要最後那一行：由規則產生，不交給 AI 寫。只列會影響專員怎麼開口的項目：
+// 「沒有長途行程」「沒有異常」不列；有異常時只寫請技師確認。車主描述只轉給技師，不寫進摘要。
 export function preferenceSummaryLine(p: OwnerPreferences | undefined): string {
-  const labels = p ? preferenceLabels(p) : [];
-  if (!labels.length) return "";
-  return `車主偏好：${labels.join("、")}。${p!.recentIssue === "有" ? "車主提到最近有異常，請技師確認。" : ""}`;
+  if (!p) return "";
+  const labels = [p.handling, p.priority && `最在意${p.priority}`, p.longTrip === "有" && "近期有長途行程"].filter(Boolean);
+  return (labels.length ? `車主偏好：${labels.join("、")}。` : "") + (p.recentIssue === "有" ? "車主提到最近有異常，請技師確認。" : "");
 }

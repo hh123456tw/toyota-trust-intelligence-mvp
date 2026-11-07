@@ -1,9 +1,12 @@
 // 21 題實測：讀題目檔，並用可自動判斷的部分檢查回答。語氣、是否離題等仍要人看印出的回答。
+import { PREFERENCE_QUESTIONS } from "@/lib/preferences";
 
 // preferences：題目寫「X改成Y」時要改的車主偏好（原始值，跑的時候和預設合併，再交給 applyPreferences 檢查）。
 export type Question = { no: number; question: string; vehicleId: string; expected: string; preferences?: Record<string, string> };
 
-const PREF_KEYS: Record<string, string> = { 處理方式: "handling", 最在意: "priority", 近期長途行程: "longTrip", 最近有異常: "recentIssue" };
+// 題目名稱（處理方式、最在意…）和偏好欄位的對照，和問卷、API 驗證用同一份定義。
+const PREF_KEYS: Record<string, string> = Object.fromEntries(PREFERENCE_QUESTIONS.map((q) => [q.label, q.key]));
+const PREF_CHANGE = new RegExp(`(${PREFERENCE_QUESTIONS.map((q) => q.label).join("|")})改成([^，,「」]+)`, "g");
 
 export type Shown = {
   answer: string;
@@ -46,7 +49,7 @@ const EXPECT: Record<number, Expect> = {
 export function parseQuestions(md: string): Question[] {
   return [...md.matchAll(/^\| (\d+) \| (.+?) \| (.+?) \|$/gm)].map(([, no, text, expected]) => {
     const quoted = text.match(/「(.+?)」/);
-    const changes = [...text.matchAll(/(處理方式|最在意|近期長途行程|最近有異常)改成([^，,「」]+)/g)];
+    const changes = [...text.matchAll(PREF_CHANGE)];
     return {
       ...(changes.length && { preferences: Object.fromEntries(changes.map(([, k, v]) => [PREF_KEYS[k], v])) }),
       no: Number(no),
