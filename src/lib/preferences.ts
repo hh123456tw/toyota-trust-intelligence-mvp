@@ -18,11 +18,17 @@ const CHOICES: Record<Exclude<keyof OwnerPreferences, "issueNote">, readonly str
   longTrip: ["有", "沒有"],
   recentIssue: ["有", "沒有"],
 };
-const MAX_ISSUE_NOTE = 200;
+export const MAX_ISSUE_NOTE = 200;
 
 // 和 applyMeasurements 同一種寫法：值來自瀏覽器，格式不對回傳 null，由 API 回錯誤；沒送就回傳原本的車輛資料。
 export function applyPreferences(vehicle: Vehicle, raw: unknown): Vehicle | null {
   if (raw === undefined) return vehicle;
+  const preferences = parsePreferences(raw);
+  return preferences && { ...vehicle, preferences };
+}
+
+// 檢查偏好格式：API 和讀回瀏覽器保存的資料共用同一套規則。
+export function parsePreferences(raw: unknown): OwnerPreferences | null {
   if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return null;
   const prefs = raw as Record<string, unknown>;
   for (const [key, value] of Object.entries(prefs)) {
@@ -32,7 +38,7 @@ export function applyPreferences(vehicle: Vehicle, raw: unknown): Vehicle | null
       return null;
     }
   }
-  return { ...vehicle, preferences: { ...prefs } as OwnerPreferences };
+  return { ...prefs } as OwnerPreferences;
 }
 
 // 「依你的偏好」那一句：由規則產生，不經 AI；只加在可延後的項目。結論本身不看偏好。

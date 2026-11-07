@@ -8,13 +8,14 @@ import type { CardItem, Gauge } from "@/lib/card";
 import { askFlow, handoverFlow, presetFlow, type FlowEntry } from "@/lib/flow";
 import { currentMeasurements } from "@/lib/card";
 import { choiceKey, handover, needsOptionPick, pruneChoices, type Choice } from "@/lib/handover";
-import type { OwnerPreferences } from "@/lib/preferences";
+import { preferenceNote, type OwnerPreferences } from "@/lib/preferences";
 import { LABEL, type Conclusion } from "@/lib/rules";
 import { formatPrice, RULE_VERSION } from "@/lib/vehicles";
 import Icon, { ITEM_ICON, type IconName } from "../../Icon";
 import DealerFacts from "./DealerFacts";
 import FlowPanel from "./FlowPanel";
 import HandoverView from "./HandoverView";
+import PreferencesPanel, { useOwnerPreferences } from "./PreferencesPanel";
 
 type VehicleInfo = {
   id: string;
@@ -33,7 +34,6 @@ type VehicleInfo = {
   drivingAdvice?: string;
   priceFirstNote?: string;
   preferences?: OwnerPreferences;
-  preferenceLabels?: string[];
 };
 
 type Message =
@@ -76,6 +76,9 @@ export default function DecisionCard(props: {
     setChoices((prev) => pruneChoices(prev, items));
     setPicked((prev) => pruneChoices(prev, items));
   }
+  // 車主在卡片上填的偏好：存在這支手機，改了「依你的偏好」那一句立即更新，結論和價格不變。
+  const [stored, savePrefs] = useOwnerPreferences(vehicle.id, vehicle.preferences);
+  const preferences = typeof stored === "object" ? stored : undefined;
   const [delivered, setDelivered] = useState(false);
   const topRef = useRef<HTMLElement>(null);
   const summary = handover(items, choices, vehicle.routine, vehicle.nextServiceKm, picked);
@@ -127,19 +130,7 @@ export default function DecisionCard(props: {
 
       {/* 交車說明開著時只隱藏決策卡，不卸載：追問紀錄、照片展開狀態都留著。 */}
       <div hidden={delivered}>
-        {vehicle.preferenceLabels && (
-          <section className="mx-4 mt-3 rounded-2xl border border-line bg-white p-4 shadow-sm">
-            <h2 className="text-sm font-bold">你的偏好</h2>
-            <ul className="mt-2 flex flex-wrap gap-2">
-              {vehicle.preferenceLabels.map((l) => (
-                <li key={l} className="rounded-full bg-paper px-3 py-1 text-sm font-medium">
-                  {l}
-                </li>
-              ))}
-            </ul>
-            <p className="mt-2 text-xs text-muted">只調整說明的方式，結論、安全門檻和價格不變（示意）。</p>
-          </section>
-        )}
+        <PreferencesPanel value={stored} onSave={savePrefs} />
 
         <Progress steps={vehicle.progress} eta={vehicle.eta} />
 
@@ -165,7 +156,7 @@ export default function DecisionCard(props: {
             // 結論變了就重設卡片狀態（照片展開等）；選擇用 choiceKey 存，結論變了也對不上。
             <ItemCard
               key={choiceKey(item)}
-              item={item}
+              item={{ ...item, preferenceNote: preferenceNote(preferences, item.verdict) }}
               technician={vehicle.technician}
               choice={choices[choiceKey(item)]}
               picked={picked[choiceKey(item)]}
@@ -204,7 +195,7 @@ export default function DecisionCard(props: {
         <Chat
           vehicleId={vehicle.id}
           measurements={currentMeasurements(items)}
-          preferences={vehicle.preferences}
+          preferences={preferences}
           presets={presets}
           sourceLabels={sourceLabels}
           onFlow={onFlow}
