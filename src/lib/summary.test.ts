@@ -17,7 +17,7 @@ function fakeAI(answer: string, extra: object = {}) {
 
 describe("summarize：接待摘要", () => {
   it("正確的摘要 → 通過，原文顯示", async () => {
-    const r = await summarize(wang, fakeAI(GOOD));
+    const r = await summarize({ ...wang, preferences: undefined }, fakeAI(GOOD));
     expect(r.checkResult).toBe("通過");
     expect(r.answer).toBe(GOOD);
   });
@@ -49,6 +49,59 @@ describe("summarize：接待摘要", () => {
         throw new Error("down");
       }),
     ).rejects.toThrow("down");
+  });
+});
+
+describe("接待摘要的車主偏好行（#24）", () => {
+  // 王先生的示範偏好：能等就等、最在意價格、近期有長途行程、最近沒有異常。
+  const WANG_LINE = "車主偏好：能等就等、最在意價格、近期有長途行程、最近沒有異常。";
+  const noPrefs = { ...wang, preferences: undefined };
+  const withIssue = { ...wang, preferences: { recentIssue: "有" as const, issueNote: "起步會抖" } };
+
+  it("有偏好：AI 摘要通過後，最後接上偏好行，前面的原文不變", async () => {
+    const r = await summarize(wang, fakeAI(GOOD));
+    expect(r.checkResult).toBe("通過");
+    expect(r.answer).toBe(GOOD + WANG_LINE);
+  });
+
+  it("有偏好：規則版摘要和攔下時的摘要，最後都是偏好行", async () => {
+    expect(ruleSummary(wang).answer.endsWith(WANG_LINE)).toBe(true);
+    const r = await summarize(wang, fakeAI(GOOD.replace("今天必須更換", "可以延後到下個月")));
+    expect(r.checkResult).toBe("攔下");
+    expect(r.answer.endsWith(WANG_LINE)).toBe(true);
+  });
+
+  it("最近有異常：多一句請技師確認；車主描述不寫進摘要", async () => {
+    const tail = "車主偏好：最近有異常。車主提到最近有異常，請技師確認。";
+    expect((await summarize(withIssue, fakeAI(GOOD))).answer).toBe(GOOD + tail);
+    expect(ruleSummary(withIssue).answer.endsWith(tail)).toBe(true);
+    expect(ruleSummary(withIssue).answer).not.toContain("起步會抖");
+  });
+
+  it("最近沒有異常：不出現請技師確認", () => {
+    expect(ruleSummary(wang).answer).not.toContain("請技師確認");
+  });
+
+  it.each([
+    ["沒送偏好", noPrefs],
+    ["空的偏好", { ...wang, preferences: {} }],
+    ["林小姐", lin],
+  ])("%s：摘要和現在完全相同，沒有空白的偏好欄", async (_, v) => {
+    expect(ruleSummary(v).answer).not.toContain("車主偏好");
+    if (v.id === "wang") expect((await summarize(v, fakeAI(GOOD))).answer).toBe(GOOD);
+  });
+
+  it("偏好不改變結論和項目順序：規則版摘要只在最後多一行", () => {
+    const plain = ruleSummary(noPrefs);
+    const s = ruleSummary(wang);
+    expect(s.answer).toBe(plain.answer + WANG_LINE);
+    expect(s.sources).toEqual(plain.sources);
+  });
+
+  it("有偏好時，原本的漏項檢查和推銷檢查照常攔下", async () => {
+    const missed = await summarize(wang, fakeAI("前煞車來令片量測 2 mm，低於安全門檻 3 mm，今天必須更換。其他狀況正常。"));
+    expect(missed.blockedReason).toBe("摘要漏了可延後的電瓶");
+    expect((await summarize(wang, fakeAI(`${GOOD}空氣濾網建議今天一起換。`))).checkResult).toBe("攔下");
   });
 });
 
