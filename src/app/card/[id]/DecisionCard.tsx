@@ -8,6 +8,7 @@ import type { CardItem, Gauge } from "@/lib/card";
 import { askFlow, handoverFlow, presetFlow, type FlowEntry } from "@/lib/flow";
 import { currentMeasurements } from "@/lib/card";
 import { choiceKey, handover, needsOptionPick, pruneChoices, type Choice } from "@/lib/handover";
+import type { OwnerPreferences } from "@/lib/preferences";
 import { LABEL, type Conclusion } from "@/lib/rules";
 import { formatPrice, RULE_VERSION } from "@/lib/vehicles";
 import Icon, { ITEM_ICON, type IconName } from "../../Icon";
@@ -31,6 +32,8 @@ type VehicleInfo = {
   drivingNote: string;
   drivingAdvice?: string;
   priceFirstNote?: string;
+  preferences?: OwnerPreferences;
+  preferenceLabels?: string[];
 };
 
 type Message =
@@ -124,6 +127,20 @@ export default function DecisionCard(props: {
 
       {/* 交車說明開著時只隱藏決策卡，不卸載：追問紀錄、照片展開狀態都留著。 */}
       <div hidden={delivered}>
+        {vehicle.preferenceLabels && (
+          <section className="mx-4 mt-3 rounded-2xl border border-line bg-white p-4 shadow-sm">
+            <h2 className="text-sm font-bold">你的偏好</h2>
+            <ul className="mt-2 flex flex-wrap gap-2">
+              {vehicle.preferenceLabels.map((l) => (
+                <li key={l} className="rounded-full bg-paper px-3 py-1 text-sm font-medium">
+                  {l}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-xs text-muted">只調整說明的方式，結論、安全門檻和價格不變（示意）。</p>
+          </section>
+        )}
+
         <Progress steps={vehicle.progress} eta={vehicle.eta} />
 
         {/* 這張卡沒有款式可選時，提示另一台車可以看。技師頁是錄影和示範用，不顯示。 */}
@@ -187,6 +204,7 @@ export default function DecisionCard(props: {
         <Chat
           vehicleId={vehicle.id}
           measurements={currentMeasurements(items)}
+          preferences={vehicle.preferences}
           presets={presets}
           sourceLabels={sourceLabels}
           onFlow={onFlow}
@@ -420,6 +438,13 @@ function ItemCard({
 
         {conclusion === "可延後" && (
           <div className="mt-3">
+            {item.preferenceNote && (
+              <p className="mb-2 rounded-xl bg-defer-soft px-3 py-2.5 text-sm leading-relaxed">
+                <span className="font-bold text-defer">依你的偏好：</span>
+                {item.preferenceNote}
+                <span className="text-muted">（規則產生）</span>
+              </p>
+            )}
             {!choice && (
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -653,12 +678,13 @@ function GaugeBar({ gauge, conclusion }: { gauge: Gauge; conclusion: Conclusion 
 function Chat(props: {
   vehicleId: string;
   measurements: Record<string, number>;
+  preferences?: OwnerPreferences;
   presets: Preset[];
   sourceLabels: Record<string, string>;
   onFlow: (entry: FlowEntry) => void;
   simulate?: boolean;
 }) {
-  const { vehicleId, measurements, presets, sourceLabels, onFlow } = props;
+  const { vehicleId, measurements, preferences, presets, sourceLabels, onFlow } = props;
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -685,7 +711,7 @@ function Chat(props: {
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vehicleId, question, measurements }),
+        body: JSON.stringify({ vehicleId, question, measurements, preferences }),
       });
       const data = await res.json();
       push(res.ok ? { role: "ai", answer: data } : { role: "error", text: data.error });
@@ -706,7 +732,7 @@ function Chat(props: {
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vehicleId, simulate: "tampered", measurements }),
+        body: JSON.stringify({ vehicleId, simulate: "tampered", measurements, preferences }),
       });
       const data = await res.json();
       push(res.ok ? { role: "simulated", result: data } : { role: "error", text: data.error });
