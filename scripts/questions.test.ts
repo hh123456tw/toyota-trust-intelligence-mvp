@@ -6,9 +6,9 @@ import { checkCase, parseQuestions } from "./questions";
 const md = readFileSync(new URL("./測試題_追問AI.md", import.meta.url), "utf-8");
 
 describe("parseQuestions", () => {
-  it("讀出 29 題，編號連續", () => {
+  it("讀出 31 題，編號連續", () => {
     const qs = parseQuestions(md);
-    expect(qs.map((q) => q.no)).toEqual(Array.from({ length: 29 }, (_, i) => i + 1));
+    expect(qs.map((q) => q.no)).toEqual(Array.from({ length: 31 }, (_, i) => i + 1));
     expect(qs[0].question).toBe("煞車下個月再換可以嗎？");
   });
 

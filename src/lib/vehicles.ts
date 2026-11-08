@@ -22,14 +22,13 @@ export type VisualRule = {
   reminderMonths: number;
 };
 
-// 必須更換時車主可以選的產品（示意）。AI 拿得到款式和規格，可以依車主需求建議；拿不到優惠，建議不受折扣影響。
+// 必須更換時車主可以選的產品（示意）。AI 拿得到款式和規格，可以依車主需求建議。故意不放優惠：建議看車主怎麼開，不看折扣。
 export type ProductOption = {
   id: string;
   name: string;
   use: string;
   specs: string;
   price: number;
-  sale?: { original: number; until: string };
 };
 
 export type InspectionItem = {
@@ -109,14 +108,7 @@ const TIRE_BASE_PRICE = 2800;
 function tireOptions(count: number): ProductOption[] {
   return [
     { id: "basic", name: "基本款", use: "多半市區短程", specs: "預估壽命約 4 萬 km｜濕地抓地 B 級｜胎噪 72 dB", price: TIRE_BASE_PRICE * count },
-    {
-      id: "balanced",
-      name: "均衡款",
-      use: "市區和高速都會開",
-      specs: "預估壽命約 5 萬 km｜濕地抓地 B 級｜胎噪 70 dB",
-      price: 3200 * count,
-      sale: { original: 3600 * count, until: "11/30" },
-    },
+    { id: "balanced", name: "均衡款", use: "市區和高速都會開", specs: "預估壽命約 5 萬 km｜濕地抓地 B 級｜胎噪 70 dB", price: 3200 * count },
     { id: "long", name: "長效款", use: "常跑長途、年里程高", specs: "預估壽命約 6 萬 km｜濕地抓地 A 級｜胎噪 69 dB", price: 4200 * count },
   ];
 }
@@ -128,7 +120,8 @@ export const vehicles: Vehicle[] = [
     model: "TOYOTA COROLLA CROSS",
     plate: "ABC-1234",
     mileageKm: 58200,
-    warranty: "剛過原廠保固",
+    // 基本保證 4 年 12 萬 km；準時定保再送第 5 年（和泰官網〈愛車保證〉）。他每半年準時回廠，所以是第 5 年剛到期。
+    warranty: "車齡剛滿 5 年，延長保證剛到期",
     technician: "陳技師",
     inspectedAt: "2026-09-25",
     drivingSummary: {
@@ -211,9 +204,10 @@ export const vehicles: Vehicle[] = [
         name: "輪胎胎紋",
         safetyRelated: true,
         rule: tireRule,
-        measurement: { value: 5.2, unit: "mm" },
-        previousMeasurement: { value: 6, unit: "mm" },
-        technicianNote: "四輪胎紋約 5.2 mm，磨耗平均。",
+        measurement: { value: 2.5, unit: "mm" },
+        previousMeasurement: { value: 3.1, unit: "mm" },
+        technicianNote: "四輪胎紋約 2.5 mm，磨耗平均。",
+        history: "原廠胎，交車後沒換過，已跑 5.8 萬 km",
         measuredAt: "11:10",
         photo: "/photos/tire-ok.webp",
         price: TIRE_BASE_PRICE * 4,
@@ -315,7 +309,7 @@ export function trendText(item: InspectionItem): string | undefined {
   return `半年前 ${prev.value} ${prev.unit} → 本次 ${now.value} ${now.unit}`;
 }
 
-// 折扣只改變「選哪一款」，不能推著車主提早換：可延後和正常的項目不顯示。由低價排到高價，不預選。
+// 款式只改變「選哪一款」，不能推著車主提早換：可延後和正常的項目不顯示。由低價排到高價，不預選。
 export function visibleOptions(item: InspectionItem, conclusion: Conclusion): ProductOption[] | undefined {
   if (conclusion !== "必須更換" || !item.options?.length) return undefined;
   return [...item.options].sort((a, b) => a.price - b.price);

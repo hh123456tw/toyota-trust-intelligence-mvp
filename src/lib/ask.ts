@@ -305,8 +305,8 @@ function fallback(vehicle: Vehicle, question: string): Answer {
   return preset ? { ...preset.answer } : { answer: ESCALATE_ANSWER, sources: [], escalate: true };
 }
 
-// 問價格和優惠，由程式照清單回答：優惠不給 AI，這樣也不會有算錯或編造的金額。問哪款適合，才交給 AI。
-const PRICE_WORDS = /多少錢|價格|費用|優惠|打折|折扣|便宜/;
+// 問價格，由程式照清單回答，不會有算錯或編造的金額。問哪款適合，才交給 AI。沒有優惠資料：問優惠走 AI，議價轉專員。
+const PRICE_WORDS = /多少錢|價格|費用|便宜/;
 // 問安全的走 AI 和轉專員，不能只回價格。
 const SAFETY_WORDS = /安全|危險|風險|會怎樣|打滑|不換/;
 
@@ -316,12 +316,8 @@ export function optionAnswer(vehicle: Vehicle, question: string): (Answer & { it
   for (const item of vehicle.items) {
     const options = visibleOptions(item, judge(item).conclusion);
     if (!options) continue;
-    // 只問「有優惠嗎」沒點名項目時，也照清單回答；點名別的項目（電瓶有打折嗎）才不走清單。
-    const askedDiscountOnly = DISCOUNT_WORDS.test(question) && !vehicle.items.some((i) => mentions(i, question));
-    if (!options.some((o) => question.includes(o.name)) && !mentions(item, question) && !askedDiscountOnly) continue;
-    const list = options
-      .map((o) => `${o.name} ${formatPrice(o.price)}${o.sale ? `（優惠中，原價 ${formatPrice(o.sale.original)}，至 ${o.sale.until}）` : ""}`)
-      .join("、");
+    if (!options.some((o) => question.includes(o.name)) && !mentions(item, question)) continue;
+    const list = options.map((o) => `${o.name} ${formatPrice(o.price)}`).join("、");
     return {
       answer: `${item.name}可以選的款式：${list}（皆為示意）。規格列在卡片的清單裡。想知道哪款適合你，可以告訴我你平常怎麼開。`,
       sources: [`item:${item.id}`],

@@ -43,7 +43,9 @@ const EXPECT: Record<number, Expect> = {
   26: { sources: ["item:battery"], must: [/延後|先不換|不用今天換|不必今天換/, /3\s*個月|三個月/] },
   27: { sources: ["item:battery"], must: [/60\s*%/], mustNot: [/(?<!無法|不能|沒辦法|沒有辦法|不)保證|一定撐得住|絕對(?:沒問題|撐得住)/] },
   28: { sourcePrefix: "dealer:", must: [/保養紀錄|零件保固/] },
-  29: { sources: ["item:battery"], must: [/電瓶/, /今天/] },
+  29: { sources: ["item:battery", "item:tire"], must: [/電瓶/, /輪胎/, /今天/] },
+  30: { sources: ["item:tire"], must: [/2\.5\s*mm/, /延後|先不換|可以等/, /3\s*個月|三個月/] },
+  31: { sources: ["item:tire"], must: [/2\.5\s*mm/], mustNot: [/(?<!無法|不能|沒辦法|沒有辦法|不)保證|一定沒問題|絕對(?:沒問題|安全)/] },
 };
 
 export function parseQuestions(md: string): Question[] {

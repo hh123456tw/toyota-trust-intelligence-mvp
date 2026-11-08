@@ -16,16 +16,16 @@ describe("handover：交車說明", () => {
   });
 
   it("可延後：沒選或選延後 → 今天延後並附提醒月數；選今天換 → 今天完成", () => {
-    expect(run().deferred.map((d) => [d.item.id, d.months])).toEqual([["battery", 3]]);
-    expect(run({ [choiceKey(battery)]: "defer" }).deferred).toHaveLength(1);
+    expect(run().deferred.map((d) => [d.item.id, d.months])).toEqual([["battery", 3], ["tire", 3]]);
+    expect(run({ [choiceKey(battery)]: "defer" }).deferred).toHaveLength(2);
     const today = run({ [choiceKey(battery)]: "today" });
     expect(names(today.done)).toContain("電瓶");
-    expect(today.deferred).toEqual([]);
+    expect(today.deferred.map((d) => d.item.id)).toEqual(["tire"]);
   });
 
   it("正常項目只在目前不用換，不會跑進今天完成（反例）", () => {
     const h = run();
-    expect(h.fine.map((i) => i.id)).toEqual(["air-filter", "wiper", "tire"]);
+    expect(h.fine.map((i) => i.id)).toEqual(["air-filter", "wiper"]);
     expect(names(h.done)).not.toContain("空氣濾網");
   });
 
@@ -39,14 +39,14 @@ describe("handover：交車說明", () => {
   });
 
   it("下次提醒：延後項目的複查月數，加上下次定期保養里程", () => {
-    expect(run().reminders).toEqual(["3 個月後電瓶複查", "約 5,000 km 後定期保養"]);
-    expect(run({ [choiceKey(battery)]: "today" }).reminders).toEqual(["約 5,000 km 後定期保養"]);
+    expect(run().reminders).toEqual(["3 個月後電瓶複查", "3 個月後輪胎胎紋複查", "約 5,000 km 後定期保養"]);
+    expect(run({ [choiceKey(battery)]: "today" }).reminders).toEqual(["3 個月後輪胎胎紋複查", "約 5,000 km 後定期保養"]);
   });
 });
 
 describe("staffLine：專員建議說法", () => {
   it("王先生：必須更換 → 可延後 → 正常，項目不漏", () => {
-    expect(staffLine(items)).toBe("今天優先處理前煞車來令片。電瓶可以延後。空氣濾網、雨刷、輪胎胎紋目前不用換。");
+    expect(staffLine(items)).toBe("今天優先處理前煞車來令片。電瓶、輪胎胎紋可以延後。空氣濾網、雨刷目前不用換。");
   });
 
   it("沒有必須更換時不說「今天優先處理」", () => {
@@ -95,7 +95,7 @@ describe("staffLine 邊界", () => {
     const allMust = items.filter((i) => i.verdict.conclusion === "必須更換");
     expect(staffLine(allMust)).toBe("今天優先處理前煞車來令片。");
     const allFine = items.filter((i) => i.verdict.conclusion === "正常");
-    expect(staffLine(allFine)).toBe("空氣濾網、雨刷、輪胎胎紋目前不用換。");
+    expect(staffLine(allFine)).toBe("空氣濾網、雨刷目前不用換。");
     expect(staffLine([])).toBe("");
   });
 });

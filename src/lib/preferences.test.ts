@@ -72,6 +72,10 @@ describe("可延後項目的「依你的偏好」那一句", () => {
 
   it("一次處理完：今天一起換，下次不用再跑一趟", () => {
     expect(noteOf(withPrefs({ handling: "一次處理完" }), "battery")).toBe("今天一起換，下次不用再跑一趟。");
+    // 王先生的輪胎也是可延後：偏好只改說法，結論不變。
+    const v = withPrefs({ handling: "一次處理完" });
+    expect(noteOf(v, "tire")).toBe("今天一起換，下次不用再跑一趟。");
+    expect(judge(v.items.find((i) => i.id === "tire")!).conclusion).toBe("可延後");
   });
 
   it("有長途行程：再加一句出發前可以請專員安排再測一次", () => {
@@ -89,7 +93,7 @@ describe("可延後項目的「依你的偏好」那一句", () => {
     for (const prefs of [{ handling: "能等就等", longTrip: "有" }, { handling: "一次處理完", longTrip: "有" }]) {
       const v = withPrefs(prefs);
       expect(noteOf(v, "brake-pad")).toBeUndefined(); // 必須更換
-      for (const id of ["tire", "air-filter", "wiper"]) expect(noteOf(v, id)).toBeUndefined(); // 目前不用換
+      for (const id of ["air-filter", "wiper"]) expect(noteOf(v, id)).toBeUndefined(); // 目前不用換
     }
     const linPrefs = withPrefs({ handling: "能等就等", longTrip: "有" }, lin);
     for (const n of notes(linPrefs)) expect(n).toBeUndefined(); // 林小姐沒有可延後項目

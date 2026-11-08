@@ -39,8 +39,16 @@ describe("必須更換的風險和產品清單", () => {
     expect(JSON.stringify(cardContext(lin))).toContain("前輪左右一對");
   });
 
+  it("王先生的輪胎可延後：顯示四輪一起換，使用紀錄寫原廠胎", () => {
+    const tire = cardItems(wang.items).find((i) => i.id === "tire")!;
+    expect(tire.verdict.conclusion).toBe("可延後");
+    expect(tire.replaceScope).toContain("四輪");
+    expect(tire.history).toContain("原廠胎");
+    expect(JSON.stringify(cardContext(wang))).toContain("原廠胎，交車後沒換過");
+  });
+
   it("反例：目前不用換的項目不顯示更換範圍", () => {
-    expect(cardItems(wang.items).find((i) => i.id === "tire")!.replaceScope).toBeUndefined();
+    expect(cardItems(withMeasurement(wang.items, "tire", 6)).find((i) => i.id === "tire")!.replaceScope).toBeUndefined();
     expect(cardItems(lin.items).find((i) => i.id === "brake-pad")!.replaceScope).toBeUndefined();
   });
 
@@ -52,7 +60,7 @@ describe("必須更換的風險和產品清單", () => {
     expect(tire.price).toBe(11200);
   });
 
-  it("反例：王先生的輪胎正常時，卡片和 AI 都沒有清單", () => {
+  it("反例：王先生的輪胎可延後時，卡片和 AI 都沒有清單", () => {
     expect(cardItems(wang.items).find((i) => i.id === "tire")!.options).toBeUndefined();
     expect(JSON.stringify(cardContext(wang))).not.toContain("長效款");
   });
@@ -115,12 +123,6 @@ describe("交車說明帶入車主選的款式", () => {
 });
 
 describe("價格資料", () => {
-  it("優惠的原價都高於優惠價", () => {
-    for (const v of vehicles) for (const i of v.items) for (const o of i.options ?? []) {
-      if (o.sale) expect(o.sale.original).toBeGreaterThan(o.price);
-    }
-  });
-
   it("price 是最低款的價格，AI 和檢查結果摘要講的「起」才對得上清單", () => {
     for (const v of vehicles) for (const i of v.items) {
       if (i.options) expect(i.price).toBe(Math.min(...i.options.map((o) => o.price)));
@@ -139,34 +141,30 @@ describe("價格資料", () => {
   });
 });
 
-describe("問價格、優惠由程式照清單回答", () => {
+describe("問價格由程式照清單回答；沒有優惠資料", () => {
   const forbidAI = async (): Promise<string> => {
     throw new Error("不應該呼叫 AI");
   };
 
-  it("問優惠：答案寫出優惠，不呼叫 AI", async () => {
-    const r = await ask(lin, "均衡款有優惠嗎？", forbidAI);
-    expect(r.answer).toContain("優惠中");
-    expect(r.trace.noAI).toBe(true);
-  });
-
-  it("問價格：列出每一款，不轉專員", () => {
-    const r = optionAnswer(lin, "輪胎多少錢？")!;
+  it("問價格：列出每一款，不呼叫 AI，不轉專員", async () => {
+    const r = await ask(lin, "輪胎多少錢？", forbidAI);
     for (const price of ["NT$5,600", "NT$6,400", "NT$8,400"]) expect(r.answer).toContain(price);
+    expect(r.trace.noAI).toBe(true);
     expect(r.escalate).toBe(false);
   });
 
-  it("只問「有優惠嗎」沒點名項目：也照清單回答", () => {
-    expect(optionAnswer(lin, "現在有優惠嗎？")!.answer).toContain("優惠中");
-    expect(optionAnswer(wang, "現在有優惠嗎？")).toBeUndefined();
+  it("反例：只問優惠不走清單（沒有優惠資料）", () => {
+    for (const q of ["均衡款有優惠嗎？", "現在有優惠嗎？", "輪胎有打折嗎？"]) expect(optionAnswer(lin, q)).toBeUndefined();
   });
 
   it("議價：列出清單，也轉專員", () => {
     expect(optionAnswer(lin, "輪胎多少錢，可以算便宜一點嗎")!.escalate).toBe(true);
   });
 
-  it("「會不會有優惠」不是問安全，照清單回答", () => {
-    expect(optionAnswer(lin, "輪胎多少錢，會不會有優惠？")!.answer).toContain("優惠中");
+  it("問價格順便問優惠：照清單列價格，不出現優惠", () => {
+    const r = optionAnswer(lin, "輪胎多少錢，會不會有優惠？")!;
+    expect(r.answer).toContain("NT$5,600");
+    expect(r.answer).not.toMatch(/優惠中|原價|11\/30/);
   });
 
   it("反例：同時問價格和安全，安全優先，不走清單", () => {
@@ -363,8 +361,8 @@ describe("技師改值後，AI 看到同一份資料", () => {
     for (const bad of ["-5", "100.1"]) expect(measurementError("%", bad)).toBe("請輸入 0 到 100 %");
   });
 
-  it("保固狀態：王先生的 AI 資料有「剛過原廠保固」，林小姐沒有設定就給 null", () => {
-    expect(cardContext(wang).保固).toBe("剛過原廠保固");
+  it("保固狀態：王先生的 AI 資料有保固到期說明，林小姐沒有設定就給 null", () => {
+    expect(cardContext(wang).保固).toBe("車齡剛滿 5 年，延長保證剛到期");
     expect(cardContext(lin).保固).toBeNull();
   });
 

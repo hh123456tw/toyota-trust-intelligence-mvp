@@ -19,19 +19,26 @@ describe("在原廠做的差別：卡片內容", () => {
     expect(cardItems(wang.items).find((i) => i.id === "battery")!.verdict.conclusion).toBe("可延後");
   });
 
-  it("每一條都標示意，包含保養紀錄延續和原廠零件保固", () => {
+  it("每一條都標出處（示意或和泰官網），包含保養紀錄延續和原廠零件保固", () => {
     const facts = cardItems(wang.items).find((i) => i.id === "battery")!.dealerFacts!;
     expect(facts.map((f) => f.title)).toEqual(["保養紀錄延續", "原廠零件保固"]);
-    for (const f of facts) expect(f.text).toContain("示意");
+    for (const f of facts) expect(f.text).toMatch(/示意|和泰官網/);
   });
 
-  it("沒有和外面保養廠比較的字句，也沒有保固年限之類的數字", () => {
+  it("零件保固照抄官網：有費零件一年或 20,000 公里，先到者為準", () => {
+    const warranty = cardItems(wang.items).find((i) => i.id === "battery")!.dealerFacts!.find((f) => f.id === "parts-warranty")!;
+    expect(warranty.text).toContain("一年或 20,000 公里");
+    expect(warranty.text).toContain("先到者為準");
+  });
+
+  it("沒有和外面保養廠比較的字句，也沒有官網以外的數字", () => {
     const text = cardItems(wang.items)
       .find((i) => i.id === "battery")!
       .dealerFacts!.map((f) => f.title + f.text)
       .join();
     expect(text).not.toMatch(/外面|別家|其他(?:保養|修車)?廠|比較便宜|比較貴|比較差|更好|更便宜/);
-    expect(text).not.toMatch(/\d/);
+    // 只有官網查得到的零件保證數字可以出現。
+    expect(text.replace("一年或 20,000 公里", "")).not.toMatch(/\d/);
   });
 });
 

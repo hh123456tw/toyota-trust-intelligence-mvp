@@ -14,7 +14,7 @@ function fakeAI(answer: string) {
 describe("決策卡的示意費用", () => {
   it("必須更換、可延後顯示價格；正常不顯示", () => {
     const price = Object.fromEntries(cardItems(wang.items).map((i) => [i.id, i.price]));
-    expect(price).toEqual({ "brake-pad": 3000, battery: 3500, "air-filter": undefined, wiper: undefined, tire: undefined });
+    expect(price).toEqual({ "brake-pad": 3000, battery: 3500, "air-filter": undefined, wiper: undefined, tire: 11200 });
   });
 
   it("技師改值變正常 → 價格消失；改回 → 價格再出現", () => {
@@ -35,7 +35,7 @@ describe("amounts：抓出回答裡的金額", () => {
     expect(amounts(t)).toEqual([3000]);
   });
 
-  it.each(["里程 58,200 km", "量測 2 mm、健康度 60%", "3 個月後回廠", "大約 2 天", "左右 2 塊來令片都磨了", "2026-09-25 檢查"])(
+  it.each(["里程 58,200 km", "量測 2 mm、健康度 60%", "3 個月後回廠", "大約 2 天", "左右 2 塊來令片都磨了", "2026-09-25 檢查", "一年或 20,000 公里的零件保證", "1 年或 2 萬公里"])(
     "反例「%s」不是金額",
     (t) => {
       expect(amounts(t)).toEqual([]);
@@ -69,7 +69,7 @@ describe("答案檢查：金額", () => {
   it("規則版檢查結果摘要帶價格，本身通過金額檢查", () => {
     const s = ruleSummary(wang).answer;
     expect(s).toContain("NT$3,000");
-    expect(amounts(s)).toEqual([3000, 3500]);
+    expect(amounts(s)).toEqual([3000, 3500, 11200]);
   });
 });
 

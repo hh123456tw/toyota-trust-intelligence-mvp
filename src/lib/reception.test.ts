@@ -19,11 +19,11 @@ describe("receptionSummary：接待摘要（規則產生）", () => {
 
   it("王先生：不含本次量測值和本次結論", () => {
     const t = text(wang);
-    for (const now of ["60 %", "60%", "2 mm", "5.2 mm"]) expect(t).not.toContain(now);
+    for (const now of ["60 %", "60%", "2 mm", "2.5 mm"]) expect(t).not.toContain(now);
     for (const word of ["必須更換", "可延後", "目前不用換", "正常"]) expect(t).not.toContain(word);
   });
 
-  it("反例：上次正常的項目不列（王先生電瓶上次 72%，高於 70% 門檻）", () => {
+  it("反例：上次正常的項目不列（王先生電瓶上次 72%、輪胎上次 3.1 mm，都沒低於延後門檻）", () => {
     expect(text(wang)).not.toContain("電瓶");
     expect(text(wang)).not.toContain("輪胎");
   });

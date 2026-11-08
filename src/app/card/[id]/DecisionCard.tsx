@@ -514,11 +514,6 @@ function OptionList({
                 <span className="font-bold">{o.name}</span>
                 <span className="font-bold tabular-nums">{formatPrice(o.price)}</span>
               </span>
-              {o.sale && (
-                <span className="mt-1 block text-xs font-semibold text-defer">
-                  優惠中：原價 {formatPrice(o.sale.original)}，至 {o.sale.until}（示意）
-                </span>
-              )}
               <span className="mt-1 block text-xs text-ink-2">適合：{o.use}</span>
               <span className="mt-0.5 block text-xs text-muted">{o.specs}</span>
             </span>
