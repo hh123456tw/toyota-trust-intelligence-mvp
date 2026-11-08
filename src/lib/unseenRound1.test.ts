@@ -95,6 +95,36 @@ describe("U05、U14：回答說要請專員或技師，就顯示轉專員", () =
   });
 });
 
+describe("U13（正式站重問）：車主自己說今天要換，AI 照著講不算推銷", () => {
+  const U13 = "我今天只換煞車來令片和電瓶，卡上合計多少錢？";
+  const reply = (answer: string) => ({ answer, sources: ["item:brake-pad", "item:battery"], itemConclusions: brakeAndBattery });
+
+  it("11/9 正式站被攔的兩種 AI 原文都通過", async () => {
+    for (const answer of [
+      "你今天只換煞車來令片和電瓶可以的。前煞車來令片結論是必須更換，量測 2 mm，低於安全門檻 3 mm，示意費用 NT$3,000；電瓶結論是可延後，3 個月後會提醒你回廠，量測 60 %，示意費用 NT$3,500。卡上合計 NT$6,500，實際以服務廠報價為準。",
+      "你今天只換煞車來令片和電瓶，示意費用為 NT$6,500，實際以服務廠報價為準。前煞車來令片量測 2 mm，低於安全門檻 3 mm，結論是必須更換，示意費用 NT$3,000。電瓶健康度 60%，結論是可延後，3 個月後會提醒你回廠，示意費用 NT$3,500。",
+    ]) {
+      const r = await run(wang, U13, reply(answer));
+      expect(r.checkResult, answer).toBe("通過");
+    }
+  });
+
+  it("反例：車主沒說要換，AI 主動建議今天換電瓶，照樣攔下", async () => {
+    const r = await run(wang, "電瓶狀況怎麼樣？", reply("電瓶 60%，可延後，但建議你今天換電瓶。"));
+    expect(r.checkResult).toBe("攔下");
+  });
+
+  it("反例：車主是在問「今天要換嗎」，不算決定，AI 推今天換照樣攔下", async () => {
+    const r = await run(wang, "電瓶今天要換嗎？", reply("電瓶 60%，你今天換電瓶比較好。"));
+    expect(r.checkResult).toBe("攔下");
+  });
+
+  it("反例：車主只說今天換煞車，AI 順便推今天換電瓶，照樣攔下", async () => {
+    const r = await run(wang, "我今天只換煞車，多少錢？", reply("前煞車來令片必須更換，NT$3,000。電瓶也建議今天換。"));
+    expect(r.checkResult).toBe("攔下");
+  });
+});
+
 describe("先直接回答時的否定句不誤攔（11/9 第 5 題）", () => {
   const battery = (answer: string) =>
     run(wang, "電瓶今天一定要換嗎？", { answer, sources: ["item:battery"], itemConclusions: [{ id: "item:battery", conclusion: "可延後" }] });

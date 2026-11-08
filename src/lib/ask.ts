@@ -261,7 +261,16 @@ function okSubject(clause: string, sentence: string): string | undefined {
   return before.slice(Math.max(0, ...[...before.matchAll(/可延後|延後|必須/g)].map((x) => x.index + x[0].length)));
 }
 
-function check(vehicle: Vehicle, reply: AIReply): string | undefined {
+// 車主自己說今天要換哪幾項（「我今天只換煞車和電瓶」）：AI 照著講不算推銷。
+// 只認陳述句；問句（「電瓶今天要換嗎？」「今天一定要換嗎」）是在問，不算車主決定。
+const OWNER_CHOOSES_NOW = /(?:今天|現在|這次)(?:就|只|先|要|想|決定)+(?:換|更換|處理)|(?:我|我們)(?:要|想|決定)(?:今天|現在|這次)?就?(?:換|更換)/;
+const ASKING = /嗎|呢|要不要|需不需要|是否|[？?]/;
+function chosenByOwner(vehicle: Vehicle, question: string): Set<string> {
+  const clauses = question.split(/[，,。；;！!]/).filter((c) => OWNER_CHOOSES_NOW.test(c) && !ASKING.test(c));
+  return new Set(vehicle.items.filter((i) => clauses.some((c) => mentions(i, c))).map((i) => i.id));
+}
+
+function check(vehicle: Vehicle, reply: AIReply, chosenToday: Set<string> = new Set()): string | undefined {
   const conclusions = new Map(vehicle.items.map((i) => [`item:${i.id}`, judge(i).conclusion]));
 
   // trend:、doc: 等不是檢查項目，不比對結論。
@@ -295,7 +304,7 @@ function check(vehicle: Vehicle, reply: AIReply): string | undefined {
     // 沒點名項目的句子承接上一句（「電瓶可延後。建議出遠門前處理。」）；只用在定期追蹤，到時再換這條，其他規則照舊，避免誤攔。
     // 上一句只講一個可延後項目才承接；講了多個項目時不知道承接哪一個，不判違規。
     const deferred = !inSentence.length && previous.length === 1 && judge(previous[0]).conclusion === "可延後" ? previous[0] : undefined;
-    if (deferred && vehicle.preferences?.handling === HANDLING.wait && sentence.split(/[，,]/).some(waitUpsell))
+    if (deferred && !chosenToday.has(deferred.id) && vehicle.preferences?.handling === HANDLING.wait && sentence.split(/[，,]/).some(waitUpsell))
       return waitUpsellReason(deferred);
     // 「輪胎可延後。不能先不換。」：沒點名的下一句推翻上一句，一樣攔。
     if (deferred && sentence.split(/[，,]/).some(cannotDefer)) return `${deferred.name}是可延後，回答卻說不能延後`;
@@ -310,7 +319,8 @@ function check(vehicle: Vehicle, reply: AIReply): string | undefined {
         // 先看今天／現在換這類建議：命中就攔。沒有時才把保養週期的說明拿掉再比對推銷字詞。
         if (real === "正常" && (hasWord(clause, NOW_ACT) || hasWord(clause.replace(SCHEDULE, ""), UPSELL_WORDS)))
           return `${item.name}是正常，回答卻建議更換`;
-        if (real === "可延後" && vehicle.preferences?.handling === HANDLING.wait && waitUpsell(clause)) return waitUpsellReason(item);
+        if (real === "可延後" && !chosenToday.has(item.id) && vehicle.preferences?.handling === HANDLING.wait && waitUpsell(clause))
+          return waitUpsellReason(item);
         // 子句點名這個項目，或整句只講這一個項目才算；句子講了多個項目時，沒點名的「必須今天更換」不知道在講哪一個。
         const subject = named.includes(item) || (!named.length && inSentence.length === 1);
         if (real === "可延後" && subject && cannotDefer(clause)) return `${item.name}是可延後，回答卻說不能延後`;
@@ -421,7 +431,7 @@ export async function ask(vehicle: Vehicle, question: string, callAI: CallAI): P
     aiSources: reply.sources,
   };
 
-  const blockedReason = check(vehicle, reply) ?? budgetMismatch(vehicle, question, reply);
+  const blockedReason = check(vehicle, reply, chosenByOwner(vehicle, question)) ?? budgetMismatch(vehicle, question, reply);
   // 款式建議被攔下時轉專員：常見問題講的是要不要換，答非所問。
   const shown: Answer = blockedReason
     ? reply.recommendedOption?.trim()
