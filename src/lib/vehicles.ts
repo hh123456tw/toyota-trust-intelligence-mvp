@@ -69,6 +69,8 @@ export type DrivingSummary = {
 
 export type Vehicle = {
   id: string;
+  // 車主檔編號（示意）：長期偏好以它為鍵，下次回廠沿用。正式版用和泰車主檔的編號。
+  ownerId: string;
   owner: string;
   model: string;
   plate: string;
@@ -116,6 +118,7 @@ function tireOptions(count: number): ProductOption[] {
 export const vehicles: Vehicle[] = [
   {
     id: "wang",
+    ownerId: "owner-wang",
     owner: "王先生",
     model: "TOYOTA COROLLA CROSS",
     plate: "ABC-1234",
@@ -131,7 +134,7 @@ export const vehicles: Vehicle[] = [
       note: "約 78% 的行程在 10 公里內，多為市區通勤短程，每週約發動 11 次。",
     },
     lastVisitRecord: { priceQuestions: 4 },
-    // 示範：王先生已填好偏好（下週要載家人長途）。
+    // 示範：王先生已填好偏好。長期偏好（處理方式、最在意）代表車主檔裡已有的；本次情況（下週要載家人長途）是這次接待確認的。
     preferences: { handling: "定期追蹤，到時再換", priority: "價格", longTrip: "有", recentIssue: "沒有" },
     routine: ["機油與機油芯"],
     nextServiceKm: 5000,
@@ -219,6 +222,7 @@ export const vehicles: Vehicle[] = [
   },
   {
     id: "lin",
+    ownerId: "owner-lin",
     owner: "林小姐",
     model: "TOYOTA YARIS CROSS",
     plate: "XYZ-5678",

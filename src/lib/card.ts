@@ -154,6 +154,7 @@ export function cardProps(vehicle: Vehicle) {
   return {
     vehicle: {
       id: vehicle.id,
+      ownerId: vehicle.ownerId,
       owner: vehicle.owner,
       model: vehicle.model,
       plate: vehicle.plate,

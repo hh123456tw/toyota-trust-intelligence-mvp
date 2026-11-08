@@ -30,7 +30,7 @@ export default function Workbench(props: {
   const [errors, setErrors] = useState<Record<string, string | null>>({});
   // 只在量測值改變時重算；DecisionCard 用 items 是否換了來判斷要不要清掉舊選擇。
   // 和車主手機畫面讀同一份保存的偏好：接待摘要直接用，檢查結果摘要帶著送出。
-  const { preferences } = useOwnerPreferences(vehicle.id, vehicle.preferences);
+  const { preferences } = useOwnerPreferences(vehicle);
   // 接待摘要只讀上次的資料，技師改值不影響；偏好改了才重算。
   const reception = useMemo(() => receptionSummary({ ...vehicle, preferences }), [vehicle, preferences]);
   const cards = useMemo(() => cardItems(items), [items]);

@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { cardProps } from "./card";
-import { applyPreferences, preferenceLabels, preferenceNote } from "./preferences";
+import {
+  applyPreferences,
+  LAYER_KEYS,
+  PREFERENCE_QUESTIONS,
+  preferenceLabels,
+  preferenceLayerLines,
+  preferenceNote,
+  splitPreferences,
+  type OwnerPreferences,
+} from "./preferences";
 import { judge } from "./rules";
 import { findVehicle, type Vehicle } from "./vehicles";
 
@@ -137,5 +146,61 @@ describe("決策卡上方的「你的偏好」", () => {
 
   it("反例：林小姐沒有預設偏好，卡片沒有這個區塊", () => {
     expect(cardProps(lin).vehicle.preferences).toBeUndefined();
+  });
+
+  it("分兩組顯示：長期偏好、本次情況", () => {
+    const p = cardProps(wang).vehicle.preferences!;
+    expect(preferenceLabels(p, "long")).toEqual(["定期追蹤，到時再換", "最在意價格"]);
+    expect(preferenceLabels(p, "visit")).toEqual(["近期有長途行程", "最近沒有異常"]);
+    // 反例：只填長期偏好時，本次情況是空的。
+    expect(preferenceLabels({ priority: "耐用度" }, "visit")).toEqual([]);
+  });
+});
+
+describe("偏好分兩層：長期偏好、本次情況", () => {
+  it("處理方式、最在意是長期偏好；近期長途行程、最近有異常是本次情況", () => {
+    expect(LAYER_KEYS).toEqual({ long: ["handling", "priority"], visit: ["longTrip", "recentIssue"] });
+  });
+
+  it("處理方式問的是平常的習慣，不是這一次", () => {
+    const q = PREFERENCE_QUESTIONS.find((q) => q.key === "handling")!;
+    expect(q.text).toBe("保養時你通常想今天一起換、少跑一趟，還是定期追蹤、到時再換？");
+    expect(q.text).not.toContain("這次");
+  });
+
+  it("splitPreferences：拆成兩層，異常描述跟著本次情況", () => {
+    const p: OwnerPreferences = { handling: "今天一起換，少跑一趟", priority: "價格", longTrip: "有", recentIssue: "有", issueNote: "起步有異音" };
+    expect(splitPreferences(p)).toEqual({
+      long: { handling: "今天一起換，少跑一趟", priority: "價格" },
+      visit: { longTrip: "有", recentIssue: "有", issueNote: "起步有異音" },
+    });
+    expect(splitPreferences({})).toEqual({ long: {}, visit: {} });
+  });
+
+  it("反例：沒有偏好時兩層都是 undefined；長期偏好不會混進本次情況的欄位", () => {
+    expect(splitPreferences(undefined)).toEqual({ long: undefined, visit: undefined });
+    expect(Object.keys(splitPreferences({ longTrip: "有", recentIssue: "沒有" }).long!)).toEqual([]);
+  });
+});
+
+describe("preferenceLayerLines：接待摘要的偏好兩行（規則產生）", () => {
+  it("王先生：長期偏好一行、本次情況一行", () => {
+    expect(preferenceLayerLines(wang.preferences)).toEqual(["長期偏好：定期追蹤，到時再換、最在意價格", "本次情況：近期有長途行程"]);
+  });
+
+  it("最近有異常：本次情況寫請技師確認，車主描述不寫進摘要", () => {
+    const lines = preferenceLayerLines({ recentIssue: "有", issueNote: "起步有異音" });
+    expect(lines).toEqual(["本次情況：最近有異常，請技師確認"]);
+    expect(lines.join("")).not.toContain("起步有異音");
+  });
+
+  it("反例：「沒有」的本次情況不列，整行不出現", () => {
+    expect(preferenceLayerLines({ handling: "定期追蹤，到時再換", longTrip: "沒有", recentIssue: "沒有" })).toEqual(["長期偏好：定期追蹤，到時再換"]);
+  });
+
+  it("反例：沒填長期偏好時不出現長期偏好行；沒有偏好時一行都沒有", () => {
+    expect(preferenceLayerLines({ longTrip: "有" })).toEqual(["本次情況：近期有長途行程"]);
+    expect(preferenceLayerLines({})).toEqual([]);
+    expect(preferenceLayerLines(undefined)).toEqual([]);
   });
 });

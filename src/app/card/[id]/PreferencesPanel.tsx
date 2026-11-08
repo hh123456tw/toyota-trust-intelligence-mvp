@@ -9,19 +9,35 @@ import {
   subscribePreferences,
   type StoredPreferences,
 } from "@/lib/preferenceStore";
-import { MAX_ISSUE_NOTE, PREFERENCE_QUESTIONS, preferenceLabels, type OwnerPreferences } from "@/lib/preferences";
+import { MAX_ISSUE_NOTE, PREFERENCE_QUESTIONS, preferenceLabels, type OwnerPreferences, type PreferenceLayer } from "@/lib/preferences";
 
 // 卡片頁和技師頁共用：同一支手機讀同一份保存的偏好，改了兩邊一起更新（另一個分頁改的也會更新）。
-// stored 可能是「skipped」；preferences 是實際要用的偏好，跳過或沒填時是 undefined。
-export function useOwnerPreferences(vehicleId: string, fallback: OwnerPreferences | undefined) {
+// stored 可能是「skipped」；preferences 是實際要用的偏好（兩層合成一份），跳過或沒填時是 undefined。
+export function useOwnerPreferences(vehicle: { id: string; ownerId: string; inspectedAt: string; preferences?: OwnerPreferences }) {
+  const scope = { ownerId: vehicle.ownerId, vehicleId: vehicle.id, inspectedAt: vehicle.inspectedAt };
   // 伺服器端沒有瀏覽器保存，先用預設；載入後換成這支手機存的值。
-  const raw = useSyncExternalStore(subscribePreferences, () => readPreferences(vehicleId), () => null);
+  const raw = useSyncExternalStore(subscribePreferences, () => readPreferences(scope), () => null);
+  const fallback = vehicle.preferences;
   const stored = useMemo(() => storedPreferences(raw, fallback), [raw, fallback]);
   return {
     stored,
     preferences: typeof stored === "object" ? stored : undefined,
-    save: (v: OwnerPreferences | "skipped") => savePreferences(vehicleId, v),
+    save: (v: OwnerPreferences | "skipped") => savePreferences(scope, v),
   };
+}
+
+const LAYERS: { layer: PreferenceLayer; title: string; note: string }[] = [
+  { layer: "long", title: "長期偏好", note: "存在車主檔，下次回廠沿用（示意）" },
+  { layer: "visit", title: "本次情況", note: "只用這次，交車後失效" },
+];
+
+function LayerTitle({ title, note }: { title: string; note: string }) {
+  return (
+    <p className="mb-1 text-xs font-bold">
+      {title}
+      <span className="font-normal text-muted">｜{note}</span>
+    </p>
+  );
 }
 
 const CHIP = "min-h-11 rounded-xl border px-3 text-sm font-semibold transition-colors";
@@ -49,8 +65,9 @@ export default function PreferencesPanel(props: {
           }}
         >
           <p className="text-sm text-muted">約 1 分鐘，每題都可以跳過。</p>
-          {PREFERENCE_QUESTIONS.map((q) => (
+          {PREFERENCE_QUESTIONS.map((q, i) => (
             <fieldset key={q.key}>
+              {PREFERENCE_QUESTIONS[i - 1]?.layer !== q.layer && <LayerTitle {...LAYERS.find((l) => l.layer === q.layer)!} />}
               <legend className="text-sm font-semibold">{q.text}</legend>
               <div className="mt-2 flex flex-wrap gap-2">
                 {[...q.options, undefined].map((o) => {
@@ -101,14 +118,19 @@ export default function PreferencesPanel(props: {
         </form>
       ) : saved ? (
         <>
-          <ul className="mt-2 flex flex-wrap gap-2">
-            {preferenceLabels(saved).map((l) => (
-              <li key={l} className="rounded-full bg-paper px-3 py-1 text-sm font-medium">
-                {l}
-              </li>
-            ))}
-          </ul>
-          {preferenceLabels(saved).length === 0 && <p className="mt-1 text-sm text-muted">每題都跳過了。</p>}
+          {LAYERS.map((g) => (
+            <div key={g.layer} className="mt-2">
+              <LayerTitle {...g} />
+              <ul className="flex flex-wrap gap-2">
+                {preferenceLabels(saved, g.layer).map((l) => (
+                  <li key={l} className="rounded-full bg-paper px-3 py-1 text-sm font-medium">
+                    {l}
+                  </li>
+                ))}
+              </ul>
+              {preferenceLabels(saved, g.layer).length === 0 && <p className="text-sm text-muted">都跳過了。</p>}
+            </div>
+          ))}
           {saved.recentIssue === "有" && (
             <p role="status" className="mt-2 rounded-xl bg-defer-soft px-3 py-2.5 text-sm font-semibold text-defer">
               已記下，會請技師確認（示意）
@@ -136,7 +158,7 @@ export default function PreferencesPanel(props: {
       )}
 
       <p className="mt-3 text-xs text-muted">
-        偏好只用在這張決策卡，不拿去做行銷；只存在這支手機的瀏覽器（示意）。只調整說明的方式，結論、安全門檻和價格不變。
+        偏好只用在這張決策卡，不拿去做行銷。偏好由專員在接待時用平板確認（回廠服務流程手冊 p.5）；正式版寫回和泰車主檔（示意）。只調整說明的方式，結論、安全門檻和價格不變。
       </p>
     </section>
   );

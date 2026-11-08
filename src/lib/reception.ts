@@ -1,6 +1,6 @@
 // 接待摘要：車主剛進廠、技師還沒檢查時給服務專員看（見 GLOSSARY.md）。由規則產生，不呼叫 AI，不含本次量測和結論。
 import { priceQuestionText, wantsPriceFirst } from "./card";
-import { preferenceSummaryLine } from "./preferences";
+import { preferenceLayerLines } from "./preferences";
 import { judge } from "./rules";
 import type { Vehicle } from "./vehicles";
 
@@ -20,8 +20,8 @@ export function receptionSummary(vehicle: Vehicle): string[] {
   const { period, shortTripRatio, weeklyStarts } = vehicle.drivingSummary;
   return [
     ...pending,
-    pending.length ? "資料來源：保修紀錄的待修建議項目（示意）" : "",
-    preferenceSummaryLine(vehicle.preferences),
+    pending.length ? "資料來源：上次中間報告記下的待修項目（回廠服務流程手冊 p.9，示意）" : "",
+    ...preferenceLayerLines(vehicle.preferences),
     record
       ? `上次回廠時，${priceQuestionText(record.priceQuestions)}。${wantsPriceFirst(record.priceQuestions) ? "先講價格。" : ""}`
       : "",
