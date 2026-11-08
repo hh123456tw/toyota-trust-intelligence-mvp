@@ -1,5 +1,5 @@
 // 車主偏好存在這支手機的瀏覽器（示意）；正式版才存進和泰系統。
-import { MAX_ISSUE_NOTE, parsePreferences, type OwnerPreferences } from "./preferences";
+import { MAX_ISSUE_NOTE, parsePreferences, RENAMED_HANDLING, type OwnerPreferences } from "./preferences";
 
 // 問卷草稿：跳過的題目是 undefined。整理後只留有答案的欄位，描述只在有異常時保留。
 export function cleanPreferences(draft: OwnerPreferences): OwnerPreferences {
@@ -59,7 +59,13 @@ export function storedPreferences(raw: string | null, fallback: OwnerPreferences
   try {
     const value: unknown = JSON.parse(raw);
     if (value === "skipped") return value;
-    return parsePreferences(value) ?? fallback;
+    // 只在讀回手機保存的資料時換舊名稱；API 照樣只收新名稱。
+    const handling = (value as { handling?: unknown } | null)?.handling;
+    const migrated =
+      typeof handling === "string" && Object.hasOwn(RENAMED_HANDLING, handling)
+        ? { ...(value as object), handling: RENAMED_HANDLING[handling] }
+        : value;
+    return parsePreferences(migrated) ?? fallback;
   } catch {
     return fallback;
   }

@@ -103,6 +103,17 @@ describe("storedPreferences：讀回這支手機保存的偏好", () => {
     expect(storedPreferences("{}", wangDefault)).toEqual({});
   });
 
+  it("11/8 改名前存的舊選項：換成新名稱，其他欄位（含異常描述）都留著", () => {
+    const old = { handling: "一次處理完", priority: "耐用度", recentIssue: "有", issueNote: "起步有異音" };
+    expect(storedPreferences(JSON.stringify(old), wangDefault)).toEqual({ ...old, handling: "今天一起換，少跑一趟" });
+    expect(storedPreferences(JSON.stringify({ handling: "能等就等" }), wangDefault)).toEqual({ handling: "定期追蹤，到時再換" });
+  });
+
+  it("反例：舊名稱只在讀回手機資料時換，不認得的值照樣回到預設", () => {
+    expect(storedPreferences(JSON.stringify({ handling: "隨便" }), wangDefault)).toEqual(wangDefault);
+    expect(storedPreferences(JSON.stringify({ priority: "能等就等" }), wangDefault)).toEqual(wangDefault);
+  });
+
   it("林小姐跳過問卷：記成 skipped", () => {
     expect(storedPreferences(JSON.stringify("skipped"), undefined)).toBe("skipped");
   });

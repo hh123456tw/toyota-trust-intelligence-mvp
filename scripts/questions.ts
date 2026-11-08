@@ -6,9 +6,12 @@ export type Question = { no: number; question: string; vehicleId: string; expect
 
 // 題目名稱（處理方式、最在意…）和偏好欄位的對照，和問卷、API 驗證用同一份定義。
 const PREF_KEYS: Record<string, string> = Object.fromEntries(PREFERENCE_QUESTIONS.map((q) => [q.label, q.key]));
-// 選項本身可能有「，」（今天一起換，少跑一趟），所以先比對所有選項；不是選項的照原文送出，由 applyPreferences 擋下。
+// 選項本身可能有「，」（今天一起換，少跑一趟），所以先比對完整選項，而且選項後面要接標點或結尾；
+// 「價格便宜」「今天一起換，少跑一趟以外的方式」不算選項，照原文送出，由 applyPreferences 擋下。
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const OPTIONS = PREFERENCE_QUESTIONS.flatMap((q) => q.options).map(escapeRegExp).join("|");
 const PREF_CHANGE = new RegExp(
-  `(${PREFERENCE_QUESTIONS.map((q) => q.label).join("|")})改成(${PREFERENCE_QUESTIONS.flatMap((q) => q.options).join("|")}|[^，,「」]+)`,
+  `(${PREFERENCE_QUESTIONS.map((q) => q.label).join("|")})改成((?:${OPTIONS})(?=[，,「」]|$)|[^「」]+?(?=[，,]問|「|$))`,
   "g",
 );
 
@@ -48,7 +51,11 @@ const EXPECT: Record<number, Expect> = {
   27: { sources: ["item:battery"], must: [/60\s*%/], mustNot: [/(?<!無法|不能|沒辦法|沒有辦法|不)保證|一定撐得住|絕對(?:沒問題|撐得住)/] },
   28: { sourcePrefix: "dealer:", must: [/保養紀錄|零件保固/] },
   29: { sources: ["item:battery", "item:tire"], must: [/電瓶/, /輪胎/, /今天/] },
-  30: { sources: ["item:tire"], must: [/2\.5\s*mm/, /延後|先不換|可以等/, /3\s*個月|三個月/] },
+  30: {
+    sources: ["item:tire"],
+    must: [/2\.5\s*mm/, /延後|先不換|可以等/, /3\s*個月|三個月/],
+    mustNot: [/不(?:可|能|可以)延後|無法延後|不能(?:先)?不換/],
+  },
   31: { sources: ["item:tire"], must: [/2\.5\s*mm/], mustNot: [/(?<!無法|不能|沒辦法|沒有辦法|不)保證|一定沒問題|絕對(?:沒問題|安全)/] },
 };
 

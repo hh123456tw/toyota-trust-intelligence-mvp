@@ -37,6 +37,19 @@ describe("parseQuestions", () => {
     expect(q.preferences).toEqual({ handling: "隨便" });
   });
 
+  it("反例：合法選項後面還有字 → 整串照原文送出，由 applyPreferences 擋下", () => {
+    const [a] = parseQuestions("| 99 | 最在意改成價格便宜，問「電瓶要換嗎？」 | x |");
+    expect(a.preferences).toEqual({ priority: "價格便宜" });
+    const [b] = parseQuestions("| 99 | 處理方式改成今天一起換，少跑一趟以外的方式，問「電瓶呢？」 | x |");
+    expect(b.preferences).toEqual({ handling: "今天一起換，少跑一趟以外的方式" });
+  });
+
+  it("第 30 題：說輪胎不可延後 → 失敗", () => {
+    const shown = { answer: "輪胎 2.5 mm，不可延後，不能先不換，3 個月後提醒回廠。", sources: ["item:tire"], escalate: false, checkResult: "通過" as const };
+    expect(checkCase(30, shown).length).toBeGreaterThan(0);
+    expect(checkCase(30, { ...shown, answer: "輪胎 2.5 mm 可延後，3 個月後提醒回廠。" })).toEqual([]);
+  });
+
   it("不認識的偏好名稱不算（例如「顏色改成紅色」）", () => {
     const [q] = parseQuestions("| 99 | 顏色改成紅色，問「電瓶要換嗎？」 | x |");
     expect(q.preferences).toBeUndefined();

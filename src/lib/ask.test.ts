@@ -359,6 +359,30 @@ describe("simulateTampered：展示用的竄改回答", () => {
   });
 });
 
+describe("ask：偏好名稱與可延後項目（#27 審查）", () => {
+  const tire = (answer: string) =>
+    reply(answer, { sources: ["item:tire"], itemConclusions: [{ id: "item:tire", conclusion: "可延後" }] });
+
+  it("回答引用偏好名稱（含「，」和「再換」）不會被當成在講煞車", async () => {
+    const r = await ask(wang, "煞車呢？", fakeAI(brake("煞車必須更換，你的偏好是「定期追蹤，到時再換」。")));
+    expect(r.checkResult).toBe("通過");
+  });
+
+  it("可延後的輪胎被說成不能延後 → 攔下", async () => {
+    for (const answer of ["輪胎 2.5 mm，不可延後。", "輪胎不能先不換。", "輪胎必須今天更換。"]) {
+      const r = await ask(wang, "輪胎可以等嗎？", fakeAI(tire(answer)));
+      expect(r.checkResult, answer).toBe("攔下");
+    }
+  });
+
+  it("反例：說輪胎可延後、不是必須更換、沒點名的必須更換，都不攔", async () => {
+    for (const answer of ["輪胎 2.5 mm 可延後，3 個月後提醒你回廠。", "輪胎不是必須更換，可以先不換。", "輪胎可延後，煞車必須今天更換。"]) {
+      const r = await ask(wang, "輪胎可以等嗎？", fakeAI({ ...tire(answer), itemConclusions: [{ id: "item:tire", conclusion: "可延後" }, ...BRAKE] }));
+      expect(r.checkResult, answer).toBe("通過");
+    }
+  });
+});
+
 describe("ask：車主偏好（#23）", () => {
   const battery = (answer: string, extra: object = {}) =>
     reply(answer, { sources: ["item:battery"], itemConclusions: [{ id: "item:battery", conclusion: "可延後" }], ...extra });

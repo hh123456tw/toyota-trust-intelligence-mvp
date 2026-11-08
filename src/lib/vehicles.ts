@@ -209,7 +209,7 @@ export const vehicles: Vehicle[] = [
         technicianNote: "四輪胎紋約 2.5 mm，磨耗平均。",
         history: "原廠胎，交車後沒換過，已跑 5.8 萬 km",
         measuredAt: "11:10",
-        photo: "/photos/tire-ok.webp",
+        photo: "/photos/tire-worn.webp",
         price: TIRE_BASE_PRICE * 4,
         mustReplaceRisk: "胎紋太淺時，雨天容易打滑，煞車距離也會變長。",
         replaceScope: "四輪一起換（四輪磨耗平均）",
@@ -309,7 +309,7 @@ export function trendText(item: InspectionItem): string | undefined {
   return `半年前 ${prev.value} ${prev.unit} → 本次 ${now.value} ${now.unit}`;
 }
 
-// 款式只改變「選哪一款」，不能推著車主提早換：可延後和正常的項目不顯示。由低價排到高價，不預選。
+// 列款式只為了讓車主選哪一款，不能推著車主提早換：可延後和正常的項目不顯示。由低價排到高價，不預選。
 export function visibleOptions(item: InspectionItem, conclusion: Conclusion): ProductOption[] | undefined {
   if (conclusion !== "必須更換" || !item.options?.length) return undefined;
   return [...item.options].sort((a, b) => a.price - b.price);

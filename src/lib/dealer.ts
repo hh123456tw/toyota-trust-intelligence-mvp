@@ -1,5 +1,5 @@
 // 在原廠做的差別（示意）：只寫可查證的事實，正式內容待和泰確認。
-// 不和外面的保養廠比較價格或品質。保固年限只寫官網查得到的（和泰官網〈愛車保證〉，11/8 查）。
+// 不和外面的保養廠比較價格或品質。保固年限只寫官網查得到的（和泰官網〈愛車保證〉https://www.toyota.com.tw/owner_guarantee.aspx，2026-11-08 查）。
 // 卡片在可延後的項目顯示，AI 用來源代號 dealer:<id> 引用。
 
 export type DealerFact = { id: string; title: string; text: string };
