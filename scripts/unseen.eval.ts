@@ -1,0 +1,43 @@
+// 未見過的 20 題：用真的 Gemini 跑一次，把回答原文存檔給人判讀。不自動判通過，對錯由人看原文決定。
+// 執行：npx vitest run --config scripts/vitest.eval.config.mts scripts/unseen.eval.ts（需要 .env.local 的 GEMINI_API_KEY）
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { afterAll, describe, expect, it } from "vitest";
+import { ask } from "@/lib/ask";
+import { callGemini } from "@/lib/gemini";
+import { findVehicle } from "@/lib/vehicles";
+import { sleep, withRetry } from "./retry";
+
+const apiKey = process.env.GEMINI_API_KEY;
+if (!apiKey) throw new Error("缺少 GEMINI_API_KEY：請在 .env.local 設定後再執行");
+
+const DIR = new URL("../docs/eval/unseen/", import.meta.url);
+type Q = { no: string; by: string; car: "wang" | "lin"; type: string; question: string; why: string };
+const questions: Q[] = JSON.parse(readFileSync(new URL("unseen_questions.json", DIR), "utf-8"));
+
+// 結果檔不覆蓋：已經跑過就停下，避免挑好的那次。
+const out = new URL(`run_${new Date().toISOString().slice(0, 10)}.json`, DIR);
+if (existsSync(out)) throw new Error(`${out.pathname} 已存在：每天只跑一次，不覆蓋舊紀錄`);
+const results: unknown[] = [];
+
+describe("未見過的 20 題", () => {
+  for (const q of questions) {
+    it(`${q.no} ${q.question}`, async () => {
+      const vehicle = findVehicle(q.car)!; // 卡片預設狀態，和出題者看到的畫面相同
+      await sleep(1_000);
+      let raw = "";
+      let ms = 0;
+      const r = await ask(vehicle, q.question, async (s, u) => {
+        const t0 = Date.now();
+        raw = await withRetry(() => callGemini(apiKey, s, u));
+        ms = Date.now() - t0;
+        return raw;
+      });
+      results.push({ ...q, answer: r.answer, sources: r.sources, escalate: r.escalate, checkResult: r.checkResult, blockedReason: r.blockedReason, aiRaw: r.checkResult === "攔下" ? raw : undefined, seconds: +(ms / 1000).toFixed(1) });
+      console.log(`${q.no}｜${q.question}\n  回答：${r.answer}\n  來源：${r.sources.join(", ")}｜專員：${r.escalate}｜答案檢查：${r.checkResult}${r.blockedReason ? `（${r.blockedReason}）` : ""}｜${(ms / 1000).toFixed(1)} 秒`);
+      expect(r.answer.length).toBeGreaterThan(0);
+    }, 600_000);
+  }
+  afterAll(() => {
+    if (results.length) writeFileSync(out, JSON.stringify({ model: "gemini（同正式站設定）", ranAt: new Date().toISOString(), results }, null, 1) + "\n");
+  });
+});
