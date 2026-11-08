@@ -1,5 +1,6 @@
 // 未見過的 20 題：用真的 Gemini 跑一次，把回答原文存檔給人判讀。不自動判通過，對錯由人看原文決定。
 // 執行：npx vitest run --config scripts/vitest.eval.config.mts scripts/unseen.eval.ts（需要 .env.local 的 GEMINI_API_KEY）
+// 第二輪以後：設 UNSEEN_ROUND=round2，讀 docs/eval/unseen/round2/ 的題目，結果也存在那裡。
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { afterAll, describe, expect, it } from "vitest";
 import { ask } from "@/lib/ask";
@@ -10,7 +11,9 @@ import { sleep, withRetry } from "./retry";
 const apiKey = process.env.GEMINI_API_KEY;
 if (!apiKey) throw new Error("缺少 GEMINI_API_KEY：請在 .env.local 設定後再執行");
 
-const DIR = new URL("../docs/eval/unseen/", import.meta.url);
+const round = process.env.UNSEEN_ROUND;
+if (round && !/^round\d+$/.test(round)) throw new Error(`UNSEEN_ROUND 只能是 round2、round3…，收到：${round}`);
+const DIR = new URL(`../docs/eval/unseen/${round ? `${round}/` : ""}`, import.meta.url);
 type Q = { no: string; by: string; car: "wang" | "lin"; type: string; question: string; why: string };
 const questions: Q[] = JSON.parse(readFileSync(new URL("unseen_questions.json", DIR), "utf-8"));
 
