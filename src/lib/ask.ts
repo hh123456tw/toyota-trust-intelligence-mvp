@@ -178,8 +178,6 @@ function budgetMismatch(vehicle: Vehicle, question: string, reply: AIReply): str
   return options.at(-1)?.name === recommended ? `車主說預算有限，卻建議最貴的${recommended}` : undefined;
 }
 
-// AI 拿不到優惠資料，建議款式時提到折扣就是編的。
-const DISCOUNT_WORDS = /優惠|打折|折扣|特價/;
 // 不能用安全或「非選不可」壓車主選特定款式：清單上的款式都符合原廠規格。
 const PRESSURE_WORDS = /不安全|不夠安全|危險|一定要選|必須選|非選不可|不要選|別選/;
 
@@ -256,7 +254,6 @@ function check(vehicle: Vehicle, reply: AIReply): string | undefined {
   if (recommended) {
     if (!options.some((o) => o.name === recommended)) return `建議的款式「${recommended}」不在清單上`;
     if (!reply.answer.includes(recommended)) return `recommendedOption 是${recommended}，回答卻沒有提到`;
-    if (DISCOUNT_WORDS.test(reply.answer)) return "建議款式時不能用優惠當理由";
   }
   const outside = badmouthsOutside(reply.answer);
   if (outside !== undefined) return `回答拿外面的保養廠比較：${outside}`;

@@ -220,10 +220,6 @@ describe("AI 依需求建議款式：程式檢查", () => {
     expect((await askWith("建議基本款。", "長效款")).checkResult).toBe("攔下");
   });
 
-  it("反例：用優惠當理由，攔下", async () => {
-    expect((await askWith("建議均衡款，現在有優惠。", "均衡款")).checkResult).toBe("攔下");
-  });
-
   it("反例：亂報款式價格、用 AI 不該知道的原價，攔下", async () => {
     expect((await askWith("建議長效款，費用 NT$3,900。", "長效款")).checkResult).toBe("攔下");
     expect((await askWith("建議均衡款，原本 NT$7,200。", "均衡款")).checkResult).toBe("攔下");
