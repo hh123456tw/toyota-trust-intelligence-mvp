@@ -39,7 +39,8 @@ type VehicleInfo = {
 
 type Message =
   | { role: "user"; text: string }
-  | { role: "ai"; answer: Answer }
+  // preset：常見問題的預寫回答，泡泡上標「不呼叫 AI」，才分得出和 AI 回答的差別。
+  | { role: "ai"; answer: Answer; preset?: boolean }
   // 技師頁的模擬：一定帶「模擬」標籤和答案檢查結果，不會看起來像真的回答。
   | { role: "simulated"; result: AskResult }
   | { role: "error"; text: string };
@@ -99,7 +100,7 @@ export default function DecisionCard(props: {
         </p>
         <h1 className="mt-3 text-2xl leading-snug font-bold">
           {vehicle.owner}，<br />
-          {delivered ? "今天的保養完成了" : "這是今天的檢查結果"}
+          {delivered ? (summary.pending.length ? "交車前，還有項目待你授權" : "今天的保養完成了") : "這是這次的檢查結果"}
         </h1>
         <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
           <span className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1">
@@ -135,21 +136,6 @@ export default function DecisionCard(props: {
 
         <Progress steps={vehicle.progress} eta={vehicle.eta} />
 
-        {/* 這張卡沒有款式可選時，提示另一台車可以看。技師頁是錄影和示範用，不顯示。 */}
-        {!props.simulate &&
-          !items.some((i) => i.options) &&
-          others
-            .filter((o) => o.optionHint)
-            .map((o) => (
-              <Link
-                key={o.id}
-                href={`/card/${o.id}`}
-                className="mx-4 mt-3 flex min-h-11 items-center justify-between gap-2 rounded-2xl border border-line bg-white px-4 py-3 text-sm font-semibold shadow-sm"
-              >
-                <span>另一台車：{o.optionHint}</span>
-                <Icon name="chevron" className="size-4 shrink-0 -rotate-90" />
-              </Link>
-            ))}
         {vehicle.priceFirstNote && <PriceFirst note={vehicle.priceFirstNote} items={items} />}
 
         <section className="mt-3 space-y-3 px-4">
@@ -211,7 +197,7 @@ export default function DecisionCard(props: {
             <Icon name="car" className="size-5" />
             完工交車說明
           </button>
-          <p className="mt-1 text-center text-xs text-muted">交車時，專員和車主一起看今天完成、延後與不用換的項目</p>
+          <p className="mt-1 text-center text-xs text-muted">交車時，專員和車主一起看今天完成、延後與不用換的項目；還沒選的項目會標「待車主授權」或「尚未選擇」</p>
         </div>
       </div>
 
@@ -220,6 +206,22 @@ export default function DecisionCard(props: {
           <FlowPanel entries={entries} />
         </div>
       )}
+
+      {/* 這張卡沒有款式可選時，在頁尾附近提示另一台車可以看。放卡片中段車主會以為資料跑錯。技師頁不顯示。 */}
+      {!props.simulate &&
+        !items.some((i) => i.options) &&
+        others
+          .filter((o) => o.optionHint)
+          .map((o) => (
+            <Link
+              key={o.id}
+              href={`/card/${o.id}`}
+              className="mx-4 mt-8 flex min-h-11 items-center justify-between gap-2 rounded-2xl border border-line bg-white px-4 py-3 text-sm font-semibold shadow-sm"
+            >
+              <span>展示：{o.optionHint}</span>
+              <Icon name="chevron" className="size-4 shrink-0 -rotate-90" />
+            </Link>
+          ))}
 
       <footer className="mt-10 space-y-1 px-4 text-xs text-muted">
         <p className="flex items-start gap-1.5">
@@ -683,7 +685,7 @@ function Chat(props: {
   }
 
   function askPreset(p: Preset) {
-    push({ role: "user", text: p.question }, { role: "ai", answer: p.answer });
+    push({ role: "user", text: p.question }, { role: "ai", answer: p.answer, preset: true });
     onFlow(presetFlow(p, sourceLabels));
   }
 
@@ -743,7 +745,8 @@ function Chat(props: {
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
+      {presets.length > 0 && <p className="mt-4 text-xs text-muted">常見問題是預寫回答，不呼叫 AI；想試 AI，請在下面打字。</p>}
+      <div className="mt-2 flex flex-wrap gap-2">
         {presets.map((p) => (
           <button
             key={p.question}
@@ -824,6 +827,9 @@ function Bubble({ message, sourceLabels }: { message: Message; sourceLabels: Rec
       <div
         className={`rounded-2xl rounded-tl-md bg-paper px-3.5 py-2.5 ${simulated ? "border-2 border-dashed border-defer" : ""}`}
       >
+        {message.role === "ai" && message.preset && (
+          <p className="mb-1.5 w-fit rounded-md bg-white px-2 py-0.5 text-xs font-semibold text-muted">常見問題・預寫回答（不呼叫 AI）</p>
+        )}
         {simulated && (
           <p className="mb-2 rounded-lg bg-defer-soft px-2 py-1 text-sm font-semibold text-defer">
             模擬｜AI 回答被竄改（未呼叫 AI）→ 答案檢查：

@@ -86,8 +86,10 @@ describe("交車說明帶入車主選的款式", () => {
   const items = cardItems(lin.items);
   const tire = items.find((i) => i.id === "tire")!;
   const key = choiceKey(tire);
-  const note = (choices: Record<string, "today">, picked: Record<string, string>) =>
-    handover(items, choices, lin.routine, lin.nextServiceKm, picked).done.find((d) => d.item?.id === "tire")!.note;
+  const note = (choices: Record<string, "today">, picked: Record<string, string>) => {
+    const h = handover(items, choices, lin.routine, lin.nextServiceKm, picked);
+    return [...h.done, ...h.pending].find((d) => d.item?.id === "tire")!.note;
+  };
 
   it("授權後寫款式和價格", () => {
     expect(note({ [key]: "today" }, { [key]: "basic" })).toContain("基本款 NT$5,600");
@@ -105,7 +107,8 @@ describe("交車說明帶入車主選的款式", () => {
 
   it("反例：沒有款式的項目，備註不變", () => {
     const wangItems = cardItems(wang.items);
-    const done = handover(wangItems, {}, wang.routine, wang.nextServiceKm).done.find((d) => d.item?.id === "brake-pad")!;
+    const brake = wangItems.find((i) => i.id === "brake-pad")!;
+    const done = handover(wangItems, { [choiceKey(brake)]: "today" }, wang.routine, wang.nextServiceKm).done.find((d) => d.item?.id === "brake-pad")!;
     expect(done.note).toBe("已低於安全門檻，今天更換");
   });
 

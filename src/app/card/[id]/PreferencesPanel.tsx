@@ -66,38 +66,41 @@ export default function PreferencesPanel(props: {
         >
           <p className="text-sm text-muted">約 1 分鐘，每題都可以跳過。</p>
           {PREFERENCE_QUESTIONS.map((q, i) => (
-            <fieldset key={q.key}>
+            // 層標題放在 fieldset 外：瀏覽器一律先畫 legend，放裡面會跑到題目下面。
+            <div key={q.key}>
               {PREFERENCE_QUESTIONS[i - 1]?.layer !== q.layer && <LayerTitle {...LAYERS.find((l) => l.layer === q.layer)!} />}
-              <legend className="text-sm font-semibold">{q.text}</legend>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {[...q.options, undefined].map((o) => {
-                  const on = draft[q.key] === o;
-                  return (
-                    <button
-                      key={o ?? "skip"}
-                      type="button"
-                      aria-pressed={on}
-                      onClick={() => setDraft({ ...draft, [q.key]: o })}
-                      className={`${CHIP} ${on ? "border-ink bg-ink text-white" : "border-line bg-white"} ${o ? "" : "font-medium text-muted"}`}
-                    >
-                      {o ?? "跳過這題"}
-                    </button>
-                  );
-                })}
-              </div>
-              {q.key === "recentIssue" && draft.recentIssue === "有" && (
-                <label className="mt-2 block text-sm">
-                  <span className="text-muted">哪裡怪怪的？（選填，會轉給技師）</span>
-                  <textarea
-                    value={draft.issueNote ?? ""}
-                    maxLength={MAX_ISSUE_NOTE}
-                    rows={2}
-                    onChange={(e) => setDraft({ ...draft, issueNote: e.target.value })}
-                    className="mt-1 block w-full rounded-xl border border-line bg-paper px-3 py-2 outline-none focus:border-ink-2 focus:bg-white"
-                  />
-                </label>
-              )}
-            </fieldset>
+              <fieldset>
+                <legend className="text-sm font-semibold">{q.text}</legend>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {[...q.options, undefined].map((o) => {
+                    const on = draft[q.key] === o;
+                    return (
+                      <button
+                        key={o ?? "skip"}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => setDraft({ ...draft, [q.key]: o })}
+                        className={`${CHIP} ${on ? "border-ink bg-ink text-white" : "border-line bg-white"} ${o ? "" : "font-medium text-muted"}`}
+                      >
+                        {o ?? "跳過這題"}
+                      </button>
+                    );
+                  })}
+                </div>
+                {q.key === "recentIssue" && draft.recentIssue === "有" && (
+                  <label className="mt-2 block text-sm">
+                    <span className="text-muted">哪裡怪怪的？（選填，會轉給技師）</span>
+                    <textarea
+                      value={draft.issueNote ?? ""}
+                      maxLength={MAX_ISSUE_NOTE}
+                      rows={2}
+                      onChange={(e) => setDraft({ ...draft, issueNote: e.target.value })}
+                      className="mt-1 block w-full rounded-xl border border-line bg-paper px-3 py-2 outline-none focus:border-ink-2 focus:bg-white"
+                    />
+                  </label>
+                )}
+              </fieldset>
+            </div>
           ))}
           <div className="grid grid-cols-2 gap-2">
             <button
@@ -143,7 +146,7 @@ export default function PreferencesPanel(props: {
         </>
       ) : (
         <>
-          <p className="mt-1 text-sm">{value === "skipped" ? "你跳過了偏好問卷，卡片照常顯示。" : "接待時（或預約時）花 1 分鐘告訴我們你的偏好，等待時也可以修改。"}</p>
+          <p className="mt-1 text-sm">{value === "skipped" ? "你跳過了偏好問卷，卡片照常顯示。" : "接待時專員會用平板和你確認偏好（約 1 分鐘）；等待時也可以在這裡修改。"}</p>
           <div className="mt-2 flex flex-wrap gap-2">
             <button type="button" onClick={() => setDraft({})} className={`${CHIP} border-ink bg-ink text-white`}>
               {value === "skipped" ? "填偏好" : "開始填"}

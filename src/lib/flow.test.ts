@@ -133,13 +133,15 @@ describe("summaryFlow：檢查結果摘要的流程紀錄", () => {
 });
 
 describe("handoverFlow、staffConfirmFlow（#14 #18）", () => {
-  it("交車說明列出三區，AI 呼叫 0 次", () => {
+  it("交車說明：什麼都沒選時，必須更換列待車主授權、可延後列尚未選擇，AI 呼叫 0 次", () => {
     const v = findVehicle("wang")!;
     const e = handoverFlow(handover(cardItems(v.items), {}, v.routine, v.nextServiceKm));
     expect(e.aiCalls).toBe(0);
     expect(e.steps).toEqual([
-      "今天完成：機油與機油芯、前煞車來令片",
-      "今天延後：電瓶（3 個月後複查）、輪胎胎紋（3 個月後複查）",
+      "今天完成：機油與機油芯",
+      "待車主授權：前煞車來令片",
+      "今天延後：無",
+      "尚未選擇：電瓶（預設 3 個月後複查）、輪胎胎紋（預設 3 個月後複查）",
       "目前不用換：空氣濾網、雨刷",
     ]);
   });

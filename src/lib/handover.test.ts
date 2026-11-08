@@ -11,16 +11,28 @@ const run = (choices: Record<string, Choice> = {}, list = items) => handover(lis
 const names = (xs: { name: string }[]) => xs.map((x) => x.name);
 
 describe("handover：交車說明", () => {
-  it("必須更換一律在今天完成；定期保養項目排最前面", () => {
-    expect(names(run().done)).toEqual(["機油與機油芯", "前煞車來令片"]);
+  it("必須更換：車主還沒授權 → 待車主授權，不在今天完成；授權後才進今天完成", () => {
+    const brake = items.find((i) => i.id === "brake-pad")!;
+    const h = run();
+    expect(names(h.done)).toEqual(["機油與機油芯"]);
+    expect(h.pending.map((p) => p.item.id)).toEqual(["brake-pad"]);
+    expect(h.pending[0].note).toContain("待車主授權");
+    const ok = run({ [choiceKey(brake)]: "today" });
+    expect(names(ok.done)).toEqual(["機油與機油芯", "前煞車來令片"]);
+    expect(ok.pending).toEqual([]);
   });
 
-  it("可延後：沒選或選延後 → 今天延後並附提醒月數；選今天換 → 今天完成", () => {
-    expect(run().deferred.map((d) => [d.item.id, d.months])).toEqual([["battery", 3], ["tire", 3]]);
-    expect(run({ [choiceKey(battery)]: "defer" }).deferred).toHaveLength(2);
+  it("可延後：沒選 → 尚未選擇（預設提醒月數），不寫成今天延後；選延後 → 今天延後；選今天換 → 今天完成", () => {
+    const none = run();
+    expect(none.deferred).toEqual([]);
+    expect(none.undecided.map((d) => [d.item.id, d.months])).toEqual([["battery", 3], ["tire", 3]]);
+    const deferred = run({ [choiceKey(battery)]: "defer" });
+    expect(deferred.deferred.map((d) => d.item.id)).toEqual(["battery"]);
+    expect(deferred.undecided.map((d) => d.item.id)).toEqual(["tire"]);
     const today = run({ [choiceKey(battery)]: "today" });
     expect(names(today.done)).toContain("電瓶");
-    expect(today.deferred.map((d) => d.item.id)).toEqual(["tire"]);
+    expect(today.deferred).toEqual([]);
+    expect(today.undecided.map((d) => d.item.id)).toEqual(["tire"]);
   });
 
   it("正常項目只在目前不用換，不會跑進今天完成（反例）", () => {
@@ -79,12 +91,14 @@ describe("pruneChoices 與殘留選擇（Codex review）", () => {
     const brake = items.find((i) => i.id === "brake-pad")!;
     const h = run({ [`${filter.id}:可延後`]: "today", [choiceKey(filter)]: "today", [choiceKey(brake)]: "defer" });
     expect(names(h.done)).not.toContain("空氣濾網");
-    expect(names(h.done)).toContain("前煞車來令片");
+    expect(h.pending.map((p) => p.item.id)).toEqual(["brake-pad"]);
     expect(h.deferred.map((d) => d.item.id)).not.toContain("brake-pad");
+    expect(h.undecided.map((d) => d.item.id)).not.toContain("brake-pad");
   });
 
   it("今天完成的檢查項目附判定依據用的項目資料；定期保養項目沒有", () => {
-    const done = run().done;
+    const brake = items.find((i) => i.id === "brake-pad")!;
+    const done = run({ [choiceKey(brake)]: "today" }).done;
     expect(done.find((d) => d.name === "前煞車來令片")!.item!.measuredAt).toBe("10:42");
     expect(done.find((d) => d.name === "機油與機油芯")!.item).toBeUndefined();
   });

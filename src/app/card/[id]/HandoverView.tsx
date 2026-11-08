@@ -1,8 +1,8 @@
 import type { Handover } from "@/lib/handover";
 import { RULE_VERSION } from "@/lib/vehicles";
-import Icon from "../../Icon";
+import Icon, { type IconName } from "../../Icon";
 
-// 完工交車說明（峰終體驗）：今天完成、今天延後、目前不用換一次說清楚。內容全由規則產生。
+// 完工交車說明（峰終體驗）：今天完成、待車主授權、今天延後、尚未選擇、目前不用換一次說清楚。內容全由規則產生。
 export default function HandoverView({
   handover: h,
   technician,
@@ -35,6 +35,19 @@ export default function HandoverView({
         ))}
       </Block>
 
+      {h.pending.length > 0 && (
+        <Block title="待車主授權" icon="alert" tone="text-must bg-must-soft">
+          {h.pending.map((d) => (
+            <Line
+              key={d.name}
+              title={d.name}
+              note={`${d.item.verdict.reason}${d.note}。`}
+              meta={`規則 ${RULE_VERSION}・${technician}・${d.item.measuredAt}`}
+            />
+          ))}
+        </Block>
+      )}
+
       {h.deferred.length > 0 && (
         <Block title="今天延後" icon="clock" tone="text-defer bg-defer-soft">
           {h.deferred.map(({ item, months }) => (
@@ -42,6 +55,19 @@ export default function HandoverView({
               key={item.id}
               title={item.name}
               note={`${item.verdict.reason}${months} 個月後回廠提醒。`}
+              meta={`規則 ${RULE_VERSION}・${technician}・${item.measuredAt}`}
+            />
+          ))}
+        </Block>
+      )}
+
+      {h.undecided.length > 0 && (
+        <Block title="尚未選擇" icon="clock" tone="text-defer bg-defer-soft">
+          {h.undecided.map(({ item, months }) => (
+            <Line
+              key={item.id}
+              title={item.name}
+              note={`${item.verdict.reason}車主還沒選今天換或延後；沒選的話，預設 ${months} 個月後回廠提醒。`}
               meta={`規則 ${RULE_VERSION}・${technician}・${item.measuredAt}`}
             />
           ))}
@@ -96,7 +122,7 @@ function Block({
   children,
 }: {
   title: string;
-  icon: "check" | "clock" | "shield";
+  icon: IconName;
   tone: string;
   children: React.ReactNode;
 }) {
