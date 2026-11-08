@@ -11,6 +11,7 @@ import { choiceKey, handover, needsOptionPick, pruneChoices, type Choice } from 
 import { preferenceNote, type OwnerPreferences } from "@/lib/preferences";
 import { LABEL, type Conclusion } from "@/lib/rules";
 import { formatPrice, RULE_VERSION } from "@/lib/vehicles";
+import { askHeaders } from "@/lib/visitor";
 import Icon, { ITEM_ICON, type IconName } from "../../Icon";
 import DealerFacts from "./DealerFacts";
 import FlowPanel from "./FlowPanel";
@@ -699,7 +700,7 @@ function Chat(props: {
     try {
       const res = await fetch("/api/ask", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: askHeaders(),
         body: JSON.stringify({ vehicleId, question, measurements, preferences }),
       });
       const data = await res.json();
@@ -720,7 +721,7 @@ function Chat(props: {
     try {
       const res = await fetch("/api/ask", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: askHeaders(),
         body: JSON.stringify({ vehicleId, simulate: "tampered", measurements, preferences }),
       });
       const data = await res.json();

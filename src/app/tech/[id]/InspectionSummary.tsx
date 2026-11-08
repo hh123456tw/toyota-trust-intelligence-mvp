@@ -7,6 +7,7 @@ import type { CardItem } from "@/lib/card";
 import type { OwnerPreferences } from "@/lib/preferences";
 import { staffConfirmFlow, summaryFlow, type FlowEntry } from "@/lib/flow";
 import { LABEL, type Conclusion } from "@/lib/rules";
+import { askHeaders } from "@/lib/visitor";
 import Icon, { ITEM_ICON } from "../../Icon";
 
 // 分級顏色：左側色條、圖示、標籤用同一個顏色，和簡報 A5 的 Rule Engine 分級一致。
@@ -53,7 +54,7 @@ export default function InspectionSummary(props: {
     try {
       const res = await fetch("/api/ask", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: askHeaders(),
         body: JSON.stringify({
           vehicleId,
           summary: true,

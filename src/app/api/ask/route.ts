@@ -3,22 +3,15 @@ import { ask, simulateTampered, summarize } from "@/lib/ask";
 import { applyMeasurements } from "@/lib/card";
 import { callGemini } from "@/lib/gemini";
 import { applyPreferences } from "@/lib/preferences";
+import { createRateLimiter, limitFromEnv } from "@/lib/rateLimit";
 import { findVehicle } from "@/lib/vehicles";
 
 const MAX_QUESTION_LENGTH = 200;
-// 決賽現場多人共用同一個 Wi-Fi（同一個 IP），6 次會擋到一般人；60 次只擋程式狂刷。
-const LIMIT_PER_MINUTE = 60;
-
-// 每個 IP 每分鐘的提問次數。Serverless 上只是盡力而為，足夠擋住展示時被刷。
-const hits = new Map<string, number[]>();
-
-function rateLimited(ip: string): boolean {
-  const now = Date.now();
-  const recent = (hits.get(ip) ?? []).filter((t) => now - t < 60_000);
-  recent.push(now);
-  hits.set(ip, recent);
-  return recent.length > LIMIT_PER_MINUTE;
-}
+// 決賽現場多人共用同一個 Wi-Fi（同一個 IP）：IP 上限放寬，單一人狂刷由訪客上限擋。
+const rateLimited = createRateLimiter({
+  perIp: limitFromEnv(process.env.ASK_LIMIT_PER_IP_PER_MINUTE),
+  perVisitor: 20,
+});
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
@@ -50,8 +43,9 @@ export async function POST(request: NextRequest) {
     : "AI 暫時無法回答，請點上面的常見問題，或請專員來說明";
 
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "local";
-  if (rateLimited(ip)) {
-    return Response.json({ error: "問得有點快，請稍等一分鐘再試" }, { status: 429 });
+  if (rateLimited(ip, request.headers.get("x-visitor-id") ?? undefined)) {
+    const wait = summary ? "請稍等一分鐘再試" : "請先點上面的常見問題，或稍等一分鐘再試";
+    return Response.json({ error: `問得有點快，${wait}` }, { status: 429 });
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
