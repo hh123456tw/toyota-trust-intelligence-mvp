@@ -53,8 +53,8 @@ describe("summarize：檢查結果摘要", () => {
 });
 
 describe("檢查結果摘要的車主偏好行（#24）", () => {
-  // 王先生的示範偏好：能等就等、最在意價格、近期有長途行程、最近沒有異常。「沒有異常」不列。
-  const WANG_LINE = "車主偏好：能等就等、最在意價格、近期有長途行程。";
+  // 王先生的示範偏好：定期追蹤，到時再換、最在意價格、近期有長途行程、最近沒有異常。「沒有異常」不列。
+  const WANG_LINE = "車主偏好：定期追蹤，到時再換、最在意價格、近期有長途行程。";
   const noPrefs = { ...wang, preferences: undefined };
   const withIssue = { ...wang, preferences: { recentIssue: "有" as const, issueNote: "起步會抖" } };
 
@@ -84,8 +84,8 @@ describe("檢查結果摘要的車主偏好行（#24）", () => {
 
   // 審查發現：「近期沒有長途行程」「最近沒有異常」不影響專員怎麼開口，列出來只會讓摘要變長。
   it("偏好行只列有意義的項目：有處理方式和異常時兩句都在", () => {
-    const v = { ...wang, preferences: { handling: "一次處理完" as const, longTrip: "沒有" as const, recentIssue: "有" as const } };
-    expect(ruleSummary(v).answer.endsWith("車主偏好：一次處理完。車主提到最近有異常，請技師確認。")).toBe(true);
+    const v = { ...wang, preferences: { handling: "今天一起換，少跑一趟" as const, longTrip: "沒有" as const, recentIssue: "有" as const } };
+    expect(ruleSummary(v).answer.endsWith("車主偏好：今天一起換，少跑一趟。車主提到最近有異常，請技師確認。")).toBe(true);
   });
 
   it("反例：只有「沒有長途」「沒有異常」時，摘要沒有偏好行", () => {

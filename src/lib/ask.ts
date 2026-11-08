@@ -26,7 +26,7 @@ export const DEFER_WORDS = new RegExp(`${DEFER_CORE}|下次|下個月`);
 const DEFER_NOT_TIME = new RegExp(DEFER_CORE);
 // 推銷類字詞：對「正常」項目不能出現。
 const UPSELL_WORDS = /建議.{0,4}換|需要.{0,2}換|最好.{0,4}換|今天換|應該.{0,2}換|該換了|順便換/;
-// 車主選能等就等時，可延後的項目先看「什麼時候」處理：今天、現在、出遠門前處理就攔。
+// 車主選定期追蹤，到時再換時，可延後的項目先看「什麼時候」處理：今天、現在、出遠門前處理就攔。
 // 沒說時間的「建議換／建議處理」也攔；同一子句說了以後的時間（下個月、下次、3 個月後、回廠）就是延後，不攔。
 const NOW_ACT = /(?:今天|現在|馬上|立刻|立即|盡快|儘快|趁早|(?:出遠門|出發|出遊|長途|遠行)之?前)(?:(?![不別沒無]).){0,6}(?:換|處理|修)/;
 const ADVICE_ACT = new RegExp(`${UPSELL_WORDS.source}|建議.{0,8}(?:處理|更換)`);
@@ -55,8 +55,8 @@ const SYSTEM_PROMPT = `你是和泰汽車服務廠的維修說明助理，用繁
    車主問某一款安不安全：只列卡片上的規格，不要評斷安不安全，也不要改推別款，把 escalate 設為 true。
    回答提到的項目照規則 5 列進 itemConclusions。recommendedOption 填建議的款式名稱，沒有建議就填空字串。車主沒問款式時，不要主動建議。
 8. 卡片資料的「車主偏好」只決定先講什麼、怎麼說，不能改變結論、安全門檻和價格。
-   處理方式是「能等就等」時，可延後的項目講結論和回廠提醒月數，不要說「建議換」「今天換」；「一次處理完」時可以建議今天一起換。必須更換的項目不論偏好都不能說可以等。
-   車主近期有長途行程時，可延後的項目說「出發前可以請專員安排再測一次」；處理方式是「能等就等」時，不要建議出發前處理或更換。
+   處理方式是「定期追蹤，到時再換」時，可延後的項目講結論和回廠提醒月數，不要說「建議換」「今天換」；「今天一起換，少跑一趟」時可以建議今天一起換。必須更換的項目不論偏好都不能說可以等。
+   車主近期有長途行程時，可延後的項目說「出發前可以請專員安排再測一次」；處理方式是「定期追蹤，到時再換」時，不要建議出發前處理或更換。
    車主問款式時，車主沒說需求就參考「最在意」：價格看示意費用，耐用度看適合和規格，安靜和舒適看規格。卡片資料的「上次選的款式等級」有值時也可以參考，但要說出理由。
    車主偏好的最近有異常是「有」，或車主說最近有異常時，不能依此判斷安不安全，只說會請技師確認。
 9. 不能說外面的保養廠比較差、比較貴或修不好，也不要拿外面和原廠比較。
@@ -233,11 +233,11 @@ function check(vehicle: Vehicle, reply: AIReply): string | undefined {
   let previous: InspectionItem[] = [];
   for (const sentence of itemText.split(/[。！？!?；;\n]/)) {
     const inSentence = vehicle.items.filter((i) => mentions(i, sentence));
-    // 沒點名項目的句子承接上一句（「電瓶可延後。建議出遠門前處理。」）；只用在能等就等這條，其他規則照舊，避免誤攔。
+    // 沒點名項目的句子承接上一句（「電瓶可延後。建議出遠門前處理。」）；只用在定期追蹤，到時再換這條，其他規則照舊，避免誤攔。
     // 上一句只講一個可延後項目才承接；講了多個項目時不知道承接哪一個，不判違規。
     const deferred = !inSentence.length && previous.length === 1 && judge(previous[0]).conclusion === "可延後" ? previous[0] : undefined;
-    if (deferred && vehicle.preferences?.handling === "能等就等" && sentence.split(/[，,]/).some(waitUpsell))
-      return `車主選了能等就等，回答卻建議今天換${deferred.name}`;
+    if (deferred && vehicle.preferences?.handling === "定期追蹤，到時再換" && sentence.split(/[，,]/).some(waitUpsell))
+      return `車主選了定期追蹤，到時再換，回答卻建議今天換${deferred.name}`;
     if (inSentence.length) previous = inSentence;
     for (const clause of sentence.split(/[，,]/)) {
       const named = inSentence.filter((i) => mentions(i, clause));
@@ -245,8 +245,8 @@ function check(vehicle: Vehicle, reply: AIReply): string | undefined {
         const real: Conclusion = judge(item).conclusion;
         if (real === "必須更換" && defers(clause, sentence, named.length > 0)) return `${item.name}是必須更換，回答卻說可以延後`;
         if (real === "正常" && hasWord(clause, UPSELL_WORDS)) return `${item.name}是正常，回答卻建議更換`;
-        if (real === "可延後" && vehicle.preferences?.handling === "能等就等" && waitUpsell(clause))
-          return `車主選了能等就等，回答卻建議今天換${item.name}`;
+        if (real === "可延後" && vehicle.preferences?.handling === "定期追蹤，到時再換" && waitUpsell(clause))
+          return `車主選了定期追蹤，到時再換，回答卻建議今天換${item.name}`;
       }
     }
   }

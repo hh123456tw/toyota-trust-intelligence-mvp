@@ -10,9 +10,9 @@ describe("savePreferences / readPreferences：存在這支手機的瀏覽器", (
       getItem: (k: string) => data.get(k) ?? null,
       setItem: (k: string, v: string) => data.set(k, v),
     });
-    savePreferences("wang-ok", { handling: "一次處理完" });
-    expect(JSON.parse(data.get("owner-preferences:wang-ok")!)).toEqual({ handling: "一次處理完" });
-    expect(readPreferences("wang-ok")).toBe(JSON.stringify({ handling: "一次處理完" }));
+    savePreferences("wang-ok", { handling: "今天一起換，少跑一趟" });
+    expect(JSON.parse(data.get("owner-preferences:wang-ok")!)).toEqual({ handling: "今天一起換，少跑一趟" });
+    expect(readPreferences("wang-ok")).toBe(JSON.stringify({ handling: "今天一起換，少跑一趟" }));
     expect(readPreferences("lin-ok")).toBeNull();
   });
 
@@ -38,15 +38,15 @@ describe("savePreferences / readPreferences：存在這支手機的瀏覽器", (
       setItem: (k: string, v: string) => data.set(k, v),
     });
     vi.stubGlobal("window", new EventTarget());
-    savePreferences("wang-tabs", { handling: "能等就等" });
+    savePreferences("wang-tabs", { handling: "定期追蹤，到時再換" });
     const seen = vi.fn();
     const stop = subscribePreferences(seen);
     // 另一個分頁寫進同一份 localStorage，瀏覽器對其他分頁發出 storage 事件。
-    data.set("owner-preferences:wang-tabs", JSON.stringify({ handling: "一次處理完" }));
+    data.set("owner-preferences:wang-tabs", JSON.stringify({ handling: "今天一起換，少跑一趟" }));
     window.dispatchEvent(new Event("storage"));
     stop();
     expect(seen).toHaveBeenCalledTimes(1);
-    expect(readPreferences("wang-tabs")).toBe(JSON.stringify({ handling: "一次處理完" }));
+    expect(readPreferences("wang-tabs")).toBe(JSON.stringify({ handling: "今天一起換，少跑一趟" }));
     // 取消訂閱後不再收到通知。
     window.dispatchEvent(new Event("storage"));
     expect(seen).toHaveBeenCalledTimes(1);
@@ -63,8 +63,8 @@ import { parsePreferences, type OwnerPreferences } from "./preferences";
 
 describe("cleanPreferences：問卷填完後整理成合法偏好", () => {
   it("跳過的題目不留欄位，結果 API 收得下", () => {
-    const p = cleanPreferences({ handling: "一次處理完", priority: undefined, longTrip: undefined });
-    expect(p).toEqual({ handling: "一次處理完" });
+    const p = cleanPreferences({ handling: "今天一起換，少跑一趟", priority: undefined, longTrip: undefined });
+    expect(p).toEqual({ handling: "今天一起換，少跑一趟" });
     expect(parsePreferences(p)).toEqual(p);
     expect(cleanPreferences({})).toEqual({});
   });
@@ -89,7 +89,7 @@ describe("cleanPreferences：問卷填完後整理成合法偏好", () => {
   });
 });
 
-const wangDefault: OwnerPreferences = { handling: "能等就等", priority: "價格", longTrip: "有", recentIssue: "沒有" };
+const wangDefault: OwnerPreferences = { handling: "定期追蹤，到時再換", priority: "價格", longTrip: "有", recentIssue: "沒有" };
 
 describe("storedPreferences：讀回這支手機保存的偏好", () => {
   it("沒存過時用預設：王先生是預設偏好，林小姐沒有", () => {
@@ -98,7 +98,7 @@ describe("storedPreferences：讀回這支手機保存的偏好", () => {
   });
 
   it("存過合法偏好就用存的，蓋過預設", () => {
-    const saved = { handling: "一次處理完", recentIssue: "有", issueNote: "起步有異音" };
+    const saved = { handling: "今天一起換，少跑一趟", recentIssue: "有", issueNote: "起步有異音" };
     expect(storedPreferences(JSON.stringify(saved), wangDefault)).toEqual(saved);
     expect(storedPreferences("{}", wangDefault)).toEqual({});
   });
@@ -118,7 +118,7 @@ describe("storedPreferences：讀回這支手機保存的偏好", () => {
       '"skip"', // 只差幾個字
       '"Skipped"',
       JSON.stringify({ handling: "等一下" }),
-      JSON.stringify({ handling: "能等就等", budget: "低" }),
+      JSON.stringify({ handling: "定期追蹤，到時再換", budget: "低" }),
       JSON.stringify({ recentIssue: "沒有", issueNote: "怪怪的" }),
     ]) {
       expect(storedPreferences(bad, wangDefault), bad).toEqual(wangDefault);

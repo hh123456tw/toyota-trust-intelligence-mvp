@@ -362,7 +362,7 @@ describe("simulateTampered：展示用的竄改回答", () => {
 describe("ask：車主偏好（#23）", () => {
   const battery = (answer: string, extra: object = {}) =>
     reply(answer, { sources: ["item:battery"], itemConclusions: [{ id: "item:battery", conclusion: "可延後" }], ...extra });
-  const withHandling = (handling?: "一次處理完" | "能等就等") => ({ ...wang, preferences: handling ? { ...wang.preferences, handling } : undefined });
+  const withHandling = (handling?: "今天一起換，少跑一趟" | "定期追蹤，到時再換") => ({ ...wang, preferences: handling ? { ...wang.preferences, handling } : undefined });
   // 記下 AI 收到的提示詞和使用者內容。
   function capture() {
     const seen = { system: "", user: "" };
@@ -374,11 +374,11 @@ describe("ask：車主偏好（#23）", () => {
   }
 
   it("AI 收到的卡片資料包含車主偏好，不含只給技師的異常描述", async () => {
-    const v = { ...wang, preferences: { handling: "能等就等" as const, recentIssue: "有" as const, issueNote: "起步有異音" } };
+    const v = { ...wang, preferences: { handling: "定期追蹤，到時再換" as const, recentIssue: "有" as const, issueNote: "起步有異音" } };
     const { seen, call } = capture();
     await ask(v, "電瓶要換嗎？", call);
     expect(seen.user).toContain('"車主偏好"');
-    expect(seen.user).toContain("能等就等");
+    expect(seen.user).toContain("定期追蹤，到時再換");
     expect(seen.user).not.toContain("起步有異音");
   });
 
@@ -408,33 +408,33 @@ describe("ask：車主偏好（#23）", () => {
     expect(seen.system).toMatch(/最近有異常[^\n]*請技師確認/);
   });
 
-  it("選能等就等：回答「電瓶建議今天換」被攔下", async () => {
+  it("選定期追蹤，到時再換：回答「電瓶建議今天換」被攔下", async () => {
     const r = await ask(wang, "電瓶要換嗎？", fakeAI(battery("電瓶建議今天換。")));
     expect(r.checkResult).toBe("攔下");
-    expect(r.blockedReason).toContain("能等就等");
+    expect(r.blockedReason).toContain("定期追蹤，到時再換");
   });
 
-  it("反例：選能等就等，說「電瓶不建議今天換」或講可延後，通過", async () => {
+  it("反例：選定期追蹤，到時再換，說「電瓶不建議今天換」或講可延後，通過", async () => {
     for (const answer of ["電瓶不建議今天換，3 個月後會提醒你回廠。", "電瓶可延後，3 個月後會提醒你回廠。"]) {
       expect((await ask(wang, "電瓶要換嗎？", fakeAI(battery(answer)))).checkResult).toBe("通過");
     }
   });
 
   // 審查發現：原本只看「建議」後面有沒有「後」，「建議下個月換」被誤攔，「今天更換比較好」沒攔到。改看處理的時間。
-  it("選能等就等：說今天或出遠門前處理，攔下", async () => {
+  it("選定期追蹤，到時再換：說今天或出遠門前處理，攔下", async () => {
     for (const answer of ["電瓶建議今天換。", "電瓶今天更換比較好。", "電瓶最好今天處理。", "電瓶可延後，建議出遠門前處理。", "電瓶可延後，現在就換比較安心。"]) {
-      expect((await ask(wang, "電瓶要換嗎？", fakeAI(battery(answer)))).blockedReason, answer).toContain("能等就等");
+      expect((await ask(wang, "電瓶要換嗎？", fakeAI(battery(answer)))).blockedReason, answer).toContain("定期追蹤，到時再換");
     }
   });
 
-  it("反例：選能等就等，說以後再處理或不建議今天換，通過", async () => {
+  it("反例：選定期追蹤，到時再換，說以後再處理或不建議今天換，通過", async () => {
     for (const answer of ["電瓶建議下個月換。", "電瓶建議下次保養時再處理。", "電瓶建議等下次回廠處理。", "電瓶 3 個月後再處理。", "電瓶不建議今天換。", "電瓶今天不用換。", "電瓶今天先不換，3 個月後會提醒你回廠。"]) {
       expect((await ask(wang, "電瓶要換嗎？", fakeAI(battery(answer)))).checkResult, answer).toBe("通過");
     }
   });
 
-  it("選一次處理完：同一句通過", async () => {
-    const r = await ask(withHandling("一次處理完"), "電瓶要換嗎？", fakeAI(battery("電瓶建議今天換。")));
+  it("選今天一起換，少跑一趟：同一句通過", async () => {
+    const r = await ask(withHandling("今天一起換，少跑一趟"), "電瓶要換嗎？", fakeAI(battery("電瓶建議今天換。")));
     expect(r.checkResult).toBe("通過");
   });
 
@@ -446,7 +446,7 @@ describe("ask：車主偏好（#23）", () => {
   });
 
   it("不論偏好，把必須更換說成可以等都被攔下", async () => {
-    for (const v of [withHandling("能等就等"), withHandling("一次處理完"), withHandling()]) {
+    for (const v of [withHandling("定期追蹤，到時再換"), withHandling("今天一起換，少跑一趟"), withHandling()]) {
       const r = await ask(v, "煞車狀況如何？", fakeAI(brake("煞車可以延後一個月再處理。")));
       expect(r.blockedReason).toBe("前煞車來令片是必須更換，回答卻說可以延後");
     }
@@ -520,14 +520,14 @@ describe("ask：車主偏好（#23）", () => {
     expect(r.blockedReason).toBe("輪胎胎紋是必須更換，回答卻說可以延後");
   });
 
-  // 11/7 #27 實測 run1 重現：能等就等時，Gemini 說「建議在出遠門前處理」，原本只認「換」字，沒攔到。
-  it("選能等就等：「電瓶建議在出遠門前處理」被攔下；選一次處理完時通過", async () => {
+  // 11/7 #27 實測 run1 重現：定期追蹤，到時再換時，Gemini 說「建議在出遠門前處理」，原本只認「換」字，沒攔到。
+  it("選定期追蹤，到時再換：「電瓶建議在出遠門前處理」被攔下；選今天一起換，少跑一趟時通過", async () => {
     const answer = "電瓶健康度 60%，結論為可延後，3 個月後會提醒你回廠。因為有安全風險，建議在出遠門前處理比較安心。";
-    expect((await ask(wang, "電瓶撐得住嗎？", fakeAI(battery(answer)))).blockedReason).toContain("能等就等");
-    expect((await ask(withHandling("一次處理完"), "電瓶撐得住嗎？", fakeAI(battery(answer)))).checkResult).toBe("通過");
+    expect((await ask(wang, "電瓶撐得住嗎？", fakeAI(battery(answer)))).blockedReason).toContain("定期追蹤，到時再換");
+    expect((await ask(withHandling("今天一起換，少跑一趟"), "電瓶撐得住嗎？", fakeAI(battery(answer)))).checkResult).toBe("通過");
   });
 
-  it("反例：沒點名項目的句子承接必須更換的煞車時，不套能等就等這條", async () => {
+  it("反例：沒點名項目的句子承接必須更換的煞車時，不套定期追蹤，到時再換這條", async () => {
     const r = await ask(wang, "煞車要換嗎？", fakeAI(brake("煞車只剩 2 mm，低於安全門檻 3 mm，必須更換。建議今天處理。", { escalate: true })));
     expect(r.checkResult).toBe("通過");
   });
@@ -541,17 +541,17 @@ describe("ask：車主偏好（#23）", () => {
 
   it("前句只有一個可延後項目時才承接：「電瓶可延後。建議今天處理。」攔下", async () => {
     const r = await ask(wang, "電瓶呢？", fakeAI(battery("電瓶可延後。建議今天處理。")));
-    expect(r.blockedReason).toContain("能等就等");
+    expect(r.blockedReason).toContain("定期追蹤，到時再換");
   });
 
-  it("反例：選能等就等，「建議出發前請專員再測一次」「3 個月後再處理」通過", async () => {
+  it("反例：選定期追蹤，到時再換，「建議出發前請專員再測一次」「3 個月後再處理」通過", async () => {
     for (const answer of ["電瓶可延後，3 個月後會提醒你回廠，建議出發前請專員再測一次。", "電瓶可延後，3 個月後再處理就好。", "電瓶可延後，建議 3 個月後回廠再處理。","電瓶不建議今天處理，3 個月後會提醒你回廠。"]) {
       expect((await ask(wang, "電瓶撐得住嗎？", fakeAI(battery(answer)))).checkResult, answer).toBe("通過");
     }
   });
 
-  it("有偏好（最在意耐用度、一次處理完）時，預算有限仍不能建議最貴款", async () => {
-    const v = { ...lin, preferences: { priority: "耐用度" as const, handling: "一次處理完" as const } };
+  it("有偏好（最在意耐用度、今天一起換，少跑一趟）時，預算有限仍不能建議最貴款", async () => {
+    const v = { ...lin, preferences: { priority: "耐用度" as const, handling: "今天一起換，少跑一趟" as const } };
     const r = await ask(v, "我預算有限，輪胎選哪款？", fakeAI({
       answer: "建議長效款，由你決定。", sources: ["item:tire"], escalate: false,
       itemConclusions: [{ id: "item:tire", conclusion: "必須更換" }], recommendedOption: "長效款",

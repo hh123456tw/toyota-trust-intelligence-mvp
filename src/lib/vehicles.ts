@@ -132,7 +132,7 @@ export const vehicles: Vehicle[] = [
     },
     lastVisitRecord: { priceQuestions: 4 },
     // 示範：王先生已填好偏好（下週要載家人長途）。
-    preferences: { handling: "能等就等", priority: "價格", longTrip: "有", recentIssue: "沒有" },
+    preferences: { handling: "定期追蹤，到時再換", priority: "價格", longTrip: "有", recentIssue: "沒有" },
     routine: ["機油與機油芯"],
     nextServiceKm: 5000,
     progress: [

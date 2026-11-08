@@ -6,7 +6,11 @@ export type Question = { no: number; question: string; vehicleId: string; expect
 
 // 題目名稱（處理方式、最在意…）和偏好欄位的對照，和問卷、API 驗證用同一份定義。
 const PREF_KEYS: Record<string, string> = Object.fromEntries(PREFERENCE_QUESTIONS.map((q) => [q.label, q.key]));
-const PREF_CHANGE = new RegExp(`(${PREFERENCE_QUESTIONS.map((q) => q.label).join("|")})改成([^，,「」]+)`, "g");
+// 選項本身可能有「，」（今天一起換，少跑一趟），所以先比對所有選項；不是選項的照原文送出，由 applyPreferences 擋下。
+const PREF_CHANGE = new RegExp(
+  `(${PREFERENCE_QUESTIONS.map((q) => q.label).join("|")})改成(${PREFERENCE_QUESTIONS.flatMap((q) => q.options).join("|")}|[^，,「」]+)`,
+  "g",
+);
 
 export type Shown = {
   answer: string;

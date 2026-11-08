@@ -5,7 +5,7 @@ import type { Vehicle } from "./vehicles";
 // 偏好的題目和選項只定義在這裡：問卷（text）、API 驗證（options）、實測題目的「X改成Y」（label）共用。
 // 處理方式、最在意是長期偏好；近期長途行程、最近有異常是本次情境。全部可選。
 export const PREFERENCE_QUESTIONS = [
-  { key: "handling", label: "處理方式", text: "這次想一次處理完，還是能等就等？", options: ["一次處理完", "能等就等"] },
+  { key: "handling", label: "處理方式", text: "這次想今天一起換、少跑一趟，還是定期追蹤、到時再換？", options: ["今天一起換，少跑一趟", "定期追蹤，到時再換"] },
   { key: "priority", label: "最在意", text: "選零件最在意什麼？", options: ["價格", "耐用度", "安靜和舒適"] },
   { key: "longTrip", label: "近期長途行程", text: "接下來 3 個月有沒有長途行程或載家人出遊？", options: ["有", "沒有"] },
   { key: "recentIssue", label: "最近有異常", text: "最近開車有沒有覺得哪裡怪怪的？", options: ["有", "沒有"] },
@@ -45,8 +45,8 @@ export function parsePreferences(raw: unknown): OwnerPreferences | null {
 export function preferenceNote(p: OwnerPreferences | undefined, verdict: Verdict): string | undefined {
   if (!p || verdict.conclusion !== "可延後") return undefined;
   const lines = [
-    p.handling === "能等就等" && `可以先不換，${verdict.reminderMonths} 個月後提醒你回來複查。`,
-    p.handling === "一次處理完" && "今天一起換，下次不用再跑一趟。",
+    p.handling === "定期追蹤，到時再換" && `可以先不換，${verdict.reminderMonths} 個月後提醒你回來複查。`,
+    p.handling === "今天一起換，少跑一趟" && "今天一起換，下次不用再跑一趟。",
     p.longTrip === "有" && "出發前可以請專員安排再測一次。",
   ].filter(Boolean);
   return lines.length ? lines.join("") : undefined;

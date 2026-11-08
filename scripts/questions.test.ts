@@ -22,10 +22,10 @@ describe("parseQuestions", () => {
     expect(parseQuestions(md)[0].vehicleId).toBe("wang");
   });
 
-  it("第 29 題：「處理方式改成一次處理完」→ 只改處理方式；問題取「」裡的字", () => {
+  it("第 29 題：「處理方式改成今天一起換，少跑一趟」→ 只改處理方式；問題取「」裡的字", () => {
     const q29 = parseQuestions(md)[28];
     expect(q29.question).toBe("可延後的可以今天一起換嗎？");
-    expect(q29.preferences).toEqual({ handling: "一次處理完" });
+    expect(q29.preferences).toEqual({ handling: "今天一起換，少跑一趟" });
   });
 
   it("沒寫「改成」的題目不改偏好（第 26 題用預設）", () => {
