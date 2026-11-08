@@ -210,6 +210,8 @@ const UNSUPPORTED_SAFETY = /符合.{0,8}(?:安全|標準)|很安全|比較安全
 const waitUpsellReason = (item: InspectionItem) => `車主選了${HANDLING.wait}，回答卻建議今天換${item.name}`;
 // 可延後的項目被說成不能等：「不可延後」「不能先不換」「必須今天更換」。「不是必須更換」「不一定要換」不算。
 const CANNOT_DEFER = /不(?:可|能|可以)(?:再)?延後|無法延後|不能(?:先)?不換|(?<!不是|並非|不)(?:必須|一定要)(?:今天|現在|馬上)?(?:更換|換)/;
+// 假設句在講門檻（「如果胎紋低於 1.6 mm 就必須更換」），不是在講這次的結論。
+const cannotDefer = (clause: string) => !IF.test(clause) && CANNOT_DEFER.test(clause);
 
 function check(vehicle: Vehicle, reply: AIReply): string | undefined {
   const conclusions = new Map(vehicle.items.map((i) => [`item:${i.id}`, judge(i).conclusion]));
@@ -226,8 +228,12 @@ function check(vehicle: Vehicle, reply: AIReply): string | undefined {
   if (unlisted) return `回答提到必須更換的${unlisted.name}，卻沒有列出它的結論`;
 
   // 款式名稱也算提到那個項目：「長效款可以延後」等於說輪胎可以延後。
-  // 偏好名稱裡有「，」，也有「再換」這類字；先換成「車主偏好」，切子句時才不會被當成在講某個項目。
-  let itemText = Object.values(HANDLING).reduce((t, name) => t.replaceAll(name, "車主偏好"), reply.answer);
+  // 偏好名稱裡有「，」，也有「再換」這類字。只有加了引號、明確在引用偏好名稱時，才換成「車主偏好」；
+  // 沒加引號的「輪胎定期追蹤，到時再換」可能是真的建議延後，要照樣檢查。
+  let itemText = Object.values(HANDLING).reduce(
+    (t, name) => ["「」", "『』", '""', "“”"].reduce((u, [open, close]) => u.replaceAll(`${open}${name}${close}`, "「車主偏好」"), t),
+    reply.answer,
+  );
   for (const i of vehicle.items) {
     for (const o of visibleOptions(i, judge(i).conclusion) ?? []) itemText = itemText.replaceAll(o.name, i.name);
   }
@@ -241,6 +247,8 @@ function check(vehicle: Vehicle, reply: AIReply): string | undefined {
     const deferred = !inSentence.length && previous.length === 1 && judge(previous[0]).conclusion === "可延後" ? previous[0] : undefined;
     if (deferred && vehicle.preferences?.handling === HANDLING.wait && sentence.split(/[，,]/).some(waitUpsell))
       return waitUpsellReason(deferred);
+    // 「輪胎可延後。不能先不換。」：沒點名的下一句推翻上一句，一樣攔。
+    if (deferred && sentence.split(/[，,]/).some(cannotDefer)) return `${deferred.name}是可延後，回答卻說不能延後`;
     if (inSentence.length) previous = inSentence;
     for (const clause of sentence.split(/[，,]/)) {
       const named = inSentence.filter((i) => mentions(i, clause));
@@ -251,7 +259,7 @@ function check(vehicle: Vehicle, reply: AIReply): string | undefined {
         if (real === "可延後" && vehicle.preferences?.handling === HANDLING.wait && waitUpsell(clause)) return waitUpsellReason(item);
         // 子句點名這個項目，或整句只講這一個項目才算；句子講了多個項目時，沒點名的「必須今天更換」不知道在講哪一個。
         const subject = named.includes(item) || (!named.length && inSentence.length === 1);
-        if (real === "可延後" && subject && CANNOT_DEFER.test(clause)) return `${item.name}是可延後，回答卻說不能延後`;
+        if (real === "可延後" && subject && cannotDefer(clause)) return `${item.name}是可延後，回答卻說不能延後`;
       }
     }
   }

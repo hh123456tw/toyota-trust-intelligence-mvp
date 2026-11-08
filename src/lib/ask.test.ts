@@ -368,6 +368,24 @@ describe("ask：偏好名稱與可延後項目（#27 審查）", () => {
     expect(r.checkResult).toBe("通過");
   });
 
+  it("沒加引號的偏好說法照樣檢查：必須更換的輪胎被說成「定期追蹤，到時再換」→ 攔下", async () => {
+    const r = await ask(
+      lin,
+      "輪胎呢？",
+      fakeAI(reply("輪胎定期追蹤，到時再換。", { sources: ["item:tire"], itemConclusions: [{ id: "item:tire", conclusion: "必須更換" }] })),
+    );
+    expect(r.checkResult).toBe("攔下");
+  });
+
+  it("下一句沒點名卻推翻上一句：「輪胎可延後。不能先不換。」→ 攔下", async () => {
+    expect((await ask(wang, "輪胎呢？", fakeAI(tire("輪胎可延後。不能先不換。")))).checkResult).toBe("攔下");
+  });
+
+  it("反例：講門檻的假設句不攔", async () => {
+    const r = await ask(wang, "輪胎呢？", fakeAI(tire("如果胎紋低於 1.6 mm 就必須更換，目前 2.5 mm 可延後。")));
+    expect(r.checkResult).toBe("通過");
+  });
+
   it("可延後的輪胎被說成不能延後 → 攔下", async () => {
     for (const answer of ["輪胎 2.5 mm，不可延後。", "輪胎不能先不換。", "輪胎必須今天更換。"]) {
       const r = await ask(wang, "輪胎可以等嗎？", fakeAI(tire(answer)));
