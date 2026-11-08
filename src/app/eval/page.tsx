@@ -42,19 +42,25 @@ const ROUNDS = [
 
 const AFTER = RUNS.slice(2);
 const failedAfter = AFTER.flatMap((r) => r.questions.filter((q) => !q.pass).map((q) => ({ label: r.label, q })));
+// 11/8 摘要補強（依偏好調整說法、可延後加原因）後只重跑檢查結果摘要 3 次；追問的提示詞沒變，沿用上面 3 次。
+const SUMMARY_RUNS = [1, 2, 3].map((n) => {
+  const file = `2026-11-08_summary_v2_run${n}.log`;
+  return { file, label: `摘要補強後第 ${n} 次`, ...load(file) };
+});
+const SUMMARY_LIMIT = 150;
 // 檢查結果摘要字數：王先生的摘要最後接規則產生的偏好行，AI 寫的部分 = 合計 − 偏好行。
 const wangLine = preferenceSummaryLine(findVehicle("wang")!.preferences);
 const range = (xs: number[]) => `${Math.min(...xs)}–${Math.max(...xs)}`;
-const wangChars = AFTER.flatMap((r) => r.summaries.filter((s) => s.owner === "王先生").map((s) => s.chars));
-const linChars = AFTER.flatMap((r) => r.summaries.filter((s) => s.owner === "林小姐").map((s) => s.chars));
-const over120 = wangChars.filter((c) => c > 120).length;
+const wangChars = SUMMARY_RUNS.flatMap((r) => r.summaries.filter((s) => s.owner === "王先生").map((s) => s.chars));
+const linChars = SUMMARY_RUNS.flatMap((r) => r.summaries.filter((s) => s.owner === "林小姐").map((s) => s.chars));
+const overLimit = wangChars.filter((c) => c - wangLine.length > SUMMARY_LIMIT).length;
 const questionCount = AFTER[0].questions.length + AFTER[0].system.length;
 const allPassedAfter = AFTER.every((r) => r.passed === r.total);
 // 第 20、21 題測系統行為，不經過 AI，不算進真實 Gemini 追問次數。
 const aiPerRun = AFTER[0].questions.length;
 const aiPassed = AFTER.reduce((n, r) => n + r.questions.filter((q) => q.pass).length, 0);
-const summaryPassed = AFTER.reduce((n, r) => n + r.summaries.filter((s) => s.pass).length, 0);
-const summaryTotal = AFTER.reduce((n, r) => n + r.summaries.length, 0);
+const summaryPassed = SUMMARY_RUNS.reduce((n, r) => n + r.summaries.filter((s) => s.pass).length, 0);
+const summaryTotal = SUMMARY_RUNS.reduce((n, r) => n + r.summaries.length, 0);
 // AI 回應秒數（含重試）。紀錄沒有秒數就是建置錯誤，不顯示假數字。
 const seconds = AFTER.flatMap((r) => r.questions.map((q) => q.seconds));
 if (seconds.some((x) => x === undefined)) throw new Error("實測紀錄缺少 AI 回應時間");
@@ -132,11 +138,11 @@ export default function EvalPage() {
           </dd>
         </div>
         <div className="rounded-2xl border border-line bg-white p-4">
-          <dt className="text-xs text-muted">檢查結果摘要（審查修正後）</dt>
+          <dt className="text-xs text-muted">檢查結果摘要（摘要補強後）</dt>
           <dd className="mt-1 text-2xl font-bold text-brand">
             {summaryPassed} / {summaryTotal}
           </dd>
-          <dd className="text-sm">王先生、林小姐各 3 次 × {AFTER.length} 次執行</dd>
+          <dd className="text-sm">王先生、林小姐各 3 次 × {SUMMARY_RUNS.length} 次執行</dd>
         </div>
         <div className="col-span-2 rounded-2xl border border-line bg-white p-4">
           <dt className="text-xs text-muted">AI 回應時間（追問）</dt>
@@ -290,14 +296,14 @@ export default function EvalPage() {
         ))}
       </ul>
 
-      <h2 className="mt-10 text-lg font-bold">檢查結果摘要原文（11/8 三方審查修正後）</h2>
+      <h2 className="mt-10 text-lg font-bold">檢查結果摘要原文（11/8 摘要補強後）</h2>
       <p className="mt-1 text-sm text-muted">
-        王先生的摘要最後多一行「{wangLine}」，由規則產生（{wangLine.length} 字），不交給 AI 寫；「沒有異常」這類不影響專員開口的項目不列。
-        加上這行後合計 {range(wangChars)} 字，{wangChars.length} 次中有 {over120} 次超過提示詞要求的 120 字；AI 寫的部分是{" "}
-        {range(wangChars.map((c) => c - wangLine.length))} 字。林小姐沒有偏好，沒有這一行，{range(linChars)} 字。
+        11/8 補強提示詞：必須更換永遠先講；可延後的項目加一句原因（只能用卡片上的量測趨勢、使用紀錄、行車摘要）；依車主偏好調整說法，例如最在意價格就先講今天要付的費用。結論、門檻、價格照舊不能改。只重跑摘要 3 次，追問的提示詞沒變。
+        王先生的摘要最後多一行「{wangLine}」，由規則產生（{wangLine.length} 字），不交給 AI 寫。加上這行後合計 {range(wangChars)} 字；AI 寫的部分是{" "}
+        {range(wangChars.map((c) => c - wangLine.length))} 字，{wangChars.length} 次中有 {overLimit} 次超過提示詞要求的 {SUMMARY_LIMIT} 字。林小姐沒有偏好，沒有這一行，{range(linChars)} 字。
       </p>
       <ul className="mt-3 space-y-2">
-        {AFTER.map((r) => (
+        {SUMMARY_RUNS.map((r) => (
           <li key={r.file}>
             <details className="rounded-2xl border border-line bg-white px-4 py-3">
               <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3">

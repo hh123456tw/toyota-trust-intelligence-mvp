@@ -125,6 +125,53 @@ describe("檢查結果摘要的車主偏好行（#24）", () => {
   });
 });
 
+describe("檢查結果摘要 v2：依偏好調整說法、可延後加原因", () => {
+  // 王先生：定期追蹤，到時再換、最在意價格、近期有長途行程。
+  const PRICE_FIRST =
+    "今天要付的是前煞車來令片 NT$3,000：量測 2 mm，低於安全門檻 3 mm，必須更換。電瓶健康度 60%，可延後，3 個月後提醒回廠；半年前是 72%，你的行程 78% 是短程。輪胎胎紋 2.5 mm，可延後，3 個月後提醒回廠。出發前可以請專員安排再測一次。空氣濾網、雨刷狀況正常，今天不用處理。";
+  const ai = (answer: string) => fakeAI(answer, { sources: ["item:brake-pad", "item:battery", "trend:battery", "driving", "item:tire"] });
+
+  it("提示詞：必須更換永遠先講、可延後要講原因、依偏好調整、不重列偏好清單、150 字內", async () => {
+    let system = "";
+    await summarize(wang, async (s) => {
+      system = s;
+      return JSON.stringify({ answer: GOOD, sources: ["item:brake-pad"], escalate: false, itemConclusions: ALL });
+    });
+    for (const rule of ["150 字內", "必須更換的項目永遠最先講", "原因", "量測趨勢", "最在意是「價格」", "出發前可以請專員安排再測一次", "不要重列車主偏好清單"]) {
+      expect(system).toContain(rule);
+    }
+    expect(system).not.toContain("不要寫車主偏好");
+  });
+
+  it("正例：最在意價格，先講今天要付的費用；可延後項目附原因和回廠月數、長途前再測 → 通過", async () => {
+    const r = await summarize(wang, ai(PRICE_FIRST));
+    expect(r).toMatchObject({ checkResult: "通過" });
+    expect(r.answer.startsWith(PRICE_FIRST)).toBe(true);
+  });
+
+  it("反例：定期追蹤，到時再換，摘要卻建議電瓶今天一起換 → 攔下", async () => {
+    const r = await summarize(wang, ai(PRICE_FIRST.replace("3 個月後提醒回廠；", "但趁今天一起換比較省事；")));
+    expect(r).toMatchObject({ checkResult: "攔下", blockedReason: "車主選了定期追蹤，到時再換，回答卻建議今天換電瓶" });
+  });
+
+  it("對照：車主選今天一起換，少跑一趟時，提可延後的電瓶今天一起換 → 通過", async () => {
+    const once = { ...wang, preferences: { handling: "今天一起換，少跑一趟" as const } };
+    const r = await summarize(once, ai(PRICE_FIRST.replace("3 個月後提醒回廠；", "也可以今天一起換，少跑一趟；")));
+    expect(r.checkResult).toBe("通過");
+  });
+
+  it("反例：可延後的項目排在必須更換前面 → 攔下", async () => {
+    const swapped =
+      "電瓶健康度 60%，可延後，3 個月後提醒回廠。前煞車來令片量測 2 mm，低於安全門檻 3 mm，今天必須更換。輪胎胎紋 2.5 mm，可延後，3 個月後提醒回廠。空氣濾網、雨刷狀況正常，今天不用處理。";
+    expect(await summarize(wang, ai(swapped))).toMatchObject({ checkResult: "攔下", blockedReason: "必須更換的前煞車來令片要先講" });
+  });
+
+  it("反例：必須更換先講過，後面再提一次煞車不算順序錯", async () => {
+    const r = await summarize(wang, ai(`${GOOD}今天只需付前煞車來令片 NT$3,000。`));
+    expect(r.checkResult).toBe("通過");
+  });
+});
+
 describe("ruleSummary：規則版摘要", () => {
   it.each([wang, lin])("$owner：每個項目都出現，結論和規則引擎一致，本身通過答案檢查", async (v) => {
     const s = ruleSummary(v);

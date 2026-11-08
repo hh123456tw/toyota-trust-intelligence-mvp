@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { cardContext } from "./answers";
-import { amounts, ask, ruleSummary } from "./ask";
+import { amounts, ask, ruleSummary, summarize } from "./ask";
 import { cardItems, withMeasurement } from "./card";
+import { judge } from "./rules";
 import { findVehicle } from "./vehicles";
 
 const wang = findVehicle("wang")!;
@@ -41,6 +42,34 @@ describe("amounts：抓出回答裡的金額", () => {
       expect(amounts(t)).toEqual([]);
     },
   );
+});
+
+describe("amounts：國字金額（摘要 v2 實測裡 AI 寫了「新台幣三千元」）", () => {
+  it.each([
+    ["新台幣三千元", 3000],
+    ["新台幣三千", 3000],
+    ["三千五百元", 3500],
+    ["一萬一千二百元", 11200],
+    ["兩千塊", 2000],
+    ["十元", 10],
+  ])("「%s」→ %i", (t, n) => {
+    expect(amounts(t)).toEqual([n]);
+  });
+
+  it.each(["三個月後回廠", "一年或兩萬公里", "兩塊來令片都磨了", "十分鐘", "每週發動十一次"])("反例「%s」不是金額", (t) => {
+    expect(amounts(t)).toEqual([]);
+  });
+
+  it("檢查結果摘要寫了卡片上沒有的國字金額 → 攔下；寫對 → 通過", async () => {
+    const all = wang.items.map((i) => ({ id: `item:${i.id}`, conclusion: judge(i).conclusion }));
+    const body = "前煞車來令片量測 2 mm，低於安全門檻 3 mm，必須更換。電瓶健康度 60%，可延後，3 個月後提醒回廠。輪胎胎紋 2.5 mm，可延後，3 個月後提醒回廠。";
+    const ai = (answer: string) => async () => JSON.stringify({ answer, sources: ["item:brake-pad"], escalate: false, itemConclusions: all });
+    expect((await summarize(wang, ai(`今天要付的示意費用為新台幣三千元。${body}`))).checkResult).toBe("通過");
+    expect(await summarize(wang, ai(`今天要付的示意費用為新台幣兩千元。${body}`))).toMatchObject({
+      checkResult: "攔下",
+      blockedReason: "回答提到的金額 NT$2,000 不在卡片上",
+    });
+  });
 });
 
 describe("答案檢查：金額", () => {

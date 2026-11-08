@@ -158,15 +158,31 @@ function defers(clause: string, sentence: string, named: boolean): boolean {
 
 // 金額：要有貨幣記號（NT$、$、新台幣）或單位（元、塊、塊錢）才算，里程、量測值、月數不會被當成金額。
 // 「塊」後面接來令片、煞車皮這類名詞時是量詞（「2 塊來令片」），不算。
-// shortcut: 只認阿拉伯數字（可帶千、萬），「三千元」這種國字數字抓不到；AI 改寫成國字時再補。
 const MONEY = /(?:NT\$|新台幣|\$)\s*(\d[\d,]*(?:\.\d+)?)\s*(千|萬)?|(\d[\d,]*(?:\.\d+)?)\s*(千|萬)?\s*(?:元|塊錢|塊(?![來煞片]))/g;
+// 國字金額（「新台幣三千元」「一萬一千二百元」）：摘要實測時 AI 會這樣寫。一樣要有新台幣或元、塊才算。
+// 開頭要是數字或十：「3 千元」的「千元」已由上面的阿拉伯數字規則算過。
+const ZH = "[零一二兩三四五六七八九十][零一二兩三四五六七八九十百千萬]*";
+const ZH_MONEY = new RegExp(`新台幣\\s*(${ZH})|(${ZH})\\s*(?:元|塊錢|塊(?![來煞片]))`, "g");
+const ZH_DIGIT: Record<string, number> = { 零: 0, 一: 1, 二: 2, 兩: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 };
+const ZH_UNIT: Record<string, number> = { 十: 10, 百: 100, 千: 1000 };
+
+function zhNumber(s: string): number {
+  let [total, section, n] = [0, 0, 0];
+  for (const c of s) {
+    if (c in ZH_DIGIT) n = ZH_DIGIT[c];
+    else if (c === "萬") [total, section, n] = [total + (section + n) * 10000, 0, 0];
+    else [section, n] = [section + (n || 1) * ZH_UNIT[c], 0];
+  }
+  return total + section + n;
+}
 
 export function amounts(text: string): number[] {
-  return [...text.matchAll(MONEY)].map((m) => {
+  const digits = [...text.matchAll(MONEY)].map((m) => {
     const n = Number((m[1] ?? m[3]).replace(/,/g, ""));
     const unit = m[2] ?? m[4];
     return Math.round(n * (unit === "萬" ? 10000 : unit === "千" ? 1000 : 1));
   });
+  return [...digits, ...[...text.matchAll(ZH_MONEY)].map((m) => zhNumber(m[1] ?? m[2]))];
 }
 
 // 答案檢查：回傳攔下理由；通過回傳 undefined。
@@ -414,18 +430,39 @@ export async function simulateTampered(vehicle: Vehicle): Promise<AskResult & { 
 }
 
 // 檢查結果摘要：AI 把同一張卡整理成服務專員 30 秒能講完的版本。
-// 走同一套答案檢查；另外必須更換、可延後的項目一個都不能漏。沒通過就改用規則版摘要。
-const SUMMARY_PROMPT = `你是和泰汽車服務廠的接待助理。把卡片資料整理成服務專員 30 秒能講完的檢查結果摘要，用來向車主說明追加項目，繁體中文，120 字內。
+// 規則列舉得完的（順序、偏好行）用規則；依偏好調整說法、用量測趨勢和行車摘要解釋原因，組合太多，才交給 AI。
+// 走同一套答案檢查；另外必須更換、可延後的項目一個都不能漏，必須更換要最先講。沒通過就改用規則版摘要。
+const SUMMARY_PROMPT = `你是和泰汽車服務廠的接待助理。把卡片資料整理成服務專員 30 秒能講完的檢查結果摘要，用來向車主說明追加項目，繁體中文，150 字內（不含系統接在最後的偏好行）。超過時先刪原因的細節，不能刪結論、回廠提醒月數和必須更換的量測值。
 
 規則：
-1. 只能根據卡片資料。每個項目的結論照抄卡片資料，不能改變或放寬。價格只能照抄卡片資料的「示意費用」。
-2. 順序：必須更換 → 可延後 → 正常。必須更換、可延後的項目一項一句，句子用句號分開。
-3. 必須更換的項目寫出量測值和安全門檻。可延後的項目寫出回廠提醒月數。
-4. 正常的項目合成一句，例如「X、Y 狀況正常，今天不用處理。」不要推銷。
-5. sources 列出用到的每一個來源代號。itemConclusions 列出卡片上每一個檢查項目：id 填來源代號，conclusion 照抄結論。
-6. escalate 一律填 false。
-7. 不要提可選款式，也不要建議款式；recommendedOption 填空字串。
-8. 不要寫車主偏好，系統會另外接在摘要最後。`;
+1. 只能根據卡片資料。每個項目的結論照抄卡片資料，不能改變或放寬。價格只能照抄卡片資料的「示意費用」，不要解釋價格怎麼決定。
+2. 必須更換的項目永遠最先講，寫出量測值和安全門檻。不論車主偏好，都不能說可以等。
+3. 可延後的項目寫出結論「可延後」和回廠提醒月數，再用一個 20 字內的短句講原因。原因只能用卡片資料裡這個項目的量測趨勢、使用紀錄，或行車摘要，挑一個依據：這個項目有量測趨勢就用它自己的趨勢（例如「半年前 72%，現在 60%」）；沒有趨勢才用使用紀錄或行車摘要。不要整段照抄。用到的來源代號（trend:…、driving）列進 sources。卡片資料沒有的原因不要推測。
+4. 依卡片資料的「車主偏好」調整可延後項目的說法和先後。偏好不能改變結論、安全門檻和價格，也不能改變必須更換最先講。
+   最在意是「價格」：第一句先說今天要付的示意費用（必須更換的項目），再講哪些可以延後。
+   處理方式是「定期追蹤，到時再換」：可延後的項目只講結論、原因和回廠提醒月數，不要建議今天換或出發前換。
+   處理方式是「今天一起換，少跑一趟」：可以說可延後的項目也能今天一起換，但要說它是可延後。
+   近期長途行程是「有」：可延後的項目都講完後，加一句「出發前可以請專員安排再測一次」，整份摘要只講一次。
+   不要重列車主偏好清單，系統會另外接在摘要最後。
+5. 正常的項目合成一句，例如「X、Y 狀況正常，今天不用處理。」不要推銷。
+6. 句子用句號分開。sources 列出用到的每一個來源代號。itemConclusions 列出卡片上每一個檢查項目：id 填來源代號，conclusion 照抄結論。
+7. escalate 一律填 false。
+8. 不要提可選款式，也不要建議款式；recommendedOption 填空字串。
+9. 不要拿外面的保養廠和原廠比較。`;
+
+// 摘要裡第一次提到這個項目的位置；沒提到是 Infinity。其他零件（遙控器電池）、煞車距離先換成空白，位置不變。
+function firstMention(item: InspectionItem, text: string): number {
+  const blank = (m: string) => " ".repeat(m.length);
+  const t = text.replace(OTHER_PARTS, blank).replace(NOT_THE_ITEM, blank).toLowerCase();
+  return Math.min(...item.keywords.map((k) => t.indexOf(k.toLowerCase())).map((i) => (i < 0 ? Infinity : i)));
+}
+
+// 安全順序：每一個必須更換的項目，都要在第一個可延後的項目之前提到。之後再提一次（例如總結費用）不算。
+function mustComesLast(vehicle: Vehicle, answer: string): InspectionItem | undefined {
+  const by = (c: Conclusion) => vehicle.items.filter((i) => judge(i).conclusion === c);
+  const firstDeferred = Math.min(...by("可延後").map((i) => firstMention(i, answer)));
+  return by("必須更換").find((i) => firstMention(i, answer) > firstDeferred);
+}
 
 export type SummaryResult = Answer & { checkResult: "通過" | "攔下"; blockedReason?: string };
 
@@ -448,9 +485,12 @@ export function ruleSummary(vehicle: Vehicle): Answer {
 export async function summarize(vehicle: Vehicle, callAI: CallAI): Promise<SummaryResult> {
   const reply = parseReply(await callAI(SUMMARY_PROMPT, `卡片資料：\n${JSON.stringify(cardContext(vehicle), null, 2)}`));
   const missing = vehicle.items.find((i) => judge(i).conclusion !== "正常" && !mentions(i, reply.answer));
+  const late = mustComesLast(vehicle, reply.answer);
   const blockedReason = missing
     ? `摘要漏了${judge(missing).conclusion}的${missing.name}`
-    : reply.recommendedOption?.trim()
+    : late
+      ? `必須更換的${late.name}要先講`
+      : reply.recommendedOption?.trim()
       ? "檢查結果摘要不能建議款式"
       : check(vehicle, reply);
   return blockedReason
