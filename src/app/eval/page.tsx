@@ -12,8 +12,8 @@ export const metadata: Metadata = { title: "真實 AI 實測紀錄｜Trust Intel
 
 // 建置時讀 repo 裡的原始紀錄，頁面是靜態的；紀錄不見就建置失敗，不顯示假數字。頁面上的數字一律從紀錄算。
 const load = (file: string) => parseEvalLog(readFileSync(join(process.cwd(), "docs/eval/raw", file), "utf-8"));
-const FINAL = "2026-11-08_review_fix_run";
-const FINAL_NAME = "11/8 三方審查修正";
+const FINAL = "2026-11-08_final_run";
+const FINAL_NAME = "11/8 誤攔修正";
 
 const AFTER = [1, 2, 3].map((n) => ({ file: `${FINAL}${n}.log`, label: `第 ${n} 次`, ...load(`${FINAL}${n}.log`) }));
 
@@ -32,6 +32,7 @@ const ROUNDS = [
   { name: "11/7 第三輪（審查前）", prefix: "2026-11-07_pref_run" },
   { name: "11/8 審查修正後", prefix: "2026-11-08_pref_final_run" },
   { name: "11/8 王先生輪胎（#27）", prefix: "2026-11-08_wang_tire_run" },
+  { name: "11/8 三方審查修正", prefix: "2026-11-08_review_fix_run" },
   { name: FINAL_NAME, prefix: FINAL },
 ].map((r) => {
   const runs = [1, 2, 3].map((n) => load(`${r.prefix}${n}.log`));
@@ -52,11 +53,8 @@ const passesNow = (q: QuestionResult) =>
 
 const failed = AFTER.flatMap((r) => r.questions.filter((q) => !q.pass).map((q) => ({ label: r.label, q, verdict: classify(q, passesNow(q)) })));
 
-// 11/8 摘要補強（依偏好調整說法、可延後加原因）後只重跑檢查結果摘要 3 次；追問的提示詞沒變，沿用上面 3 次。
-const SUMMARY_RUNS = [1, 2, 3].map((n) => {
-  const file = `2026-11-08_summary_v2_run${n}.log`;
-  return { file, label: `摘要補強後第 ${n} 次`, ...load(file) };
-});
+// npm run eval:21 同時跑追問和檢查結果摘要，摘要也用同樣這 3 次。
+const SUMMARY_RUNS = AFTER;
 const SUMMARY_LIMIT = 150;
 // 檢查結果摘要字數：王先生的摘要最後接規則產生的偏好行，AI 寫的部分 = 合計 − 偏好行。
 const wangLine = preferenceSummaryLine(findVehicle("wang")!.preferences);
@@ -312,6 +310,7 @@ export default function EvalPage() {
           <li>11/8 審查修正：答案檢查改成先看處理時間、比較主詞和否定詞，每條規則補上該攔和不該攔的測試。</li>
           <li>11/8 王先生輪胎：輪胎改成 2.5 mm 可延後，新增第 30、31 題。第 25 題 AI 又建議最貴的長效款，被攔下（檢查是對的）。</li>
           <li>11/8 三方審查修正：第 10 題不再說「原廠統一價格」。第 28 題寫「保養的紀錄」「零件保證」被判失敗（驗收太嚴）；第 15 題講保養週期被誤攔。</li>
+          <li>11/8 誤攔修正：答案檢查不再把保養週期（「每 48 個月才需要更換」）當推銷；#15、#26、#28、#30 的驗收字詞接受同義寫法；/eval 顯示 AI 原文。第 3 次第 23 題 AI 寫「建議選擇長效款價格最低的基本款」，實際建議基本款但說法混亂，碰到不能建議長效款的檢查（沒有放寬）。</li>
           <li>10/30 改提示詞前：第 5 題漏講「3 個月後回廠提醒」，提示詞補上回廠提醒月數。</li>
         </ul>
         <table className="mt-4 w-full text-left text-sm">
