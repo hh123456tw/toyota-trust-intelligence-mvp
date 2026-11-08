@@ -30,7 +30,7 @@ export function sourceLabel(vehicle: Vehicle, key: string): string | undefined {
     const trend = item && trendText(item);
     return trend && `量測趨勢：${item.name} ${trend}`;
   }
-  if (key.startsWith("doc:")) return excerptLabel(key);
+  if (key.startsWith("doc:")) return excerptLabel(key, vehicle.model);
   if (key.startsWith("dealer:")) return dealerFactLabel(key);
   return undefined;
 }

@@ -65,6 +65,11 @@ export type Verdict = { tag: "檢查擋對了" | "誤攔" | "驗收太嚴" | "AI
 const SCHEDULE = /每\s*[\d,.一二兩三四五六七八九十百千萬]+\s*(?:個月|年|萬?\s*(?:公里|km))|依[^，,。]{0,6}(?:週期|周期|手冊)/;
 const NOW = /(?:今天|現在|馬上|立刻)[^，,。]{0,4}換/;
 const REFUSES_DEFER = /不能延後|無法延後|不可以?延後|不能等|無法[^，,。]{0,8}再換/;
+// 同一段又有沒加否定的延後說法（「但可以下個月再換」）就是自相矛盾，要人看。
+const DEFER_SAID = /延後|晚點|再換|先不換|撐到|可以等/;
+// 否定詞不含「不過」和「先不換」本身的「不」。
+const NEGATED = /不(?!過|換)|無法|別|沒/;
+const contradicts = (ai: string) => ai.split(/[，,。；;！？!?\n]/).some((c) => DEFER_SAID.test(c) && !NEGATED.test(c));
 // 這些攔下理由來自 AI 回傳的欄位（建議的款式、列出的結論），是確定的事實，不是猜字面。
 const STRUCTURAL = /預算有限，卻建議最貴|卻沒有列出它的結論|的結論應為|不在清單上|回答卻沒有提到/;
 
@@ -76,8 +81,10 @@ export function classify(q: QuestionResult, passesNow: boolean): Verdict {
     const ai = q.aiAnswer ?? "";
     if (/正常，回答卻建議更換/.test(blocked) && SCHEDULE.test(ai) && !NOW.test(ai))
       return { tag: "誤攔", why: "回答提到保養週期，被誤判成推銷" };
-    if (/必須更換，回答卻說可以延後/.test(blocked) && REFUSES_DEFER.test(ai))
+    if (/必須更換，回答卻說可以延後/.test(blocked) && REFUSES_DEFER.test(ai)) {
+      if (contradicts(ai)) return { tag: "待人工判讀", why: `回答同時說不能延後和可以延後：${blocked}` };
       return { tag: "誤攔", why: "回答其實說了不能延後，被誤判成說可以延後" };
+    }
     if (STRUCTURAL.test(blocked)) return { tag: "檢查擋對了", why: blocked };
     return { tag: "待人工判讀", why: `答案檢查攔下：${blocked}` };
   }

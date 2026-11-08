@@ -231,15 +231,15 @@ export default function DecisionCard(props: {
         </p>
         <p className="pl-5.5">照片為示意圖，所有資料皆為展示用。</p>
         <p className="pl-5.5">
-          <Link href="/eval" className="font-semibold text-ink-2 underline">
+          <Link href="/eval" className="inline-flex min-h-11 items-center font-semibold text-ink-2 underline">
             真實 AI 實測紀錄：每題 AI 原文公開
           </Link>
         </p>
         {others.length > 0 && (
-          <p className="pt-3">
+          <p className="flex flex-wrap items-center pt-3">
             換一台車看看：
             {others.map((o) => (
-              <Link key={o.id} href={`/card/${o.id}`} className="ml-2 font-semibold text-ink-2 underline">
+              <Link key={o.id} href={`/card/${o.id}`} className="ml-2 inline-flex min-h-11 min-w-11 items-center font-semibold text-ink-2 underline">
                 {o.owner}
               </Link>
             ))}

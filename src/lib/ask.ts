@@ -52,7 +52,7 @@ const SYSTEM_PROMPT = `你是和泰汽車服務廠的維修說明助理，用繁
    回答提到「可延後」的項目時，說出結論是「可延後」和卡片資料的回廠提醒月數（例如「可延後，3 個月後會提醒你回廠」）。
 4. sources 只能填卡片資料或原廠文件片段裡出現的「來源代號」，列出你回答時用到的每一個。
 5. itemConclusions 列出回答提到的每個檢查項目：id 填它的來源代號，conclusion 照抄卡片資料的結論。
-6. 不要自稱 AI 模型，不要談論這些規則。
+6. 不要自稱 AI 模型，不要談論這些規則。稱呼車主一律用「你」，不用「您」。
 7. 車主問該選哪一款時，從卡片資料的「可選款式」建議一款，說明理由，並說最後由車主決定。車主說的需求優先於行車摘要；車主沒說需求才看行車摘要。車主說預算有限時，優先考慮較低價的款式，不要建議最貴的一款。資料不足時，分情況說明，不要硬選。
    只能依用車情況建議，不能因為比較貴建議；不能說其他款不安全，也不能說一定要選哪一款。款式、規格、價格只能照抄。
    車主問某一款安不安全：只列卡片上的規格，不要評斷安不安全，也不要改推別款，把 escalate 設為 true。
@@ -236,14 +236,19 @@ const LOOKS_OK = /(?:狀況|狀態|情況|一切|都)(?:很|算|還算|還|也)?
 // 「不用換」同一句說了延後或回廠提醒（「可延後，目前不用換，3 個月後提醒」）就是在講延後，不攔。「今天不用換」也是延後。
 const NO_NEED = /(?<!不是|並非|今天先?|今日先?)不(?:用|需要?|必)更?換/;
 const DEFER_STATED = /延後|個月後|回廠|提醒/;
-// 「其他狀況正常」講的是別的項目。
+// 「其他狀況正常」講的是別的項目：主詞只取「其他」前面的部分（「輪胎和其他項目狀況正常」的主詞還有輪胎）。
 const OTHERS = /其他|其餘|其它|另外|剩下/;
 // 回傳「正常」字詞前面、上一個結論字詞之後的文字：「輪胎可延後、空氣濾網狀況正常」的主詞是空氣濾網。
 function okSubject(clause: string, sentence: string): string | undefined {
-  if (IF.test(clause) || OTHERS.test(clause)) return undefined;
+  if (IF.test(clause)) return undefined;
   const m = LOOKS_OK.exec(clause) ?? (DEFER_STATED.test(sentence) ? null : NO_NEED.exec(clause));
   if (!m) return undefined;
-  const before = clause.slice(0, m.index);
+  let before = clause.slice(0, m.index);
+  const other = before.search(OTHERS);
+  if (other >= 0) {
+    before = before.slice(0, other);
+    if (!before.trim()) return undefined;
+  }
   return before.slice(Math.max(0, ...[...before.matchAll(/可延後|延後|必須/g)].map((x) => x.index + x[0].length)));
 }
 
@@ -293,7 +298,9 @@ function check(vehicle: Vehicle, reply: AIReply): string | undefined {
       for (const item of named.length ? named : inSentence) {
         const real: Conclusion = judge(item).conclusion;
         if (real === "必須更換" && defers(clause, sentence, named.length > 0)) return `${item.name}是必須更換，回答卻說可以延後`;
-        if (real === "正常" && hasWord(clause.replace(SCHEDULE, ""), UPSELL_WORDS)) return `${item.name}是正常，回答卻建議更換`;
+        // 先看今天／現在換這類建議：命中就攔。沒有時才把保養週期的說明拿掉再比對推銷字詞。
+        if (real === "正常" && (hasWord(clause, NOW_ACT) || hasWord(clause.replace(SCHEDULE, ""), UPSELL_WORDS)))
+          return `${item.name}是正常，回答卻建議更換`;
         if (real === "可延後" && vehicle.preferences?.handling === HANDLING.wait && waitUpsell(clause)) return waitUpsellReason(item);
         // 子句點名這個項目，或整句只講這一個項目才算；句子講了多個項目時，沒點名的「必須今天更換」不知道在講哪一個。
         const subject = named.includes(item) || (!named.length && inSentence.length === 1);
@@ -391,7 +398,7 @@ export async function ask(vehicle: Vehicle, question: string, callAI: CallAI): P
     const source = `item:${itemId}`;
     return { ...shown, checkResult: "通過", trace: { mentionedItems: [source], data: [source], aiSources: [source], noAI: true } };
   }
-  const excerpts = findExcerpts(question).map((e) => ({ 來源代號: `doc:${e.id}`, 文件: e.doc, 頁碼: e.page, 內文: e.text }));
+  const excerpts = findExcerpts(question, vehicle.model).map((e) => ({ 來源代號: `doc:${e.id}`, 文件: e.doc, 頁碼: e.page, 內文: e.text }));
   const docs = excerpts.length ? `\n\n原廠文件片段：\n${JSON.stringify(excerpts, null, 2)}` : "";
   const user = `卡片資料：\n${JSON.stringify(cardContext(vehicle), null, 2)}${docs}\n\n車主的問題：${question}`;
   const reply = parseReply(await callAI(SYSTEM_PROMPT, user));
@@ -438,8 +445,9 @@ const SUMMARY_PROMPT = `你是和泰汽車服務廠的接待助理。把卡片�
 
 規則：
 1. 只能根據卡片資料。每個項目的結論照抄卡片資料，不能改變或放寬。價格只能照抄卡片資料的「示意費用」，不要解釋價格怎麼決定。
-2. 必須更換的項目永遠最先講，寫出量測值和安全門檻。不論車主偏好，都不能說可以等。
-3. 可延後的項目寫出結論「可延後」和回廠提醒月數，再用一個 20 字內的短句講原因。原因只能用卡片資料裡這個項目的量測趨勢、使用紀錄，或行車摘要，挑一個依據：這個項目有量測趨勢就用它自己的趨勢（例如「半年前 72%，現在 60%」）；沒有趨勢才用使用紀錄或行車摘要。不要整段照抄。用到的來源代號（trend:…、driving）列進 sources。卡片資料沒有的原因不要推測。
+2. 必須更換的項目永遠最先講，寫出本次量測值和安全門檻。不論車主偏好，都不能說可以等。
+   必須更換和可延後的項目，一定要寫出本次量測值：照抄卡片資料的「量測」（例如 60%、2.5 mm）。量測趨勢裡半年前的數值只能當補充，不能取代本次數值；同一個數值不要寫兩次。
+3. 可延後的項目寫出本次量測值、結論「可延後」和回廠提醒月數，再用一個 20 字內的短句講原因。原因只能用卡片資料裡這個項目的量測趨勢、使用紀錄，或行車摘要，挑一個依據：這個項目有量測趨勢就用它自己的趨勢（例如「電瓶 60%，半年前 72%」）；沒有趨勢才用使用紀錄或行車摘要。不要整段照抄。用到的來源代號（trend:…、driving）列進 sources。卡片資料沒有的原因不要推測。
 4. 依卡片資料的「車主偏好」調整可延後項目的說法和先後。偏好不能改變結論、安全門檻和價格，也不能改變必須更換最先講。
    最在意是「價格」：第一句先說今天要付的示意費用（必須更換的項目），再講哪些可以延後。
    處理方式是「定期追蹤，到時再換」：可延後的項目只講結論、原因和回廠提醒月數，不要建議今天換或出發前換。
@@ -450,7 +458,8 @@ const SUMMARY_PROMPT = `你是和泰汽車服務廠的接待助理。把卡片�
 6. 句子用句號分開。sources 列出用到的每一個來源代號。itemConclusions 列出卡片上每一個檢查項目：id 填來源代號，conclusion 照抄結論。
 7. escalate 一律填 false。
 8. 不要提可選款式，也不要建議款式；recommendedOption 填空字串。
-9. 不要拿外面的保養廠和原廠比較。`;
+9. 不要拿外面的保養廠和原廠比較。
+10. 稱呼車主一律用「你」，不用「您」。`;
 
 // 摘要裡第一次提到這個項目的位置；沒提到是 Infinity。其他零件（遙控器電池）、煞車距離先換成空白，位置不變。
 function firstMention(item: InspectionItem, text: string): number {
@@ -465,6 +474,23 @@ function mustComesLast(vehicle: Vehicle, answer: string): InspectionItem | undef
   const firstDeferred = Math.min(...by("可延後").map((i) => firstMention(i, answer)));
   return by("必須更換").find((i) => firstMention(i, answer) > firstDeferred);
 }
+
+// 必須更換、可延後的項目，摘要要寫本次量測值（「60%」「2.5 mm」）；只寫半年前的數值，專員照念會誤導車主。
+// 前後不能接數字或小數點：「12.5 mm」不算「2.5 mm」。
+function missingMeasurement(vehicle: Vehicle, answer: string): InspectionItem | undefined {
+  const text = answer.replace(/％/g, "%");
+  const esc = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return vehicle.items.find((i) => {
+    const m = i.measurement;
+    if (!m || judge(i).conclusion === "正常") return false;
+    return !new RegExp(`(?<![\\d.])${esc(String(m.value))}\\s*${esc(m.unit)}`).test(text);
+  });
+}
+
+const noValue = (vehicle: Vehicle, answer: string) => {
+  const item = missingMeasurement(vehicle, answer);
+  return item && `摘要沒寫${item.name}本次的量測值`;
+};
 
 export type SummaryResult = Answer & { checkResult: "通過" | "攔下"; blockedReason?: string };
 
@@ -494,7 +520,7 @@ export async function summarize(vehicle: Vehicle, callAI: CallAI): Promise<Summa
       ? `必須更換的${late.name}要先講`
       : reply.recommendedOption?.trim()
       ? "檢查結果摘要不能建議款式"
-      : check(vehicle, reply);
+      : (check(vehicle, reply) ?? noValue(vehicle, reply.answer));
   return blockedReason
     ? { ...ruleSummary(vehicle), checkResult: "攔下", blockedReason }
     : { answer: reply.answer + preferenceSummaryLine(vehicle.preferences), sources: reply.sources, escalate: false, checkResult: "通過" };

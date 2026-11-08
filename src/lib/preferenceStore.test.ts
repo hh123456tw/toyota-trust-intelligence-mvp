@@ -144,23 +144,45 @@ describe("storedPreferences：讀回保存的偏好", () => {
     expect(load(s, wangDefault)).toEqual({ handling: "今天一起換，少跑一趟", longTrip: "有", recentIssue: "沒有" });
   });
 
-  it("舊格式（整份以車輛為鍵）：拆成兩層，欄位都留著，11/8 改名前的舊選項換成新名稱", () => {
+  // Codex 審查：舊格式沒有工單日期，本次情況不知道是哪一張工單的，只遷移長期偏好。
+  it("舊格式（整份以車輛為鍵）：只遷移長期偏好，11/8 改名前的舊選項換成新名稱；本次情況不遷移", () => {
     const data = fakeStorage();
     const s = scope("wang-old");
-    const old = { handling: "一次處理完", priority: "耐用度", longTrip: "沒有", recentIssue: "有", issueNote: "起步有異音" };
+    const old = { handling: "一次處理完", priority: "耐用度", longTrip: "有", recentIssue: "有", issueNote: "起步有異音" };
     data.set("owner-preferences:wang-old", JSON.stringify(old));
-    expect(load(s, wangDefault)).toEqual({ ...old, handling: "今天一起換，少跑一趟" });
-    // 長期偏好跟著車主走，下次回廠還在。
-    expect(load(nextVisit(s))).toMatchObject({ handling: "今天一起換，少跑一趟", priority: "耐用度" });
+    expect(load(s)).toEqual({ handling: "今天一起換，少跑一趟", priority: "耐用度" });
+    // 換工單：長期偏好還在，舊資料的 longTrip:"有" 不出現。
+    expect(load(nextVisit(s))).toEqual({ handling: "今天一起換，少跑一趟", priority: "耐用度" });
+    // 本次情況改用預設。
+    expect(load(nextVisit(s), wangDefault)).toEqual({ handling: "今天一起換，少跑一趟", priority: "耐用度", longTrip: "有", recentIssue: "沒有" });
   });
 
-  it("舊格式的其他寫法：「能等就等」換新名稱；舊的「跳過」照樣是跳過", () => {
+  it("舊格式的其他寫法：「能等就等」換新名稱；舊的「跳過」屬於本次情況，不遷移", () => {
     const data = fakeStorage();
     data.set("owner-preferences:wang-old2", JSON.stringify({ handling: "能等就等" }));
-    expect(load(scope("wang-old2"), wangDefault)).toEqual({ handling: "定期追蹤，到時再換" });
+    expect(load(scope("wang-old2"), wangDefault)).toEqual({ handling: "定期追蹤，到時再換", longTrip: "有", recentIssue: "沒有" });
     data.set("owner-preferences:lin-old", JSON.stringify("skipped"));
-    expect(load(scope("lin-old"))).toBe("skipped");
+    expect(load(scope("lin-old"))).toBeUndefined();
   });
+
+  // Codex 審查：兩層有一層沒寫進 localStorage，就不能刪舊格式，否則重新整理後資料就不見了。
+  it.each(["owner-preferences:long:owner-wang-fail1", "owner-preferences:visit:wang-fail1:2026-09-25"])(
+    "寫入 %s 失敗：不刪舊格式",
+    (failing) => {
+      const data = fakeStorage();
+      const setItem = localStorage.setItem;
+      vi.stubGlobal("localStorage", {
+        ...localStorage,
+        setItem: (k: string, v: string) => {
+          if (k === failing) throw new Error("QuotaExceededError");
+          setItem(k, v);
+        },
+      });
+      data.set("owner-preferences:wang-fail1", JSON.stringify({ handling: "能等就等" }));
+      savePreferences(scope("wang-fail1"), { handling: "今天一起換，少跑一趟", longTrip: "有" });
+      expect(data.has("owner-preferences:wang-fail1")).toBe(true);
+    },
+  );
 
   it("新格式存過就蓋過舊格式", () => {
     const data = fakeStorage();

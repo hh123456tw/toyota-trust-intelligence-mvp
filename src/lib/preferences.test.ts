@@ -194,8 +194,17 @@ describe("preferenceLayerLines：接待摘要的偏好兩行（規則產生）",
     expect(lines.join("")).not.toContain("起步有異音");
   });
 
-  it("反例：「沒有」的本次情況不列，整行不出現", () => {
-    expect(preferenceLayerLines({ handling: "定期追蹤，到時再換", longTrip: "沒有", recentIssue: "沒有" })).toEqual(["長期偏好：定期追蹤，到時再換"]);
+  // QA L5：本次情況都選「沒有」時整行不見，看不出兩層。
+  it("本次情況都選「沒有」：仍顯示一行「近期無長途、無異常」", () => {
+    expect(preferenceLayerLines({ handling: "定期追蹤，到時再換", longTrip: "沒有", recentIssue: "沒有" })).toEqual([
+      "長期偏好：定期追蹤，到時再換",
+      "本次情況：近期無長途、無異常",
+    ]);
+    expect(preferenceLayerLines({ longTrip: "沒有" })).toEqual(["本次情況：近期無長途"]);
+  });
+
+  it("反例：本次情況沒填就不出現這一行", () => {
+    expect(preferenceLayerLines({ handling: "定期追蹤，到時再換" })).toEqual(["長期偏好：定期追蹤，到時再換"]);
   });
 
   it("反例：沒填長期偏好時不出現長期偏好行；沒有偏好時一行都沒有", () => {

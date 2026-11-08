@@ -52,10 +52,10 @@ describe("receptionSummary：接待摘要（規則產生）", () => {
     for (const word of ["長期偏好", "本次情況", "車主偏好"]) expect(t).not.toContain(word);
   });
 
-  it("反例：本次沒有長途行程、沒有異常時，只列長期偏好", () => {
+  it("本次沒有長途行程、沒有異常時，本次情況仍列一行（QA L5）", () => {
     const t = text({ ...wang, preferences: { ...wang.preferences, longTrip: "沒有" } });
     expect(t).toContain("長期偏好：定期追蹤，到時再換、最在意價格");
-    expect(t).not.toContain("本次情況");
+    expect(t).toContain("本次情況：近期無長途、無異常");
   });
 
   it("反例：追問次數未達門檻時不出現「先講價格」，紀錄照列", () => {

@@ -28,6 +28,8 @@ export default function Workbench(props: {
   const [items, setItems] = useState(vehicle.items);
   const [entries, setEntries] = useState<FlowEntry[]>([]);
   const [errors, setErrors] = useState<Record<string, string | null>>({});
+  // 最後改值的項目：在輸入框旁直接標「AI 呼叫 0 次」，桌機不用捲到流程面板才看得到（QA L1）。
+  const [recalced, setRecalced] = useState<string | null>(null);
   // 只在量測值改變時重算；DecisionCard 用 items 是否換了來判斷要不要清掉舊選擇。
   // 和車主手機畫面讀同一份保存的偏好：接待摘要直接用，檢查結果摘要帶著送出。
   const { preferences } = useOwnerPreferences(vehicle);
@@ -48,6 +50,7 @@ export default function Workbench(props: {
     if (before.value === value) return;
     const next = withMeasurement(items, item.id, value);
     setItems(next);
+    setRecalced(item.id);
     setEntries((prev) => [
       ...prev,
       {
@@ -72,7 +75,7 @@ export default function Workbench(props: {
               {vehicle.technician}・{vehicle.plate}
             </h1>
           </div>
-          <p className="w-full text-sm text-white/80 sm:w-auto sm:max-w-72 sm:text-right">改量測值，決策卡的結論立刻由規則引擎重算。</p>
+          <p className="w-full text-sm text-balance text-white/80 sm:w-auto sm:max-w-72 sm:text-right">改量測值，決策卡的結論立刻由規則引擎重算。</p>
         </div>
 
         <section aria-labelledby="reception-title" className="space-y-3">
@@ -133,6 +136,11 @@ export default function Workbench(props: {
                       />
                       <span className="w-7 text-muted">{i.measurement!.unit}</span>
                     </span>
+                    {recalced === i.id && !error && (
+                      <span role="status" className="w-full text-right text-xs font-semibold text-muted">
+                        規則重算・AI 呼叫 0 次
+                      </span>
+                    )}
                     {error && (
                       <span id={`error-${i.id}`} role="alert" className="w-full text-right text-sm font-semibold text-must">
                         {error}。結論維持 {current.value} {current.unit} 的結果。

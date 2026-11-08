@@ -44,15 +44,18 @@ function readKey(key: string): string | null {
   }
 }
 
-function writeKey(key: string, raw: string | null) {
+// 回傳有沒有寫進 localStorage。
+function writeKey(key: string, raw: string | null): boolean {
   try {
     if (!globalThis.localStorage) throw new Error("沒有 localStorage");
     if (raw === null) globalThis.localStorage.removeItem(key);
     else globalThis.localStorage.setItem(key, raw);
     memory.delete(key);
+    return true;
   } catch {
     // 存不了就只留在這次的頁面；重新整理後回到預設。
     memory.set(key, raw);
+    return false;
   }
 }
 
@@ -68,9 +71,10 @@ export function savePreferences(scope: PreferenceScope, value: OwnerPreferences 
     writeKey(k.visit, JSON.stringify(value));
   } else {
     const { long, visit } = splitPreferences(value);
-    writeKey(k.long, JSON.stringify(long));
-    writeKey(k.visit, JSON.stringify(visit));
-    writeKey(k.legacy, null);
+    const savedLong = writeKey(k.long, JSON.stringify(long));
+    const savedVisit = writeKey(k.visit, JSON.stringify(visit));
+    // 兩層都寫進去才刪舊格式；有一層沒寫進去，重新整理後還要靠舊格式。
+    if (savedLong && savedVisit) writeKey(k.legacy, null);
   }
   listeners.forEach((l) => l());
 }
@@ -111,8 +115,8 @@ function parseLayer(raw: unknown, layer: PreferenceLayer): StoredPreferences | n
   return v && Object.keys(v).every((k) => allowed.includes(k)) ? v : null;
 }
 
-// 合成一份給畫面和 API 用的偏好。每一層各自決定：新格式 → 舊格式拆出來的那一層 → 預設（vehicles.ts，示意：車主檔已有的偏好）。
-// shortcut: 舊格式沒有工單日期，存過新格式前，舊資料的本次情況會跟到下一張工單；示意資料不會換工單，正式版沒有舊格式。
+// 合成一份給畫面和 API 用的偏好。長期偏好：新格式 → 舊格式 → 預設（vehicles.ts，示意：車主檔已有的偏好）。
+// 本次情況：新格式 → 預設。舊格式沒有工單日期，不知道是哪一張工單的，本次情況（含「跳過」）不遷移。
 export function storedPreferences(snapshot: string | null, fallback: OwnerPreferences | undefined): StoredPreferences {
   let raws: unknown = [];
   try {
@@ -123,7 +127,7 @@ export function storedPreferences(snapshot: string | null, fallback: OwnerPrefer
   const old = typeof legacy === "object" && legacy ? splitPreferences(legacy) : undefined;
   const def = splitPreferences(fallback);
   const long = parseLayer(longRaw, "long") ?? old?.long ?? def.long;
-  const visit = parseLayer(visitRaw, "visit") ?? (legacy === "skipped" ? legacy : old?.visit) ?? def.visit;
+  const visit = parseLayer(visitRaw, "visit") ?? def.visit;
   const visitPrefs = typeof visit === "object" ? visit : undefined;
   if (typeof long !== "object" && !visitPrefs) return visit;
   return { ...(typeof long === "object" ? long : {}), ...visitPrefs };

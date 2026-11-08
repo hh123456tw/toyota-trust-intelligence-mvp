@@ -3,14 +3,15 @@ import { ask, simulateTampered, summarize } from "@/lib/ask";
 import { applyMeasurements } from "@/lib/card";
 import { callGemini } from "@/lib/gemini";
 import { applyPreferences } from "@/lib/preferences";
-import { createRateLimiter, limitFromEnv } from "@/lib/rateLimit";
+import { createRateLimiter, limitFromEnv, PER_IP_WITHOUT_ID, PER_VISITOR } from "@/lib/rateLimit";
 import { findVehicle } from "@/lib/vehicles";
 
 const MAX_QUESTION_LENGTH = 200;
 // 決賽現場多人共用同一個 Wi-Fi（同一個 IP）：IP 上限放寬，單一人狂刷由訪客上限擋。
 const rateLimited = createRateLimiter({
   perIp: limitFromEnv(process.env.ASK_LIMIT_PER_IP_PER_MINUTE),
-  perVisitor: 20,
+  perVisitor: PER_VISITOR,
+  perIpWithoutId: PER_IP_WITHOUT_ID,
 });
 
 export async function POST(request: NextRequest) {

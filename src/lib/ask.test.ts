@@ -59,6 +59,22 @@ describe("ask：答案檢查（補強與來源）", () => {
     expect((await ask(wang, "空氣濾網真的不用換嗎？", fakeAI(filter(answer)))).checkResult).toBe("通過");
   });
 
+  // Codex 審查：保養週期的豁免不能把同一子句的「今天換」一起放過。
+  it.each(["空氣濾網正常，依手冊建議今天換。", "空氣濾網正常，每 4 萬公里建議現在換。", "空氣濾網依手冊週期今天換掉。"])(
+    "正常項目講週期又叫車主今天換「%s」→ 攔下",
+    async (answer) => {
+      const r = await ask(wang, "空氣濾網呢？", fakeAI(filter(answer)));
+      expect(r.blockedReason).toBe("空氣濾網是正常，回答卻建議更換");
+    },
+  );
+
+  it.each(["空氣濾網正常，依手冊每 4 萬公里更換，今天不用換。", "空氣濾網正常，每 48 個月更換一次，現在還不需要換。"])(
+    "反例：純粹講週期、說今天不用換「%s」→ 通過",
+    async (answer) => {
+      expect((await ask(wang, "空氣濾網呢？", fakeAI(filter(answer)))).checkResult).toBe("通過");
+    },
+  );
+
   it.each(["空氣濾網每 48 個月更換，不過建議今天換。", "空氣濾網現在換比較好。", "空氣濾網正常，每 4 萬公里更換，但現在換比較好。"])(
     "正常項目建議現在換「%s」→ 攔下",
     async (answer) => {
@@ -421,6 +437,21 @@ describe("ask：偏好名稱與可延後項目（#27 審查）", () => {
   });
 });
 
+describe("ask：車主手冊依車型（QA M1）", () => {
+  it("林小姐（YARIS CROSS）問輪胎：給 AI 的資料沒有 COROLLA CROSS 手冊；AI 硬引用也不算合法來源", async () => {
+    let user = "";
+    const r = await ask(lin, "我預算有限，輪胎選哪款？", async (_s, u) => {
+      user = u;
+      return JSON.stringify(reply("輪胎可以參考胎紋磨耗指示。", { sources: ["item:tire", "doc:owner-tire-check"] }));
+    });
+    expect(r.trace.data.filter((d) => d.startsWith("doc:owner-"))).toEqual([]);
+    expect(user).not.toContain("COROLLA CROSS 車主手冊");
+    expect(sourceLabel(lin, "doc:owner-tire-check")).toBeUndefined();
+    // 反例：王先生（COROLLA CROSS）照樣拿到。
+    expect(sourceLabel(wang, "doc:owner-tire-check")).toBe("COROLLA CROSS 車主手冊 p.231");
+  });
+});
+
 describe("ask：可延後被說成正常（11/8 審查）", () => {
   const tire = (answer: string) =>
     reply(answer, { sources: ["item:tire"], itemConclusions: [{ id: "item:tire", conclusion: "可延後" }] });
@@ -430,6 +461,21 @@ describe("ask：可延後被說成正常（11/8 審查）", () => {
       const r = await ask(wang, "輪胎呢？", fakeAI(tire(answer)));
       expect(r.checkResult, answer).toBe("攔下");
       expect(r.blockedReason, answer).toBe("輪胎胎紋是可延後，回答卻說正常");
+    }
+  });
+
+  // Codex 審查：子句有「其他」時，只排除「其他」指的那部分，點名的輪胎照樣檢查。
+  it("輪胎和其他項目一起被說成正常 → 攔下", async () => {
+    for (const answer of ["輪胎和其他項目狀況正常。", "輪胎跟其他項目都正常。"]) {
+      const r = await ask(wang, "輪胎呢？", fakeAI(tire(answer)));
+      expect(r.blockedReason, answer).toBe("輪胎胎紋是可延後，回答卻說正常");
+    }
+  });
+
+  it("反例：真的只講其他項目正常 → 不攔", async () => {
+    for (const answer of ["輪胎可延後，3 個月後提醒回廠。其他項目都正常。", "輪胎可延後。其他項目狀況正常。"]) {
+      const r = await ask(wang, "輪胎呢？", fakeAI(tire(answer)));
+      expect(r.checkResult, answer).toBe("通過");
     }
   });
 

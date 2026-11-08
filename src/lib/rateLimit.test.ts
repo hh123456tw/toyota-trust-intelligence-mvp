@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { createRateLimiter, limitFromEnv } from "./rateLimit";
 
-function setup(perIp: number, perVisitor: number) {
+function setup(perIp: number, perVisitor: number, perIpWithoutId = perIp) {
   let t = 1_000_000;
-  const limited = createRateLimiter({ perIp, perVisitor, now: () => t });
+  const limited = createRateLimiter({ perIp, perVisitor, perIpWithoutId, now: () => t });
   return { limited, tick: (ms: number) => (t += ms) };
 }
 
@@ -36,6 +36,24 @@ describe("提問限流：每個 IP 與每個訪客", () => {
     times(10, () => limited("1.1.1.1", "spam")); // 全部被擋
     expect(times(2, () => limited("1.1.1.1", "judge"))).toEqual([false, false]);
     expect(limited("1.1.1.1", "other")).toBe(true); // IP 合計 5 次已滿
+  });
+
+  // Codex 審查：省略 id 就能用完整 IP 額度。沒帶或格式不對的 id 改走較緊的「無 id 共用桶」。
+  it("沒帶 id 或格式不對：同 IP 共用較緊的無 id 上限，有 id 的人照常用 IP 額度", () => {
+    const { limited } = setup(10, 5, 3);
+    expect([limited("1.1.1.1"), limited("1.1.1.1", "a b"), limited("1.1.1.1", "x".repeat(65))]).toEqual([false, false, false]);
+    expect(limited("1.1.1.1")).toBe(true);
+    expect(limited("1.1.1.1", "")).toBe(true);
+    // 反例：同 IP 有合法 id 的訪客不受無 id 上限影響；別的 IP 的無 id 桶是分開的。
+    expect(limited("1.1.1.1", "judge")).toBe(false);
+    expect(limited("2.2.2.2")).toBe(false);
+  });
+
+  it("無 id 的次數也算進 IP 合計", () => {
+    const { limited } = setup(4, 5, 3);
+    times(3, () => limited("1.1.1.1"));
+    expect(limited("1.1.1.1", "a")).toBe(false);
+    expect(limited("1.1.1.1", "b")).toBe(true); // IP 合計 4 次已滿
   });
 
   it("沒帶訪客 id 或 id 格式不對：只套 IP 上限", () => {

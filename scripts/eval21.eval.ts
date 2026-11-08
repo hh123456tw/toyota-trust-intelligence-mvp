@@ -6,6 +6,7 @@ import { POST } from "@/app/api/ask/route";
 import { sourceLabel, presetsFor } from "@/lib/answers";
 import { ask } from "@/lib/ask";
 import { callGemini } from "@/lib/gemini";
+import { limitFromEnv, PER_IP_WITHOUT_ID, PER_VISITOR } from "@/lib/rateLimit";
 import { applyPreferences } from "@/lib/preferences";
 import { findVehicle } from "@/lib/vehicles";
 import { checkCase, parseQuestions } from "./questions";
@@ -26,10 +27,10 @@ async function withoutKey<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-function post(question: string, ip: string) {
+function post(question: string, ip: string, visitorId?: string) {
   const req = new Request("http://local/api/ask", {
     method: "POST",
-    headers: { "x-forwarded-for": ip },
+    headers: { "x-forwarded-for": ip, ...(visitorId ? { "x-visitor-id": visitorId } : {}) },
     body: JSON.stringify({ vehicleId: "wang", question }),
   });
   return POST(req as never);
@@ -71,16 +72,29 @@ describe("21 題實測", () => {
     }
   });
 
+  // 拔掉金鑰跑：沒被擋的請求回 503，不會呼叫 Gemini。上限讀和 API 路由同一份設定，不寫死。
+  // 細部規則（被擋不計次、無 id 桶、一分鐘恢復）由 src/lib/rateLimit.test.ts 涵蓋。
   it("#21 一分鐘內連問很多次：觸發次數限制，回友善提示", async () => {
-    const statuses: number[] = [];
-    let last: Response | undefined;
-    await withoutKey(async () => {
-      for (let i = 0; i < 62; i++) { // 上限每分鐘 60 次
-        last = await post("煞車狀況怎麼樣？", "eval-21");
-        statuses.push(last.status);
-      }
-    });
-    expect(statuses.at(-1)).toBe(429);
-    expect((await last!.json()).error).toMatch(/稍等/);
+    const statuses = (ip: string, n: number, id: (i: number) => string | undefined) =>
+      withoutKey(async () => {
+        const out: { status: number; error: string }[] = [];
+        for (let i = 0; i < n; i++) {
+          const res = await post("煞車狀況怎麼樣？", ip, id(i));
+          out.push({ status: res.status, error: (await res.json()).error });
+        }
+        return out;
+      });
+    // 每個訪客：第 PER_VISITOR + 1 次被擋。
+    const visitor = await statuses("eval-21-v", PER_VISITOR + 1, () => "eval-21-visitor");
+    expect(visitor.slice(0, -1).every((r) => r.status === 503)).toBe(true);
+    expect(visitor.at(-1)).toMatchObject({ status: 429, error: expect.stringMatching(/稍等/) });
+    // 沒帶訪客 id：同 IP 共用的無 id 上限。
+    const noId = await statuses("eval-21-n", PER_IP_WITHOUT_ID + 1, () => undefined);
+    expect(noId.at(-1)?.status).toBe(429);
+    // 每個 IP：每個訪客都沒超過自己的上限，同 IP 合計超過就被擋。
+    const perIp = limitFromEnv(process.env.ASK_LIMIT_PER_IP_PER_MINUTE);
+    const ipRun = await statuses("eval-21-ip", perIp + 1, (i) => `eval-21-ip-${Math.floor(i / PER_VISITOR)}`);
+    expect(ipRun.slice(0, -1).every((r) => r.status === 503)).toBe(true);
+    expect(ipRun.at(-1)?.status).toBe(429);
   });
 });

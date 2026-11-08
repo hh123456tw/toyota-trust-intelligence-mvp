@@ -88,7 +88,9 @@ export function preferenceLabels(p: OwnerPreferences, layer?: PreferenceLayer): 
 export function preferenceLayerLines(p: OwnerPreferences | undefined): string[] {
   if (!p) return [];
   const long = [p.handling, p.priority && `最在意${p.priority}`].filter(Boolean);
-  const visit = [p.longTrip === "有" && "近期有長途行程", p.recentIssue === "有" && "最近有異常，請技師確認"].filter(Boolean);
+  const asked = [p.longTrip === "有" && "近期有長途行程", p.recentIssue === "有" && "最近有異常，請技師確認"].filter(Boolean);
+  // 都選「沒有」時仍留這一行，兩層的結構才看得到。
+  const visit = asked.length ? asked : [p.longTrip === "沒有" && "近期無長途", p.recentIssue === "沒有" && "無異常"].filter(Boolean);
   return [long.length ? `長期偏好：${long.join("、")}` : "", visit.length ? `本次情況：${visit.join("、")}` : ""].filter(Boolean);
 }
 

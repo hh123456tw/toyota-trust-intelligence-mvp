@@ -86,6 +86,19 @@ describe("classify：沒過的題目分類", () => {
     expect(classify(q(["被攔下：輪胎胎紋是必須更換，回答卻說可以延後"], "輪胎下個月再換也可以。"), false).tag).toBe("待人工判讀");
   });
 
+  // Codex 審查：原文同時說不能延後又說可以晚點換，是自相矛盾，要人看，不能判誤攔。
+  it("原文說不能延後、又說可以晚點換 → 待人工判讀", () => {
+    const blocked = ["被攔下：煞車來令片是必須更換，回答卻說可以延後"];
+    for (const ai of ["煞車不能延後，但可以下個月再換。", "煞車無法延後。不過先不換也行，下次再處理。"])
+      expect(classify(q(blocked, ai), false).tag, ai).toBe("待人工判讀");
+  });
+
+  it("反例：原文只說不能延後（含「不建議延後」這類否定）→ 誤攔", () => {
+    const blocked = ["被攔下：煞車來令片是必須更換，回答卻說可以延後"];
+    for (const ai of ["煞車不能延後，今天要換。", "煞車無法延後，也不建議延後到下個月。"])
+      expect(classify(q(blocked, ai), false).tag, ai).toBe("誤攔");
+  });
+
   it("預算有限卻建議最貴、沒列出必須更換的結論 → 檢查擋對了", () => {
     for (const f of ["2026-11-07_pref_run2.log", "2026-11-08_wang_tire_run3.log", "2026-11-07_pref_fix1_run2.log"]) {
       const failed = parseEvalLog(raw(f)).questions.find((x) => x.aiAnswer)!;

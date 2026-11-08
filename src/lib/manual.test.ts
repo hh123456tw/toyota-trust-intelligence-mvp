@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { EXCERPTS, excerptLabel, findExcerpts } from "./manual";
 
-const ids = (q: string) => findExcerpts(q).map((e) => e.id);
+const ids = (q: string) => findExcerpts(q, "TOYOTA COROLLA CROSS").map((e) => e.id);
 
 describe("原廠文件片段：關鍵字比對", () => {
   it("問結帳 → 挑到結帳片段", () => {
@@ -14,7 +14,19 @@ describe("原廠文件片段：關鍵字比對", () => {
 
   it("問電瓶多久檢查 → 挑到車主手冊的電瓶保養週期，來源標示文件名和頁碼", () => {
     expect(ids("電瓶多久要檢查一次？")).toContain("owner-battery-interval");
-    expect(excerptLabel("doc:owner-battery-interval")).toBe("COROLLA CROSS 車主手冊 p.216");
+    expect(excerptLabel("doc:owner-battery-interval", "TOYOTA COROLLA CROSS")).toBe("COROLLA CROSS 車主手冊 p.216");
+  });
+
+  // QA M1：林小姐開 YARIS CROSS，不能拿到 COROLLA CROSS 車主手冊的頁碼。
+  it("別的車型 → 不挑 COROLLA CROSS 車主手冊，流程手冊照挑；來源標籤也不給", () => {
+    const yaris = (q: string) => findExcerpts(q, "TOYOTA YARIS CROSS").map((e) => e.id);
+    for (const q of ["我預算有限，輪胎選哪款？", "電瓶多久要檢查一次？", "煞車下個月再換可以嗎？"])
+      expect(yaris(q).filter((id) => id.startsWith("owner-")), q).toEqual([]);
+    expect(yaris("結帳可以用 Point 折抵嗎？")).toEqual(["checkout"]);
+    expect(excerptLabel("doc:owner-tire-check", "TOYOTA YARIS CROSS")).toBeUndefined();
+    expect(excerptLabel("doc:checkout", "TOYOTA YARIS CROSS")).toBe("回廠服務流程手冊 p.9");
+    // 反例：COROLLA CROSS 照樣拿得到。
+    expect(findExcerpts("輪胎可以撐到下次保養嗎？", "TOYOTA COROLLA CROSS").map((e) => e.id)).toContain("owner-tire-replace");
   });
 
   it.each([

@@ -16,6 +16,9 @@ export type Excerpt = {
 
 const DOC = "回廠服務流程手冊";
 const OWNER = "COROLLA CROSS 車主手冊";
+// 車主手冊只適用一種車型；不在這張表的文件（回廠服務流程手冊）各車型通用。別的車型不給這份手冊，避免引用錯車型的頁碼。
+const MANUAL_MODEL: Record<string, string> = { [OWNER]: "TOYOTA COROLLA CROSS" };
+const fitsModel = (e: Excerpt, model: string) => !Object.hasOwn(MANUAL_MODEL, e.doc) || MANUAL_MODEL[e.doc] === model;
 const TABLE_HEAD =
   "保養操作：I = 檢查、修正、清潔或視需要更換 R = 更換、變更或潤滑\n保養間隔：里程表讀數 月數(里程表讀數或月數，以先到者為準。) x1,000 km 10 20 30 40 50 60 70 80";
 
@@ -171,13 +174,13 @@ export function hasKeyword(text: string, keywords: string[]): boolean {
   return keywords.some((k) => t.includes(k.toLowerCase()));
 }
 
-export function findExcerpts(question: string): Excerpt[] {
+export function findExcerpts(question: string, model: string): Excerpt[] {
   const q = question.replace(OTHER_PARTS, "");
-  return EXCERPTS.filter((e) => hasKeyword(q, e.keywords));
+  return EXCERPTS.filter((e) => fitsModel(e, model) && hasKeyword(q, e.keywords));
 }
 
-// 來源代號 doc:<片段 id> 的顯示文字；片段不存在回傳 undefined。
-export function excerptLabel(key: string): string | undefined {
-  const e = EXCERPTS.find((x) => `doc:${x.id}` === key);
+// 來源代號 doc:<片段 id> 的顯示文字；片段不存在或不適用這個車型時回傳 undefined。
+export function excerptLabel(key: string, model: string): string | undefined {
+  const e = EXCERPTS.find((x) => `doc:${x.id}` === key && fitsModel(x, model));
   return e && `${e.doc} p.${e.page}`;
 }

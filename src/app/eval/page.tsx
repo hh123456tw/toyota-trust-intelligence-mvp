@@ -53,8 +53,9 @@ const passesNow = (q: QuestionResult) =>
 
 const failed = AFTER.flatMap((r) => r.questions.filter((q) => !q.pass).map((q) => ({ label: r.label, q, verdict: classify(q, passesNow(q)) })));
 
-// npm run eval:21 同時跑追問和檢查結果摘要，摘要也用同樣這 3 次。
-const SUMMARY_RUNS = AFTER;
+// 11/8 QA 後摘要提示詞改了（一定寫本次量測值），只重跑摘要 3 次（scripts/summary.eval.ts）。
+const SUMMARY = "2026-11-08_summary_v3_run";
+const SUMMARY_RUNS = [1, 2, 3].map((n) => ({ file: `${SUMMARY}${n}.log`, label: `第 ${n} 次`, ...load(`${SUMMARY}${n}.log`) }));
 const SUMMARY_LIMIT = 150;
 // 檢查結果摘要字數：王先生的摘要最後接規則產生的偏好行，AI 寫的部分 = 合計 − 偏好行。
 const wangLine = preferenceSummaryLine(findVehicle("wang")!.preferences);
@@ -251,7 +252,7 @@ export default function EvalPage() {
 
       <Fold title="檢查結果摘要原文">
         <p className="text-sm text-muted">
-          11/8 補強提示詞：必須更換永遠先講；可延後的項目加一句原因；依車主偏好調整說法。結論、門檻、價格不能改。王先生的摘要最後一行「{wangLine}」由規則產生，不交給 AI。AI 寫的部分{" "}
+          11/8 補強提示詞：必須更換永遠先講；可延後的項目加一句原因；依車主偏好調整說法。結論、門檻、價格不能改。QA 後再補：必須更換和可延後的項目一定寫本次量測值，只寫半年前的數值就攔下、改用規則版。王先生的摘要最後一行「{wangLine}」由規則產生，不交給 AI。AI 寫的部分{" "}
           {range(wangChars.map((c) => c - wangLine.length))} 字，{wangChars.length} 次中有 {overLimit} 次超過 {SUMMARY_LIMIT} 字。林小姐 {range(linChars)} 字。
         </p>
         <ul className="mt-3 space-y-2">
@@ -304,7 +305,7 @@ export default function EvalPage() {
           </tbody>
         </table>
         <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-muted">
-          <li>11/7 第一輪：第 25 題被誤攔（AI 說「輪胎無法下個月再換」是對的）；第 27 題 AI 對選了能等就等的王先生說「建議在出遠門前處理」。修正答案檢查和提示詞。</li>
+          <li>11/7 第一輪：第 25 題被誤攔（AI 說「輪胎無法下個月再換」是對的）；第 27 題 AI 對選了「能等就等」（11/8 前的選項名）的王先生說「建議在出遠門前處理」。修正答案檢查和提示詞。</li>
           <li>11/7 第二輪：第 12 題 AI 提到煞車卻沒列出煞車的結論，被攔下（檢查是對的）。提示詞補上這條。</li>
           <li>11/7 第三輪：第 23 題林小姐說預算有限，AI 還建議最貴的長效款，被攔下（檢查是對的）。</li>
           <li>11/8 審查修正：答案檢查改成先看處理時間、比較主詞和否定詞，每條規則補上該攔和不該攔的測試。</li>

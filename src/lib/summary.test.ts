@@ -51,6 +51,29 @@ describe("summarize：檢查結果摘要", () => {
     expect(r.blockedReason).toBe("摘要漏了可延後的電瓶");
   });
 
+  // QA M2：摘要只寫半年前的 72%、3.1 mm，專員照念會誤導車主。
+  it.each([
+    ["電瓶只寫半年前數值", GOOD.replace("電瓶健康度 60%", "電瓶半年前 72%"), "電瓶"],
+    ["輪胎只寫半年前數值", GOOD.replace("輪胎胎紋 2.5 mm", "輪胎胎紋半年前 3.1 mm"), "輪胎胎紋"],
+    ["煞車沒寫量測值", GOOD.replace("前煞車來令片量測 2 mm，低於安全門檻 3 mm", "前煞車來令片低於安全門檻 3 mm"), "前煞車來令片"],
+  ])("%s → 攔下，改顯示規則版", async (_name, answer, item) => {
+    const r = await summarize(wang, fakeAI(answer));
+    expect(r).toMatchObject({ checkResult: "攔下", blockedReason: `摘要沒寫${item}本次的量測值` });
+    expect(r.answer).toBe(ruleSummary(wang).answer);
+  });
+
+  it.each([
+    ["趨勢當補充、本次數值有寫", GOOD.replace("電瓶健康度 60%", "電瓶半年前 72%，現在 60%")],
+    ["全形百分號、數字和單位黏在一起", GOOD.replace("60%", "60％").replace("2.5 mm", "2.5mm")],
+  ])("反例：%s → 通過", async (_name, answer) => {
+    expect((await summarize({ ...wang, preferences: undefined }, fakeAI(answer))).checkResult).toBe("通過");
+  });
+
+  it("反例：數字只是別的數字的一部分（12.5 mm 不算 2.5 mm）→ 攔下", async () => {
+    const r = await summarize(wang, fakeAI(GOOD.replace("輪胎胎紋 2.5 mm", "輪胎胎紋 12.5 mm")));
+    expect(r.blockedReason).toBe("摘要沒寫輪胎胎紋本次的量測值");
+  });
+
   it("AI 呼叫丟錯 → 丟錯，不回傳假摘要", async () => {
     await expect(
       summarize(wang, async () => {

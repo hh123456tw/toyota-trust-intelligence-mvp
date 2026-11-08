@@ -14,7 +14,7 @@ export function visitorId(): string {
     try {
       fallback ||= crypto.randomUUID();
     } catch {
-      return ""; // 非 https 等環境沒有 randomUUID：不帶 id，伺服器只套 IP 上限
+      return ""; // 非 https 等環境沒有 randomUUID：不帶 id，伺服器改套同 IP 共用的無 id 上限
     }
     return fallback;
   }
