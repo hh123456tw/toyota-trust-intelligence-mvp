@@ -11,10 +11,10 @@ export const metadata: Metadata = { title: "真實 AI 實測紀錄｜Trust Intel
 
 // 建置時讀 repo 裡的原始紀錄，頁面是靜態的；紀錄不見就建置失敗，不顯示假數字。頁面上的數字一律從紀錄算。
 const load = (file: string) => parseEvalLog(readFileSync(join(process.cwd(), "docs/eval/raw", file), "utf-8"));
-const FINAL = "2026-11-08_wang_tire_run";
+const FINAL = "2026-11-08_review_fix_run";
 
 const RUNS = [
-  // 10/30 免費版發現第 5 題的問題、改了提示詞（簡報講稿用到這次）；11/7 加入車主偏好後第一輪的第 1 次；最後是 11/8 王先生改展示輪胎（#27）後的 3 次。
+  // 10/30 免費版發現第 5 題的問題、改了提示詞（簡報講稿用到這次）；11/7 加入車主偏好後第一輪的第 1 次；最後是 11/8 三方審查修正後的 3 次。
   { file: "2026-10-30_run0_before-prompt-fix.log", label: "10/30 改提示詞前" },
   { file: "2026-11-07_pref_before-fix_run1.log", label: "11/7 修正前" },
   ...[1, 2, 3].map((n) => ({ file: `${FINAL}${n}.log`, label: `第 ${n} 次` })),
@@ -26,7 +26,8 @@ const ROUNDS = [
   { name: "11/7 第二輪", prefix: "2026-11-07_pref_fix1_run" },
   { name: "11/7 第三輪（審查前）", prefix: "2026-11-07_pref_run" },
   { name: "11/8 審查修正後", prefix: "2026-11-08_pref_final_run" },
-  { name: "11/8 王先生輪胎（#27）", prefix: FINAL },
+  { name: "11/8 王先生輪胎（#27）", prefix: "2026-11-08_wang_tire_run" },
+  { name: "11/8 三方審查修正", prefix: FINAL },
 ].map((r) => {
   const runs = [1, 2, 3].map((n) => load(`${r.prefix}${n}.log`));
   const sum = (f: (x: (typeof runs)[number]) => number) => runs.reduce((n, x) => n + f(x), 0);
@@ -115,14 +116,14 @@ export default function EvalPage() {
       </p>
       <h1 className="mt-2 text-2xl font-bold">用真的 Gemini 連跑 3 次，不挑最好的一次</h1>
       <p className="mt-2 text-sm text-muted">
-        2026-11-08 王先生改展示輪胎（胎紋 2.5 mm 可延後，#27）、偏好選項改名後，模型 gemini-3.5-flash-lite（付費版，和正式站相同）。真的 AI 每次回答都不一樣，所以同一份題目連跑多次，用通過率說話。
+        2026-11-08 三方審查修正後（價格不解釋怎麼決定、可延後被說成正常要攔、技師改值後攔下改轉專員；王先生輪胎 2.5 mm 可延後），模型 gemini-3.5-flash-lite（付費版，和正式站相同）。真的 AI 每次回答都不一樣，所以同一份題目連跑多次，用通過率說話。
         王先生的車用預設偏好（定期追蹤，到時再換、最在意價格、下週載家人長途；11/8 前選項叫「能等就等」）。「10/30 改提示詞前」和「11/7 修正前」是之前沒全過的紀錄，留著說明修了什麼。
         下面每一題的回答都是 AI 的原文，取自原始紀錄。
       </p>
 
       <dl className="mt-6 grid grid-cols-2 gap-3">
         <div className="rounded-2xl border border-line bg-white p-4">
-          <dt className="text-xs text-muted">真實 Gemini 追問（#27 後）</dt>
+          <dt className="text-xs text-muted">真實 Gemini 追問（審查修正後）</dt>
           <dd className="mt-1 text-2xl font-bold text-brand">
             {aiPassed} / {aiPerRun * AFTER.length}
           </dd>
@@ -131,7 +132,7 @@ export default function EvalPage() {
           </dd>
         </div>
         <div className="rounded-2xl border border-line bg-white p-4">
-          <dt className="text-xs text-muted">檢查結果摘要（#27 後）</dt>
+          <dt className="text-xs text-muted">檢查結果摘要（審查修正後）</dt>
           <dd className="mt-1 text-2xl font-bold text-brand">
             {summaryPassed} / {summaryTotal}
           </dd>
@@ -216,14 +217,18 @@ export default function EvalPage() {
         <li>
           11/8 王先生輪胎（#27）：王先生的輪胎改成 2.5 mm 可延後，新增第 30、31 題。第 3 次的第 25 題林小姐說預算有限，AI 又建議最貴的長效款，被答案檢查攔下、轉專員（檢查是對的），和第三輪同一個問題，沒有修。
         </li>
+        <li>
+          11/8 三方審查修正：#27 那輪第 10 題三次都說「原廠統一／固定標準價格」，提示詞改成只說示意費用和「實際以服務廠報價為準」，第 10 題加上不能出現這類說法的檢查；答案檢查補上「可延後被說成正常」；技師改過量測值時，攔下後改轉專員，不用寫死舊數值的預寫回答。
+          重跑 3 次：第 10 題 3 次都沒再出現。第 1 次第 28 題 AI 寫「保養的紀錄」「零件保證」，題目要求的字詞是「保養紀錄」「零件保固」，內容方向對但沒過，還多加一句不相關的「實際以服務廠報價為準」；第 2 次第 15 題 AI 寫「空氣濾網每 48 個月才需要更換」，被既有的推銷檢查當成建議更換、攔下改顯示預寫回答（誤攔，沒有修）。
+        </li>
         <li>10/30 改提示詞前：第 5 題結論正確，但漏講「3 個月後回廠提醒」，提示詞補上回廠提醒月數。</li>
       </ul>
       <div className="mt-3 rounded-xl bg-paper px-3 py-2 text-sm text-muted">
         {failedAfter.length === 0 ? (
-          <p>#27 後的 3 次，真實 Gemini 追問全部通過。</p>
+          <p>審查修正後的 3 次，真實 Gemini 追問全部通過。</p>
         ) : (
           <>
-            <p>#27 後的 3 次中，沒過的有：</p>
+            <p>審查修正後的 3 次中，沒過的有：</p>
             <ul className="mt-1 list-disc space-y-1 pl-5">
               {failedAfter.map(({ label, q }) => (
                 <li key={`${label}${q.n}`}>
@@ -285,7 +290,7 @@ export default function EvalPage() {
         ))}
       </ul>
 
-      <h2 className="mt-10 text-lg font-bold">檢查結果摘要原文（審查修正後）</h2>
+      <h2 className="mt-10 text-lg font-bold">檢查結果摘要原文（11/8 三方審查修正後）</h2>
       <p className="mt-1 text-sm text-muted">
         王先生的摘要最後多一行「{wangLine}」，由規則產生（{wangLine.length} 字），不交給 AI 寫；「沒有異常」這類不影響專員開口的項目不列。
         加上這行後合計 {range(wangChars)} 字，{wangChars.length} 次中有 {over120} 次超過提示詞要求的 120 字；AI 寫的部分是{" "}
