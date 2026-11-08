@@ -8,7 +8,7 @@ const lin = findVehicle("lin")!;
 
 const ALL = wang.items.map((i) => ({ id: `item:${i.id}`, conclusion: judge(i).conclusion }));
 const GOOD =
-  "前煞車來令片量測 2 mm，低於安全門檻 3 mm，今天必須更換。電瓶健康度 60%，可延後，3 個月後提醒回廠。空氣濾網、雨刷、輪胎胎紋狀況正常，今天不用處理。";
+  "前煞車來令片量測 2 mm，低於安全門檻 3 mm，今天必須更換。電瓶健康度 60%，可延後，3 個月後提醒回廠。輪胎胎紋 2.5 mm，可延後，3 個月後提醒回廠。空氣濾網、雨刷狀況正常，今天不用處理。";
 
 function fakeAI(answer: string, extra: object = {}) {
   return async () =>
@@ -31,6 +31,14 @@ describe("summarize：檢查結果摘要", () => {
   it("對正常的空氣濾網推銷更換 → 攔下", async () => {
     const r = await summarize(wang, fakeAI(`${GOOD}空氣濾網建議今天一起換。`));
     expect(r.checkResult).toBe("攔下");
+  });
+
+  it("把可延後的輪胎寫成正常 → 攔下", async () => {
+    const r = await summarize(
+      wang,
+      fakeAI("前煞車來令片量測 2 mm，低於安全門檻 3 mm，今天必須更換。電瓶健康度 60%，可延後，3 個月後提醒回廠。空氣濾網、雨刷、輪胎胎紋狀況正常，今天不用處理。"),
+    );
+    expect(r).toMatchObject({ checkResult: "攔下", blockedReason: "輪胎胎紋是可延後，回答卻說正常" });
   });
 
   it("漏掉可延後的電瓶 → 攔下", async () => {

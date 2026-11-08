@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { sourceLabel } from "./answers";
 import { ask, simulateTampered } from "./ask";
+import { withMeasurement } from "./card";
 import { findVehicle } from "./vehicles";
 
 const wang = findVehicle("wang")!;
@@ -128,7 +129,7 @@ describe("ask：答案檢查（補強與來源）", () => {
 
 describe("ask：答案檢查以子句為單位", () => {
   // 逗號後面換了主詞或在講之後的檢查，不該算到煞車頭上。
-  it.each(["煞車今天必須換，電瓶不用換", "煞車今天要換，下次保養會再量一次", "煞車今天換好後，下次保養再檢查"])(
+  it.each(["煞車今天必須換，電瓶可以延後","煞車今天要換，下次保養會再量一次", "煞車今天換好後，下次保養再檢查"])(
     "「%s」→ 通過",
     async (answer) => {
       const r = await ask(wang, "煞車狀況如何？", fakeAI(brake(answer, { sources: ["item:brake-pad", "item:battery"] })));
@@ -398,6 +399,60 @@ describe("ask：偏好名稱與可延後項目（#27 審查）", () => {
       const r = await ask(wang, "輪胎可以等嗎？", fakeAI({ ...tire(answer), itemConclusions: [{ id: "item:tire", conclusion: "可延後" }, ...BRAKE] }));
       expect(r.checkResult, answer).toBe("通過");
     }
+  });
+});
+
+describe("ask：可延後被說成正常（11/8 審查）", () => {
+  const tire = (answer: string) =>
+    reply(answer, { sources: ["item:tire"], itemConclusions: [{ id: "item:tire", conclusion: "可延後" }] });
+
+  it("可延後的輪胎被說成正常或不用換 → 攔下", async () => {
+    for (const answer of ["輪胎胎紋狀況正常。", "輪胎目前不用換。", "空氣濾網、雨刷、輪胎胎紋狀況正常，今天不用處理。", "輪胎 2.5 mm，狀況良好。", "輪胎 2.5 mm。狀況良好。"]) {
+      const r = await ask(wang, "輪胎呢？", fakeAI(tire(answer)));
+      expect(r.checkResult, answer).toBe("攔下");
+      expect(r.blockedReason, answer).toBe("輪胎胎紋是可延後，回答卻說正常");
+    }
+  });
+
+  it("反例：說可延後、別的項目正常、否定句、其他項目正常，都不攔", async () => {
+    for (const answer of [
+      "輪胎可延後，今天不用處理，3 個月後提醒回廠。",
+      "輪胎不是正常磨耗範圍內的新胎，可延後。",
+      "輪胎可延後、空氣濾網狀況正常。",
+      "輪胎可延後，空氣濾網、雨刷狀況正常。",
+      "輪胎 2.5 mm 可延後，其他狀況正常。",
+      "輪胎可延後，目前不用換，3 個月後提醒你回廠。",
+      "輪胎可延後，3 個月後提醒你回廠。目前不用換。",
+    ]) {
+      const r = await ask(wang, "輪胎呢？", fakeAI(tire(answer)));
+      expect(r.checkResult, answer).toBe("通過");
+    }
+    const filter = reply("空氣濾網狀況正常。", { sources: ["item:air-filter"], itemConclusions: [{ id: "item:air-filter", conclusion: "正常" }] });
+    expect((await ask(wang, "空氣濾網呢？", fakeAI(filter))).checkResult).toBe("通過");
+    const battery = reply("電瓶健康度 60%，啟動正常，可延後，3 個月後提醒回廠。", {
+      sources: ["item:battery"],
+      itemConclusions: [{ id: "item:battery", conclusion: "可延後" }],
+    });
+    expect((await ask(wang, "電瓶呢？", fakeAI(battery))).checkResult).toBe("通過");
+  });
+});
+
+describe("ask：技師改過量測值時的替代回答（11/8 審查）", () => {
+  const bad = fakeAI(brake("煞車可以延後。"));
+
+  it("改值後被攔下 → 轉專員，不出現預寫回答的舊數值", async () => {
+    const edited = { ...wang, items: withMeasurement(wang.items, "brake-pad", 2.5) };
+    const r = await ask(edited, "煞車可以晚點換嗎", bad);
+    expect(r.checkResult).toBe("攔下");
+    expect(r.escalate).toBe(true);
+    expect(r.sources).toEqual([]);
+    expect(r.answer).not.toMatch(/2 mm|陳技師量到/);
+  });
+
+  it("沒改值（值和預設相同）→ 照舊用預寫回答", async () => {
+    const same = { ...wang, items: wang.items.map((i) => ({ ...i })) };
+    const r = await ask(same, "煞車可以晚點換嗎", bad);
+    expect(r.answer).toContain("陳技師量到前煞車來令片只剩約 2 mm");
   });
 });
 

@@ -36,7 +36,7 @@ const EXPECT: Record<number, Expect> = {
   5: { sources: ["item:battery"], must: [/延後/, /3\s*個月|三個月/] },
   8: { mustNot: [/來源代號|itemConclusions|escalate|規則：/] },
   9: { mustNot: [/[A-Za-z]{3,}/] },
-  10: { sources: ["item:brake-pad"], must: [/3,?000/] },
+  10: { sources: ["item:brake-pad"], must: [/3,?000/], mustNot: [/統一標準|原廠標準|固定標準|統一價格|固定價格/] },
   14: { sources: ["driving"], must: [/78\s*%/] },
   15: { sources: ["item:air-filter"], must: [/正常|不用換|不需要換|不必換/] },
   16: { sources: ["item:brake-pad"], must: [/2\s*mm/] },

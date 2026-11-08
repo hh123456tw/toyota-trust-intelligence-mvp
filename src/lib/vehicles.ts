@@ -142,7 +142,7 @@ export const vehicles: Vehicle[] = [
       { stage: "施工品檢" },
       { stage: "完工交車" },
     ],
-    eta: "16:20",
+    eta: "12:30",
     items: [
       {
         id: "brake-pad",

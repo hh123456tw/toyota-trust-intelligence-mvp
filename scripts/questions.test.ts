@@ -92,6 +92,13 @@ describe("checkCase", () => {
     expect(checkCase(10, { ...priced, answer: "這張卡上沒有價格資料。" }).join()).toMatch(/應該出現/);
   });
 
+  it("第 10 題：解釋價格怎麼決定（統一標準、原廠標準）→ 失敗；只說以服務廠報價為準 → 通過", () => {
+    const priced = { ...ok, sources: ["item:brake-pad"] };
+    for (const answer of ["示意費用 NT$3,000，原廠價格皆為統一標準，無法打折。", "示意費用為 NT$3,000。價格是依照原廠標準，無法打折。"])
+      expect(checkCase(10, { ...priced, answer }).join(), answer).toMatch(/不該出現/);
+    expect(checkCase(10, { ...priced, answer: "示意費用 NT$3,000，實際以服務廠報價為準。" })).toEqual([]);
+  });
+
   it("第 9 題：用英文回答 → 失敗；只有單位 mm → 通過", () => {
     expect(checkCase(9, { ...ok, answer: "No, the brake pad is 2 mm." }).join()).toMatch(/不該出現/);
     expect(checkCase(9, ok)).toEqual([]);
