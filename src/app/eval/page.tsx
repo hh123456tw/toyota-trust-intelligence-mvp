@@ -11,10 +11,10 @@ export const metadata: Metadata = { title: "真實 AI 實測紀錄｜Trust Intel
 
 // 建置時讀 repo 裡的原始紀錄，頁面是靜態的；紀錄不見就建置失敗，不顯示假數字。頁面上的數字一律從紀錄算。
 const load = (file: string) => parseEvalLog(readFileSync(join(process.cwd(), "docs/eval/raw", file), "utf-8"));
-const FINAL = "2026-11-08_pref_final_run";
+const FINAL = "2026-11-08_wang_tire_run";
 
 const RUNS = [
-  // 10/30 免費版發現第 5 題的問題、改了提示詞（簡報講稿用到這次）；11/7 加入車主偏好後第一輪的第 1 次；最後是 11/8 審查修正後的 3 次。
+  // 10/30 免費版發現第 5 題的問題、改了提示詞（簡報講稿用到這次）；11/7 加入車主偏好後第一輪的第 1 次；最後是 11/8 王先生改展示輪胎（#27）後的 3 次。
   { file: "2026-10-30_run0_before-prompt-fix.log", label: "10/30 改提示詞前" },
   { file: "2026-11-07_pref_before-fix_run1.log", label: "11/7 修正前" },
   ...[1, 2, 3].map((n) => ({ file: `${FINAL}${n}.log`, label: `第 ${n} 次` })),
@@ -25,7 +25,8 @@ const ROUNDS = [
   { name: "11/7 第一輪（修正前）", prefix: "2026-11-07_pref_before-fix_run" },
   { name: "11/7 第二輪", prefix: "2026-11-07_pref_fix1_run" },
   { name: "11/7 第三輪（審查前）", prefix: "2026-11-07_pref_run" },
-  { name: "11/8 審查修正後", prefix: FINAL },
+  { name: "11/8 審查修正後", prefix: "2026-11-08_pref_final_run" },
+  { name: "11/8 王先生輪胎（#27）", prefix: FINAL },
 ].map((r) => {
   const runs = [1, 2, 3].map((n) => load(`${r.prefix}${n}.log`));
   const sum = (f: (x: (typeof runs)[number]) => number) => runs.reduce((n, x) => n + f(x), 0);
@@ -114,14 +115,14 @@ export default function EvalPage() {
       </p>
       <h1 className="mt-2 text-2xl font-bold">用真的 Gemini 連跑 3 次，不挑最好的一次</h1>
       <p className="mt-2 text-sm text-muted">
-        2026-11-08 加入車主偏好、依審查修正答案檢查後，模型 gemini-3.5-flash-lite（付費版，和正式站相同）。真的 AI 每次回答都不一樣，所以同一份題目連跑多次，用通過率說話。
+        2026-11-08 王先生改展示輪胎（胎紋 2.5 mm 可延後，#27）、偏好選項改名後，模型 gemini-3.5-flash-lite（付費版，和正式站相同）。真的 AI 每次回答都不一樣，所以同一份題目連跑多次，用通過率說話。
         王先生的車用預設偏好（定期追蹤，到時再換、最在意價格、下週載家人長途；11/8 前選項叫「能等就等」）。「10/30 改提示詞前」和「11/7 修正前」是之前沒全過的紀錄，留著說明修了什麼。
         下面每一題的回答都是 AI 的原文，取自原始紀錄。
       </p>
 
       <dl className="mt-6 grid grid-cols-2 gap-3">
         <div className="rounded-2xl border border-line bg-white p-4">
-          <dt className="text-xs text-muted">真實 Gemini 追問（審查修正後）</dt>
+          <dt className="text-xs text-muted">真實 Gemini 追問（#27 後）</dt>
           <dd className="mt-1 text-2xl font-bold text-brand">
             {aiPassed} / {aiPerRun * AFTER.length}
           </dd>
@@ -130,7 +131,7 @@ export default function EvalPage() {
           </dd>
         </div>
         <div className="rounded-2xl border border-line bg-white p-4">
-          <dt className="text-xs text-muted">檢查結果摘要（審查修正後）</dt>
+          <dt className="text-xs text-muted">檢查結果摘要（#27 後）</dt>
           <dd className="mt-1 text-2xl font-bold text-brand">
             {summaryPassed} / {summaryTotal}
           </dd>
@@ -212,14 +213,17 @@ export default function EvalPage() {
         <li>
           審查修正：程式審查發現答案檢查還有漏攔和誤攔（例如「電瓶建議下個月換」被誤攔、「外面的保養廠比原廠貴」沒攔到、「無法等到下個月再換」被誤攔）。改成先看處理的時間、比較的主詞和否定詞，每條規則都補上該攔和不該攔的測試，再重跑 3 次。
         </li>
+        <li>
+          11/8 王先生輪胎（#27）：王先生的輪胎改成 2.5 mm 可延後，新增第 30、31 題。第 3 次的第 25 題林小姐說預算有限，AI 又建議最貴的長效款，被答案檢查攔下、轉專員（檢查是對的），和第三輪同一個問題，沒有修。
+        </li>
         <li>10/30 改提示詞前：第 5 題結論正確，但漏講「3 個月後回廠提醒」，提示詞補上回廠提醒月數。</li>
       </ul>
       <div className="mt-3 rounded-xl bg-paper px-3 py-2 text-sm text-muted">
         {failedAfter.length === 0 ? (
-          <p>審查修正後的 3 次，真實 Gemini 追問全部通過。</p>
+          <p>#27 後的 3 次，真實 Gemini 追問全部通過。</p>
         ) : (
           <>
-            <p>審查修正後的 3 次中，沒過的有：</p>
+            <p>#27 後的 3 次中，沒過的有：</p>
             <ul className="mt-1 list-disc space-y-1 pl-5">
               {failedAfter.map(({ label, q }) => (
                 <li key={`${label}${q.n}`}>

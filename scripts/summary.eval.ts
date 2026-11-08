@@ -14,7 +14,7 @@ describe("檢查結果摘要（真的 Gemini）", () => {
   for (const v of vehicles) {
     for (const n of [1, 2, 3]) {
       it(`${v.owner} 第 ${n} 次`, async () => {
-        await sleep(8_000); // 免費額度每分鐘 15 次，放慢一點避免限流
+        await sleep(1_000); // 付費版沒有每分鐘 15 次的限制，稍微間隔就好
         const r = await summarize(v, (system, user) => withRetry(() => callGemini(apiKey, system, user)));
         console.log(`${v.owner} #${n}｜${r.checkResult}${r.blockedReason ? `（${r.blockedReason}）` : ""}｜${r.answer.length} 字\n${r.answer}\n`);
         expect(r.checkResult).toBe("通過");
