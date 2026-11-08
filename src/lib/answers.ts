@@ -140,7 +140,7 @@ export function cardContext(vehicle: Vehicle) {
           款式: o.name,
           適合: o.use,
           規格: o.specs,
-          示意費用: formatPrice(o.price),
+          示意費用: `${formatPrice(o.price)}（${o.priceNote}）`,
         })),
         結論理由: v.reason,
         回廠提醒月數: v.reminderMonths ?? null,

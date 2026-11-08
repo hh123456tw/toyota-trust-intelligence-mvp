@@ -516,7 +516,10 @@ function OptionList({
             <span className="min-w-0 flex-1">
               <span className="flex flex-wrap items-baseline justify-between gap-x-2">
                 <span className="font-bold">{o.name}</span>
-                <span className="font-bold tabular-nums">{formatPrice(o.price)}</span>
+                <span className="font-bold tabular-nums">
+                  {formatPrice(o.price)}
+                  <span className="ml-1 text-xs font-normal text-muted">{o.priceNote}</span>
+                </span>
               </span>
               <span className="mt-1 block text-xs text-ink-2">適合：{o.use}</span>
               <span className="mt-0.5 block text-xs text-muted">{o.specs}</span>

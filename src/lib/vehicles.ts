@@ -29,6 +29,8 @@ export type ProductOption = {
   use: string;
   specs: string;
   price: number;
+  // 價格是哪個範圍的合計（「2 條合計」）。未見過題目第一輪：判讀人把 NT$5,600 看成一條的價格。
+  priceNote: string;
 };
 
 export type InspectionItem = {
@@ -108,10 +110,11 @@ const wiperRule: VisualRule = { kind: "visual", reminderMonths: 3 };
 // 輪胎款式兩台車共用（示意），價格依更換條數計算。price 一律是最低款的價格，AI 和檢查結果摘要講的「起」才對得上清單。
 const TIRE_BASE_PRICE = 2800;
 function tireOptions(count: number): ProductOption[] {
+  const priceNote = `${count} 條合計`;
   return [
-    { id: "basic", name: "基本款", use: "多半市區短程", specs: "預估壽命約 4 萬 km｜濕地抓地 B 級｜胎噪 72 dB", price: TIRE_BASE_PRICE * count },
-    { id: "balanced", name: "均衡款", use: "市區和高速都會開", specs: "預估壽命約 5 萬 km｜濕地抓地 B 級｜胎噪 70 dB", price: 3200 * count },
-    { id: "long", name: "長效款", use: "常跑長途、年里程高", specs: "預估壽命約 6 萬 km｜濕地抓地 A 級｜胎噪 69 dB", price: 4200 * count },
+    { id: "basic", name: "基本款", use: "多半市區短程", specs: "預估壽命約 4 萬 km｜濕地抓地 B 級｜胎噪 72 dB", price: TIRE_BASE_PRICE * count, priceNote },
+    { id: "balanced", name: "均衡款", use: "市區和高速都會開", specs: "預估壽命約 5 萬 km｜濕地抓地 B 級｜胎噪 70 dB", price: 3200 * count, priceNote },
+    { id: "long", name: "長效款", use: "常跑長途、年里程高", specs: "預估壽命約 6 萬 km｜濕地抓地 A 級｜胎噪 69 dB", price: 4200 * count, priceNote },
   ];
 }
 

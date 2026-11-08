@@ -63,7 +63,11 @@ const SYSTEM_PROMPT = `你是和泰汽車服務廠的維修說明助理，用繁
    車主問款式時，車主沒說需求就參考「最在意」：價格看示意費用，耐用度看適合和規格，安靜和舒適看規格。卡片資料的「上次選的款式等級」有值時也可以參考，但要說出理由。
    車主偏好的最近有異常是「有」，或車主說最近有異常時，不能依此判斷安不安全，只說會請技師確認。
 9. 不能說外面的保養廠比較差、比較貴或修不好，也不要拿外面和原廠比較。
-   車主問「過保還要回原廠嗎」「為什麼要在原廠做」這類問題時，引用卡片資料的「在原廠做的差別」，sources 填它的來源代號（dealer:…）；回答提到的檢查項目仍要照規則 5 列進 itemConclusions。`;
+   車主問「過保還要回原廠嗎」「為什麼要在原廠做」這類問題時，引用卡片資料的「在原廠做的差別」，sources 填它的來源代號（dealer:…）；回答提到的檢查項目仍要照規則 5 列進 itemConclusions。
+   車主拿外面的價格比較、問原廠是不是比較貴時：不評論外面，說明卡片上的示意費用包含零件＋工資，再引用「在原廠做的差別」。
+10. 第一句先直接回答車主問的那件事，再補結論和依據：
+   問「可不可以」就先說可以或不可以；問能不能只換一部分（只換一顆、只換兩條），照「更換範圍」先說可不可以和原因；
+   問「是不是品質不好、買到爛貨」這類卡片沒有的判斷，先說卡片上沒有品質資料，再用使用紀錄和行車摘要說明可能原因。`;
 
 export const RESPONSE_SCHEMA = {
   type: "OBJECT",
@@ -85,6 +89,10 @@ export const RESPONSE_SCHEMA = {
 };
 
 const ESCALATE_ANSWER = "這個問題請服務專員當面跟你說明，會比較清楚。";
+
+// 回答說要找人處理（「請專員為你說明」「我們會請技師再幫你確認」）。未見過題目 U05、U14：嘴上說了，卻沒顯示轉專員。
+// 只認請人的說法：「陳技師量到 2 mm」「技師備註」這類描述不算。
+const PROMISES_HUMAN = /專員|請(?:服務)?技師|技師(?:會|再)/;
 
 // 「煞車距離變長」講的是輪胎或煞車的後果，不是在講煞車來令片這個項目。
 const NOT_THE_ITEM = /煞車(?:距離|效能|性能|力)/g;
@@ -228,7 +236,8 @@ const UNSUPPORTED_SAFETY = /符合.{0,8}(?:安全|標準)|很安全|比較安全
 
 const waitUpsellReason = (item: InspectionItem) => `車主選了${HANDLING.wait}，回答卻建議今天換${item.name}`;
 // 可延後的項目被說成不能等：「不可延後」「不能先不換」「必須今天更換」。「不是必須更換」「不一定要換」不算。
-const CANNOT_DEFER = /不(?:可|能|可以)(?:再)?延後|無法延後|不能(?:先)?不換|(?<!不是|並非|不)(?:必須|一定要)(?:今天|現在|馬上)?(?:更換|換)/;
+// 「今天不用一定要換」「不需要一定要換」也是否定（11/9 第 5 題誤攔）。
+const CANNOT_DEFER = /不(?:可|能|可以)(?:再)?延後|無法延後|不能(?:先)?不換|(?<!不是|並非|不用|不需要?|不必|不)(?:必須|一定要)(?:今天|現在|馬上)?(?:更換|換)/;
 // 假設句在講門檻（「如果胎紋低於 1.6 mm 就必須更換」），不是在講這次的結論。
 const cannotDefer = (clause: string) => !IF.test(clause) && CANNOT_DEFER.test(clause);
 // 可延後的項目被說成正常：「狀況正常」「狀況良好」「目前不用換」。「啟動正常」「正常磨耗」「不是正常」不算。
@@ -338,11 +347,15 @@ function check(vehicle: Vehicle, reply: AIReply): string | undefined {
     if (wrong !== undefined) return `${named[0].name}是 ${formatPrice(named[0].price)}，回答卻寫 ${formatPrice(wrong)}`;
   }
 
-  // 金額只能是卡片上顯示的價格（必須更換、可延後的項目，加上可選款式）。
-  const prices = new Set([
-    ...vehicle.items.filter((i) => judge(i).conclusion !== "正常").map((i) => i.price),
-    ...options.map((o) => o.price),
-  ]);
+  // 金額只能是卡片上顯示的價格（必須更換、可延後的項目，加上可選款式），或其中幾項的合計。
+  // 合計：每個項目最多算一次（不換、照示意費用、或選其中一款），所以同一項目的兩款不能相加。
+  // 未見過題目 U13：車主問「只換煞車和電瓶合計多少」，AI 算對 6,500 卻被攔下。
+  let prices = new Set([0]);
+  for (const i of vehicle.items.filter((i) => judge(i).conclusion !== "正常")) {
+    const choices = [i.price, ...(visibleOptions(i, judge(i).conclusion) ?? []).map((o) => o.price)];
+    prices = new Set([...prices].flatMap((p) => [p, ...choices.map((c) => p + c)]));
+  }
+  prices.delete(0);
   const wrong = amounts(reply.answer).find((a) => !prices.has(a));
   if (wrong !== undefined) return `回答提到的金額 ${formatPrice(wrong)} 不在卡片上`;
 
@@ -381,7 +394,7 @@ export function optionAnswer(vehicle: Vehicle, question: string): (Answer & { it
     if (!options.some((o) => question.includes(o.name)) && !mentions(item, question)) continue;
     const list = options.map((o) => `${o.name} ${formatPrice(o.price)}`).join("、");
     return {
-      answer: `${item.name}可以選的款式：${list}（皆為示意）。規格列在卡片的清單裡。想知道哪款適合你，可以告訴我你平常怎麼開。`,
+      answer: `${item.name}可以選的款式：${list}（皆為示意，${options[0].priceNote}）。規格列在卡片的清單裡。想知道哪款適合你，可以告訴我你平常怎麼開。`,
       sources: [`item:${item.id}`],
       escalate: needsHuman(question),
       itemId: item.id,
@@ -415,8 +428,9 @@ export async function ask(vehicle: Vehicle, question: string, callAI: CallAI): P
       ? { answer: ESCALATE_ANSWER, sources: [], escalate: true }
       : fallback(vehicle, question)
     : { answer: reply.answer, sources: reply.sources, escalate: reply.escalate };
-  // AI 回「沒有這項資料，可以請專員說明」時，卡片也要顯示轉專員。
-  if (touchesMustReplace(vehicle, question) || needsHuman(question) || shown.answer.includes(NO_DATA)) shown.escalate = true;
+  // AI 回「沒有這項資料，可以請專員說明」，或說了會請專員、技師處理時，卡片也要顯示轉專員，車主才找得到人。
+  if (touchesMustReplace(vehicle, question) || needsHuman(question) || shown.answer.includes(NO_DATA) || PROMISES_HUMAN.test(shown.answer))
+    shown.escalate = true;
 
   return blockedReason ? { ...shown, checkResult: "攔下", blockedReason, trace } : { ...shown, checkResult: "通過", trace };
 }
