@@ -23,7 +23,15 @@ async function request(apiKey: string, system: string, user: string): Promise<Re
   });
 }
 
-export async function callGemini(apiKey: string, system: string, user: string): Promise<string> {
+export type GeminiUsage = { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number; totalTokenCount?: number };
+
+// onUsage：成本實測腳本用來讀 token 數；正式路由不傳，回答行為不變。
+export async function callGemini(
+  apiKey: string,
+  system: string,
+  user: string,
+  onUsage?: (usage: GeminiUsage) => void,
+): Promise<string> {
   let res = await request(apiKey, system, user);
   for (const delay of RETRY_DELAYS_MS) {
     if (!RETRY_STATUS.has(res.status)) break;
@@ -33,6 +41,7 @@ export async function callGemini(apiKey: string, system: string, user: string): 
   if (!res.ok) throw new Error(`Gemini ${res.status}: ${await res.text()}`);
 
   const data = await res.json();
+  onUsage?.(data.usageMetadata ?? {});
   const text: string | undefined = data.candidates?.[0]?.content?.parts
     ?.map((p: { text?: string }) => p.text ?? "")
     .join("");

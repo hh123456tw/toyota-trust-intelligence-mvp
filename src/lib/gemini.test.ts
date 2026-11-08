@@ -41,6 +41,15 @@ describe("callGemini 重試", () => {
     expect(f).toHaveBeenCalledTimes(1);
   });
 
+  it("onUsage 收到回應的 usageMetadata，回答不變", async () => {
+    const usage = { promptTokenCount: 10, candidatesTokenCount: 5, totalTokenCount: 15 };
+    const body = { candidates: [{ content: { parts: [{ text: "回答" }] } }], usageMetadata: usage };
+    stubFetch(new Response(JSON.stringify(body), { status: 200 }));
+    const got: object[] = [];
+    await expect(callGemini("k", "s", "u", (u) => got.push(u))).resolves.toBe("回答");
+    expect(got).toEqual([usage]);
+  });
+
   it("反例：400、401、402 不重試", async () => {
     for (const status of [400, 401, 402]) {
       const f = stubFetch(fail(status));
