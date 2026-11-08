@@ -25,7 +25,9 @@ const DEFER_CORE = "延後|晚點|再換|先不換|不換也|撐到|撐得過|�
 export const DEFER_WORDS = new RegExp(`${DEFER_CORE}|下次|下個月`);
 const DEFER_NOT_TIME = new RegExp(DEFER_CORE);
 // 推銷類字詞：對「正常」項目不能出現。
-const UPSELL_WORDS = /建議.{0,4}換|需要.{0,2}換|最好.{0,4}換|今天換|應該.{0,2}換|該換了|順便換/;
+const UPSELL_WORDS = /建議.{0,4}換|需要.{0,2}換|最好.{0,4}換|今天換|現在換|應該.{0,2}換|該換了|順便換|換.{0,2}比較好/;
+// 保養週期是說明，不是推銷：「每 48 個月才需要更換」「每 4 萬公里更換」「依手冊週期更換」。只對「正常」項目先移除再比對。
+const SCHEDULE = /每\s*[\d,.一二兩三四五六七八九十百千萬]+\s*(?:個月|年|萬?\s*(?:公里|km))[^，,]{0,8}?換|依[^，,]{0,6}(?:週期|周期|手冊|里程)[^，,]{0,4}?換/g;
 // 車主選定期追蹤，到時再換時，可延後的項目先看「什麼時候」處理：今天、現在、出遠門前處理就攔。
 // 沒說時間的「建議換／建議處理」也攔；同一子句說了以後的時間（下個月、下次、3 個月後、回廠）就是延後，不攔。
 const NOW_ACT = /(?:今天|現在|馬上|立刻|立即|盡快|儘快|趁早|(?:出遠門|出發|出遊|長途|遠行)之?前)(?:(?![不別沒無]).){0,6}(?:換|處理|修)/;
@@ -291,7 +293,7 @@ function check(vehicle: Vehicle, reply: AIReply): string | undefined {
       for (const item of named.length ? named : inSentence) {
         const real: Conclusion = judge(item).conclusion;
         if (real === "必須更換" && defers(clause, sentence, named.length > 0)) return `${item.name}是必須更換，回答卻說可以延後`;
-        if (real === "正常" && hasWord(clause, UPSELL_WORDS)) return `${item.name}是正常，回答卻建議更換`;
+        if (real === "正常" && hasWord(clause.replace(SCHEDULE, ""), UPSELL_WORDS)) return `${item.name}是正常，回答卻建議更換`;
         if (real === "可延後" && vehicle.preferences?.handling === HANDLING.wait && waitUpsell(clause)) return waitUpsellReason(item);
         // 子句點名這個項目，或整句只講這一個項目才算；句子講了多個項目時，沒點名的「必須今天更換」不知道在講哪一個。
         const subject = named.includes(item) || (!named.length && inSentence.length === 1);

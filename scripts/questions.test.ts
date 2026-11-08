@@ -110,6 +110,29 @@ describe("checkCase", () => {
     expect(checkCase(28, { ...r, sources: ["item:battery"] })).toContain("缺少來源 dealer:…");
   });
 
+  // 必須字詞放寬：只差一個「的」或同義字，不算答錯（11/8 實測 #28 寫「保養的紀錄」「零件保證」）。
+  it("第 28 題：「保養的紀錄」「零件保證」→ 通過；只講別的 → 失敗", () => {
+    const r = { ...ok, sources: ["dealer:record"], escalate: false };
+    expect(checkCase(28, { ...r, answer: "在原廠保養的紀錄會完整保留。正廠零件提供一年的零件保證。" })).toEqual([]);
+    expect(checkCase(28, { ...r, answer: "原廠的技師比較有經驗。" }).join()).toMatch(/應該出現/);
+  });
+
+  it("第 15 題：「今天不需要更換」→ 通過；只說建議換 → 失敗", () => {
+    const r = { ...ok, sources: ["item:air-filter"], escalate: false };
+    expect(checkCase(15, { ...r, answer: "空氣濾網顏色乾淨，今天不需要更換。" })).toEqual([]);
+    expect(checkCase(15, { ...r, answer: "空氣濾網有點髒。" }).join()).toMatch(/應該出現/);
+  });
+
+  it("第 26 題：「今天不用更換」→ 通過", () => {
+    const r = { ...ok, answer: "電瓶健康度 60%，今天不用更換，3 個月後提醒你回廠。", sources: ["item:battery"], escalate: false };
+    expect(checkCase(26, r)).toEqual([]);
+  });
+
+  it("第 30 題：「可以再等」「先不用換」→ 通過", () => {
+    const r = { ...ok, answer: "輪胎胎紋 2.5 mm，可以再等，先不用換，3 個月後提醒回廠。", sources: ["item:tire"], escalate: false };
+    expect(checkCase(30, r)).toEqual([]);
+  });
+
   it("第 27 題：保證電瓶撐得住 → 失敗", () => {
     const r = { ...ok, answer: "電瓶健康度 60%，保證撐得住。", sources: ["item:battery"], escalate: false };
     expect(checkCase(27, r).join()).toMatch(/不該出現/);

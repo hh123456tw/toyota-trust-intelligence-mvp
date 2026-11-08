@@ -48,6 +48,25 @@ describe("ask：答案檢查（補強與來源）", () => {
     expect(r.checkResult).toBe("攔下");
   });
 
+  // 11/8 實測 #15：講保養週期是在說明，不是推銷。
+  const filter = (answer: string) =>
+    reply(answer, { sources: ["item:air-filter"], itemConclusions: [{ id: "item:air-filter", conclusion: "正常" }] });
+  it.each([
+    "空氣濾網狀況良好，結論為正常。依據原廠手冊，空氣濾網每 48 個月才需要更換。",
+    "空氣濾網正常，每 4 萬公里更換即可。",
+    "空氣濾網正常，建議依手冊週期更換。",
+  ])("正常項目講保養週期「%s」→ 通過", async (answer) => {
+    expect((await ask(wang, "空氣濾網真的不用換嗎？", fakeAI(filter(answer)))).checkResult).toBe("通過");
+  });
+
+  it.each(["空氣濾網每 48 個月更換，不過建議今天換。", "空氣濾網現在換比較好。", "空氣濾網正常，每 4 萬公里更換，但現在換比較好。"])(
+    "正常項目建議現在換「%s」→ 攔下",
+    async (answer) => {
+      const r = await ask(wang, "空氣濾網呢？", fakeAI(filter(answer)));
+      expect(r.blockedReason).toBe("空氣濾網是正常，回答卻建議更換");
+    },
+  );
+
   it.each(["煞車只剩 2 mm，不建議延後。", "煞車已低於安全門檻，無法延後。", "煞車不能延後，今天要換。"])(
     "反例「%s」→ 通過",
     async (answer) => {
