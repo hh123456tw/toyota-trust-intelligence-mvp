@@ -1,6 +1,6 @@
 // 症狀開場（#37 正式站實測）：車主描述症狀時，AI 用症狀指示回應，不念卡片、不猜原因，後面接症狀登記。
 import { describe, expect, it } from "vitest";
-import { ask, SYMPTOM_FALLBACK, SYMPTOM_PROMPT } from "./ask";
+import { ask, STOP_LINE, SYMPTOM_FALLBACK, SYMPTOM_PROMPT } from "./ask";
 import { askFlow } from "./flow";
 import { startIntake } from "./intake";
 import { findVehicle } from "./vehicles";
@@ -92,7 +92,8 @@ describe("症狀開場的檢查：不合格就換成備用句", () => {
   ])("反例（合格）：%s", async (_, q, answer) => {
     const r = await ask(wang, q, fakeAI(answer).callAI);
     expect(r.checkResult).toBe("通過");
-    expect(r.answer).toBe(answer);
+    // 煞車軟是危險症狀：程式在前面補「先不要把車開走」（askUrgent.test.ts）。AI 已經說了就不補。
+    expect(r.answer).toBe(/先不要把車開走/.test(answer) || !/軟軟/.test(q) ? answer : STOP_LINE + answer);
   });
 });
 

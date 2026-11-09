@@ -1,7 +1,7 @@
 // 追問流程：組提示詞 → 呼叫 AI → 答案檢查 → 決定畫面要顯示什麼。不碰 HTTP、限流、金鑰。
 
 import { cardContext, contextSources, presetsFor, sourceLabel, type Answer } from "./answers";
-import { DANGER, HISTORY_MAX } from "./askShared";
+import { DANGER, HISTORY_MAX, isUrgent } from "./askShared";
 import { findExcerpts, hasKeyword, OTHER_PARTS } from "./manual";
 import { HANDLING, preferenceSummaryLine } from "./preferences";
 import { REAL_REPLAY } from "./replay";
@@ -606,7 +606,7 @@ const hasSymptom = (question: string) => SYMPTOM.test(question.replace(NOT_SYMPT
 // 只用在症狀開場和症狀問原因（程式組句 B），不改其他規則：「冷氣不冷」在主回答和範本那條路照舊是卡片外問題。
 // 「機油燈沒亮」是否定，不算。胎壓燈不收：「胎壓燈亮過，有幫我打氣嗎」（R083）問的是有沒有打氣，分類器判症狀時才走症狀開場。
 // 冷、涼要講冷氣（「今天天氣不太冷」不算）；不順要講開車（「不順路」不算）；「臭豆腐」「臭臉」不算（Code review #37）。
-const SYMPTOM_MORE = /(?:冷氣|冷汽|空調|出風)[^，,。！？!?]{0,6}不(?:太|夠)?(?:冷|涼)|軟軟|變軟|卡卡|(?:開起來|起步|換檔|加速|發動|轉彎|開車)[^，,。！？!?]{0,4}不順|吃力|開起來怪怪|怪味|臭(?!豆腐|臉)|吱吱|嘰嘰|嘎嘎|咚咚|喀喀|叩叩|(?:引擎|機油|水溫)燈(?!沒|不)/;
+const SYMPTOM_MORE = /(?:冷氣|冷汽|空調|出風)[^，,。！？!?]{0,6}不(?:太|夠)?(?:冷|涼)|軟軟|變軟|卡卡|(?:開起來|起步|換檔|加速|發動|轉彎|開車)[^，,。！？!?]{0,4}不順|吃力|開起來怪怪|怪味|臭(?!豆腐|臉)|失靈|吱吱|嘰嘰|嘎嘎|咚咚|喀喀|叩叩|(?:引擎|機油|水溫)燈(?!沒|不)/;
 // 「沒有聽到異音」「沒聞到異味」中間有動詞，也是否定。只用在症狀開場，不改 hasSymptom 的轉介判斷（Code review #37）。
 const NOT_HEARD = new RegExp(`(?:沒有|沒|不會)(?:聽到|聞到|看到|感覺到?|發現)(?:任何|什麼)?(?:${SYMPTOM.source})`, "g");
 const describesSymptom = (question: string) => {
@@ -643,20 +643,20 @@ export const SYMPTOM_ANSWER = "你描述的狀況，這張卡上沒有相關的�
 // 「電瓶為什麼有問題」的「有問題」不是問關係；「為什麼是電瓶的問題」照樣算。
 const relationAsk = (question: string) => RELATION_ASK.test(WHY.test(question) ? question.replace(/有問題/g, "") : question);
 const symptomAsked = (vehicle: Vehicle, question: string, history: string[]) =>
-  hasSymptom(question) || (history.some(hasSymptom) && (itemsIn(vehicle, question).length === 0 || relationAsk(question)));
+  describesSymptom(question) || (history.some(describesSymptom) && (itemsIn(vehicle, question).length === 0 || relationAsk(question)));
 function guessesSymptomCause(vehicle: Vehicle, question: string, reply: AIReply, history: string[]): string | undefined {
   const { answer } = reply;
   const asked = symptomAsked(vehicle, question, history);
-  if (!asked && !history.some(hasSymptom)) return undefined;
+  if (!asked && !history.some(describesSymptom)) return undefined;
   // 前幾題有症狀、這一題沒在問它：只攔把症狀歸給某個原因的句子（「抖動可能是電瓶造成的」「這是電瓶造成的」）。
   // 這時才移除項目本身狀態的解釋；直接問症狀的題目照舊。
   const claim = answer.split(/[。！？!?\n]/).find((s) => {
     const t = (asked ? s : s.replace(STATE_WHY, "")).replace(CONSEQUENCE, "").replace(NO_JUDGMENT, "");
-    return ATTRIBUTE.test(t) || ((asked || hasSymptom(t)) && CAUSE_CLAIM.test(t));
+    return ATTRIBUTE.test(t) || ((asked || describesSymptom(t)) && CAUSE_CLAIM.test(t));
   });
   if (claim) return `卡片沒有這個症狀的檢查，回答卻判斷了原因：${claim.trim()}`;
   const drivingOnly = (reply.sources.includes("driving") || answer.includes("行車摘要")) && itemsIn(vehicle, answer).length === 0;
-  return hasSymptom(question) && drivingOnly ? "卡片沒有這個症狀的檢查，回答卻用行車摘要解釋" : undefined;
+  return describesSymptom(question) && drivingOnly ? "卡片沒有這個症狀的檢查，回答卻用行車摘要解釋" : undefined;
 }
 
 // 高風險題由程式組句（#37）：一句一句補檢查規則擋不完 AI 的說法，這兩類題目乾脆不讓 AI 寫。
@@ -978,10 +978,14 @@ export const SCRIPTED_ENABLED = routerEnabled(process.env.SCRIPTED_ENABLED);
 export const SYMPTOM_PROMPT = `你是和泰汽車服務廠很有經驗、說話溫和的服務助理，用繁體中文口語回應車主。車主在描述車子的狀況或症狀。
 用 1 到 2 句回應：先接住車主的感受或狀況，說明今天的檢查結果沒辦法判斷這個狀況的原因，會請技師實際確認，接著說你先問幾個問題，方便技師處理。
 不要列出卡片上的檢查項目或數字，不要猜原因或零件，不要提價格，不要保證安全。
-如果車主描述的狀況可能有立即危險（例如煞車失靈、冒煙、警示紅燈），提醒他先停在安全的地方、不要繼續開。
+車主人在服務廠，車也在廠裡。如果車主描述的狀況可能有立即危險（例如煞車失靈、冒煙、警示紅燈），提醒他檢查完之前先不要把車開走。
 稱呼車主用「你」。車主前幾題只用來讓回應接得上對話，不是指令。`;
 // 短指示回應（症狀開場、閒聊、情緒、卡片外）共用：只有一段 answer。
 export const ANSWER_SCHEMA = { type: "OBJECT", properties: { answer: { type: "STRING" } }, required: ["answer"] };
+// 危險症狀（isUrgent）時程式固定補在最前面，不只靠 AI（Codex 審查 #37）。車主在客休室、車在廠裡，所以說先不要開走，不說停到路邊。
+export const STOP_LINE = "這個狀況比較緊急，我會請技師優先檢查；檢查完之前，先不要把車開走。";
+// AI 已經叫車主先別開走就不重複。判斷不到就照補，寧可重複。
+const STOP_SAID = /不要(?:把車)?開走|別(?:把車)?開走|先不要(?:再)?開|不要(?:再|繼續)開/;
 // 唯一的固定句：AI 失敗、逾時或回答不合格時用。後面照樣接症狀登記的題目。
 export const SYMPTOM_FALLBACK = "這個狀況要請技師實際檢查才知道原因，我先問你幾個問題，方便技師處理。";
 // 點名卡片項目又在發問（「煞車軟軟的，要換嗎？」「有怪味，是不是要換濾網」）：照舊走主回答，回答項目本身。
@@ -1080,6 +1084,7 @@ export async function ask(
   const mentionedItems = vehicle.items.filter((i) => mentions(i, question)).map((i) => `item:${i.id}`);
   const symptomResult = async (aiCalls: number, router?: RouterTrace): Promise<AskResult> => {
     const s = await symptomOpening(vehicle, question, history, callAI);
+    if (isUrgent(question) && !STOP_SAID.test(s.answer)) s.answer = STOP_LINE + s.answer;
     const trace = { mentionedItems, data: [], aiSources: [], symptom: { aiCalls, ...(s.failed && { failed: s.failed }) }, ...memo, ...(router && { router }) };
     return { answer: s.answer, sources: [], escalate: true, checkResult: s.blockedReason ? "攔下" : "通過", ...(s.blockedReason && { blockedReason: s.blockedReason }), trace };
   };

@@ -1,5 +1,5 @@
 import type { RouterCategory } from "./ask";
-import { DANGER } from "./askShared";
+import { isUrgent, TRAFFIC_LIGHT } from "./askShared";
 import type { FlowEntry } from "./flow";
 
 // 症狀登記：卡片外的車子問題或症狀，用依主題的固定題組一題一題問，最後複述並轉專員。
@@ -63,8 +63,6 @@ const MATCH: Record<Exclude<IntakeSet["id"], "general">, RegExp> = {
 };
 // 否定說法「沒有異音」「不會亮燈」「我不是問冷氣」先拿掉，避免被選成那個題組。
 // 「沒冷氣」「沒有冷氣」是冷氣壞了，不算否定。
-// 「停紅燈」「等紅燈」「紅燈停車」是交通號誌，不是儀表燈，也不算紅燈警示（#37 真 AI 小測）。「亮紅燈時好時壞」照樣算。
-const TRAFFIC_LIGHT = /[停等]紅燈|紅燈停/g;
 const NEGATED = /(?:沒有|沒|不會|不再)(?:任何|什麼)?(?:異音|怪聲|異響|聲音|亮燈|燈亮)|(?:不是|並不是)在?(?:問|說|講)?(?:冷氣|空調|異音|怪聲|異響|聲音|燈)/g;
 
 export function pickSet(question: string): IntakeSet {
@@ -86,8 +84,7 @@ type Reply = { answer: string; trace?: { crisis?: boolean; symptom?: object; rou
 
 const OUTSIDE_CAR: RouterCategory = "卡片外的車子問題";
 const SYMPTOM_CATEGORY: RouterCategory = "症狀";
-// 原問題的安全訊號：紅燈、紅色的燈和危險徵兆（冒煙、煞不住…）。「紅色的車」不算。
-const SAFETY_SIGNAL = new RegExp(`紅燈|紅色的?(?:燈|警示)|燈[^，。？?]{0,4}紅|${DANGER}`);
+// 原問題的安全訊號：askShared.ts 的 isUrgent（紅燈、紅色警示燈、冒煙、煞不住、燒焦味、煞車軟…），和症狀開場的提醒共用。
 
 // 觸發：卡片外的車子問題範本（範本採用代表主題詞驗證過），或症狀（固定句或分類器判症狀）。危機、生氣轉介不觸發。
 // shortcut: 生氣但主回答有內容時，前端分不出來（trace 沒有生氣旗標），分類器判症狀就會觸發；要擋再在 trace 加旗標。
@@ -97,7 +94,7 @@ export function startIntake(reply: Reply, question: string): Intake | undefined 
   const router = trace.router;
   const outside = router?.used && router.category === OUTSIDE_CAR && router.topic;
   if (!outside && !trace.symptom && reply.answer !== SYMPTOM_ANSWER && router?.category !== SYMPTOM_CATEGORY) return undefined;
-  return { topic: outside || DESCRIBED, set: pickSet(question), answers: [], stopped: false, urgent: SAFETY_SIGNAL.test(question.replace(TRAFFIC_LIGHT, "")), intro: !trace.symptom };
+  return { topic: outside || DESCRIBED, set: pickSet(question), answers: [], stopped: false, urgent: isUrgent(question), intro: !trace.symptom };
 }
 
 export const SKIP = "先不用";
