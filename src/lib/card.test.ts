@@ -3,8 +3,6 @@ import {
   cardItems,
   cardProps,
   drivingAdvice,
-  PRICE_FIRST_MIN_QUESTIONS,
-  priceFirstNote,
   SHORT_TRIP_ADVICE_MIN_RATIO,
   withMeasurement,
 } from "./card";
@@ -58,27 +56,10 @@ describe("gauge：量測刻度條", () => {
   });
 });
 
-describe("priceFirstNote：上次回廠的追問紀錄決定是否先列費用", () => {
-  const lin = findVehicle("lin")!;
-  const withQuestions = (n: number) => ({ ...wang, lastVisitRecord: { priceQuestions: n } });
-
-  it("王先生問過 4 次費用 → 先列費用，說明寫出次數", () => {
-    expect(priceFirstNote(wang)).toBe("上次回廠時，你在決策卡追問了 4 次費用（示意），先把費用列在這裡。");
-    expect(priceFirstNote(wang)).not.toContain("App");
-  });
-
-  it("剛好 3 次 → 先列；2 次 → 不先列", () => {
-    expect(priceFirstNote(withQuestions(PRICE_FIRST_MIN_QUESTIONS))).toBeDefined();
-    expect(priceFirstNote(withQuestions(PRICE_FIRST_MIN_QUESTIONS - 1))).toBeUndefined();
-  });
-
-  it("林小姐沒有追問紀錄 → 不先列", () => {
-    expect(priceFirstNote(lin)).toBeUndefined();
-  });
-
-  it("cardProps 把說明帶到卡片；林小姐沒有", () => {
-    expect(cardProps(wang).vehicle.priceFirstNote).toBeDefined();
-    expect(cardProps(lin).vehicle.priceFirstNote).toBeUndefined();
+describe("決策卡不另列費用一覽（費用已在每個項目裡）", () => {
+  it("cardProps 沒有 priceFirstNote；有費用的項目各自帶 price", () => {
+    expect("priceFirstNote" in cardProps(wang).vehicle).toBe(false);
+    expect(cardItems(wang.items).filter((i) => i.price !== undefined).map((i) => i.id).sort()).toEqual(["battery", "brake-pad", "tire"]);
   });
 });
 

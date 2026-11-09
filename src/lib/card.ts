@@ -122,19 +122,12 @@ export function withMeasurement(items: InspectionItem[], id: string, value: numb
   );
 }
 
-// 車主上次回廠在決策卡追問費用達這個次數，決策卡就先列出費用，接待摘要也提醒先講價格。
+// 車主上次回廠在決策卡追問費用達這個次數，接待摘要提醒先講價格。（決策卡不再另列費用一覽：費用已在每個項目裡，11/9 拿掉重複）
 export const PRICE_FIRST_MIN_QUESTIONS = 3;
 
 // 決策卡和接待摘要共用的追問紀錄說法和門檻。
 export const priceQuestionText = (n: number) => `在決策卡追問了 ${n} 次費用（示意）`;
 export const wantsPriceFirst = (n: number) => n >= PRICE_FIRST_MIN_QUESTIONS;
-
-// 依上次回廠的追問紀錄決定是否先列費用；回傳說明文字，沒有紀錄或次數不夠回傳 undefined。
-export function priceFirstNote(vehicle: Vehicle): string | undefined {
-  const r = vehicle.lastVisitRecord;
-  if (!r || !wantsPriceFirst(r.priceQuestions)) return undefined;
-  return `上次回廠時，你${priceQuestionText(r.priceQuestions)}，先把費用列在這裡。`;
-}
 
 // 短程比例達這個百分比，行車摘要加上電瓶充電的建議。
 export const SHORT_TRIP_ADVICE_MIN_RATIO = 50;
@@ -171,7 +164,6 @@ export function cardProps(vehicle: Vehicle) {
       eta: vehicle.eta,
       drivingNote: `${vehicle.drivingSummary.period}：${vehicle.drivingSummary.note}`,
       drivingAdvice: drivingAdvice(vehicle),
-      priceFirstNote: priceFirstNote(vehicle),
       // 預設偏好：畫面換成這支手機存的值，再隨追問和檢查結果摘要送回 API。
       preferences: vehicle.preferences,
     },
