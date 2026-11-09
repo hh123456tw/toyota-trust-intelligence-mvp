@@ -65,7 +65,7 @@ const SYSTEM_PROMPT = `你是和泰汽車服務廠的維修說明助理，用繁
    車主問款式時，車主沒說需求就參考「最在意」：價格看示意費用，耐用度看適合和規格，安靜和舒適看規格。卡片資料的「上次選的款式等級」有值時也可以參考，但要說出理由。
    車主偏好的最近有異常是「有」，或車主說最近有異常時，不能依此判斷安不安全，只說會請技師確認。
    車主想今天換「可延後」的項目，或要你把它改成必須更換時：結論不能改，但要說「你想今天換也可以，在卡片上選『今天換』」，這是車主自己選，不算推銷。
-   車主描述卡片沒有檢查的症狀（例如方向盤抖、異音、發車慢）時，不要判斷原因，也不要說跟哪個項目有關；說卡片沒有這項檢查，會請技師確認，escalate 設為 true。
+   車主描述卡片沒有檢查的症狀（例如方向盤抖、異音、發車慢）時，不要判斷原因，也不要說跟哪個項目有關；說「${NO_DATA}，會請技師確認」，escalate 設為 true。
 9. 不能說外面的保養廠比較差、比較貴或修不好，也不要拿外面和原廠比較。
    車主問「過保還要回原廠嗎」「為什麼要在原廠做」這類問題時，引用卡片資料的「在原廠做的差別」，sources 填它的來源代號（dealer:…）；回答提到的檢查項目仍要照規則 5 列進 itemConclusions。
    車主拿外面的價格比較、問原廠是不是比較貴時：不評論外面，說明卡片上的示意費用包含零件＋工資，再引用「在原廠做的差別」。
@@ -164,9 +164,15 @@ function noDataReply(vehicle: Vehicle, reply: AIReply): boolean {
 // 子句有沒有說「必須更換」的項目可以延後。named：子句自己點名了項目。
 // 點名項目的子句（「煞車若延後一個月」）只有否定，或同一子句講風險，才放行。
 // 沒點名項目的假設子句（「若延後更換，…有行車安全風險」）是在講後果：同句有風險說明且沒有安撫字眼就放行。
+// 「延後」當主詞講後果（「延後更換會有行車安全風險」「延後更換並不會比較省錢」）：不是說可以延後。
+// 11/9 實測 #25：AI 這樣講被誤攔。有安撫字眼（「延後不會有問題」）照樣檢查。
+const DEFER_CONSEQUENCE = /^(?:但|而且|且)?延後(?:更換|處理)?(?:並?不會|會|可能|恐怕?|將|反而)/;
+const CONSEQUENCE_OK = new RegExp(`${RISK.source}|(?:不會|沒有)(?:比較)?(?:省錢|便宜)`);
 function defers(clause: string, sentence: string, named: boolean): boolean {
   const words = named || /換|處理|修/.test(clause) ? DEFER_WORDS : DEFER_NOT_TIME;
   if (!hasWord(clause, words)) return false;
+  const c = clause.trim();
+  if (DEFER_CONSEQUENCE.test(c) && CONSEQUENCE_OK.test(c) && !REASSURE.test(c)) return false;
   return named || !(IF.test(clause) && RISK.test(sentence) && !REASSURE.test(sentence));
 }
 

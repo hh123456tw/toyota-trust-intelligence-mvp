@@ -255,3 +255,21 @@ describe("V10：要求打八折、改成必須更換、描述症狀 → 轉專�
     expect(r.escalate).toBe(true);
   });
 });
+
+describe("11/9 實測 #25、#11 的誤攔", () => {
+  const tireMust = (answer: string) => ({ answer, sources: ["item:tire"], itemConclusions: [{ id: "item:tire", conclusion: "必須更換" }] });
+  it("「延後更換會有行車安全風險」「延後更換並不會比較省錢」→ 不算說可以延後", async () => {
+    const r = await run(lin, "輪胎可以下個月再換嗎？比較省錢嗎？", tireMust("不行，右前輪胎紋 1.4 mm，低於安全門檻 1.6 mm，必須更換。輪胎越早換越安全，延後更換會有行車安全風險。延後更換並不會比較省錢。"));
+    expect(r.checkResult).toBe("通過");
+  });
+  it("反例：「延後更換不會有問題」「延後也沒關係」→ 照樣攔下", async () => {
+    for (const bad of ["右前輪胎紋 1.4 mm，延後更換不會有問題。", "右前輪胎紋 1.4 mm，延後也沒關係。", "右前輪胎紋 1.4 mm，延後更換會比較省錢。"]) {
+      expect((await run(lin, "輪胎可以下個月再換嗎？", tireMust(bad))).checkResult, bad).toBe("攔下");
+    }
+  });
+  it("冷氣不冷（卡片沒有）→ AI 回「沒有這項資料，會請技師確認」沒有來源也通過", async () => {
+    const r = await run(wang, "我的冷氣有點不冷要不要修？", { answer: "這張卡上沒有這項資料，會請技師確認。", sources: [], itemConclusions: [] });
+    expect(r.checkResult).toBe("通過");
+    expect(r.escalate).toBe(true);
+  });
+});
