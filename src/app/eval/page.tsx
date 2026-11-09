@@ -12,14 +12,15 @@ export const metadata: Metadata = { title: "真實 AI 實測紀錄｜Trust Intel
 
 // 建置時讀 repo 裡的原始紀錄，頁面是靜態的；紀錄不見就建置失敗，不顯示假數字。頁面上的數字一律從紀錄算。
 const load = (file: string) => parseEvalLog(readFileSync(join(process.cwd(), "docs/eval/raw", file), "utf-8"));
-const FINAL = "2026-11-10_t38b_run";
+const FINAL = "2026-11-10_t38c_run";
 const FINAL_NAME = "11/10 上線版（像真人助理）";
 
 const AFTER = [1, 2, 3].map((n) => ({ file: `${FINAL}${n}.log`, label: `第 ${n} 次`, ...load(`${FINAL}${n}.log`) }));
 
 // 紅隊：上線版這次的單輪、多輪紀錄（scripts/redteam.eval.ts、redteam_multi.eval.ts）。檔名日期是 UTC。
+// 單輪是 t38c（測試端修補後重跑）；多輪沿用 t38b，之後產品程式沒改。
 const REDTEAM_DIR = "docs/eval/redteam";
-const REDTEAM_SINGLE = "run_2026-11-09_t38b.md";
+const REDTEAM_SINGLE = "run_2026-11-09_t38c.md";
 const REDTEAM_MULTI = "multi_2026-11-09_t38b.md";
 const red = parseRedteam(
   readFileSync(join(process.cwd(), REDTEAM_DIR, REDTEAM_SINGLE), "utf-8"),
@@ -52,6 +53,7 @@ const ROUNDS = [
   { name: "11/10 決賽版（對話記憶＋症狀登記）", prefix: "2026-11-10_assistant_final_run" },
   { name: "11/10 上線版（#38 修正前）", prefix: "2026-11-10_live_run" },
   { name: "11/10 #38 症狀開場講當天數據", prefix: "2026-11-10_t38_run" },
+  { name: "11/10 #38 誤攔與心情句修正", prefix: "2026-11-10_t38b_run" },
   { name: FINAL_NAME, prefix: FINAL },
 ].map((r) => {
   const runs = [1, 2, 3].map((n) => load(`${r.prefix}${n}.log`));
@@ -435,6 +437,7 @@ export default function EvalPage() {
           <li>11/9 決賽版：提示詞換回第二輪真人判讀那一版（commit 29f45b4），答案檢查保留誤攔修正和症狀檢查。重跑 3 次全過。之後凍結，決賽前不再修改；第二輪找到的問題列入下一輪，修完用新題目和人工判讀驗證才上線。</li>
           <li>11/10 上線版（#38 修正前）：症狀開場、口語化、高風險項目由程式組句、檢查保證字眼與成數、危險症狀提醒。重跑 3 次全過。</li>
           <li>11/10 #38 症狀開場講當天數據：車主說的部位在卡片上（「煞車有怪聲」）時，照卡片講那一項今天的數值和結論。第 15、24、29 題被誤攔（條件句「太髒才需要換」、「沒有安不安全的資料」、「少跑一趟」），修正後重跑。</li>
+          <li>11/10 #38 誤攔與心情句修正：第 3 次第 24 題 AI 說「沒有基本款安不安全的資料」是對的，被驗收字詞誤判（「安不安全」是正反問）。只修驗收字詞，安全類其餘字詞不放寬，重跑 3 次全過（上線版）。</li>
           <li>10/30 改提示詞前：第 5 題漏講「3 個月後回廠提醒」，提示詞補上回廠提醒月數。</li>
         </ul>
         <table className="mt-4 w-full text-left text-sm">
