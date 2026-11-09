@@ -9,6 +9,7 @@ import type { CardItem, Gauge } from "@/lib/card";
 import { askFlow, handoverFlow, presetFlow, type FlowEntry } from "@/lib/flow";
 import { currentMeasurements } from "@/lib/card";
 import { choiceKey, handover, needsOptionPick, pruneChoices, type Choice } from "@/lib/handover";
+import { answerIntake, currentQuestion, INTAKE_INTRO, intakeFlow, intakeSummary, recap, SKIP, startIntake, type Intake } from "@/lib/intake";
 import { preferenceNote, type OwnerPreferences } from "@/lib/preferences";
 import { LABEL, type Conclusion } from "@/lib/rules";
 import { formatPrice, RULE_VERSION } from "@/lib/vehicles";
@@ -737,9 +738,19 @@ function Chat(props: {
       </div>
 
       <div className="mt-4 space-y-3" aria-live="polite">
-        {messages.map((m, i) => (
-          <Bubble key={i} message={m} sourceLabels={sourceLabels} />
-        ))}
+        {messages.map((m, i) => {
+          const prev = messages[i - 1];
+          return (
+            <Bubble
+              key={i}
+              message={m}
+              sourceLabels={sourceLabels}
+              question={prev?.role === "user" ? prev.text : ""}
+              active={i === messages.length - 1}
+              onFlow={onFlow}
+            />
+          );
+        })}
         {busy && (
           <p className="flex items-center gap-2 text-sm text-muted">
             <span className="size-2 animate-pulse rounded-full bg-ink-2" />
@@ -780,7 +791,20 @@ function Chat(props: {
   );
 }
 
-function Bubble({ message, sourceLabels }: { message: Message; sourceLabels: Record<string, string> }) {
+// question：這則回答前面的車主問題。active：最後一則訊息；車主改問別的，舊回答的症狀登記就停在那裡。
+function Bubble({
+  message,
+  sourceLabels,
+  question,
+  active,
+  onFlow,
+}: {
+  message: Message;
+  sourceLabels: Record<string, string>;
+  question: string;
+  active: boolean;
+  onFlow: (entry: FlowEntry) => void;
+}) {
   if (message.role === "user") {
     return (
       <p className="ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-md bg-ink px-3.5 py-2.5 text-white">
@@ -800,6 +824,7 @@ function Bubble({ message, sourceLabels }: { message: Message; sourceLabels: Rec
   }
   const simulated = message.role === "simulated" ? message.result : undefined;
   const { answer, sources, escalate } = simulated ?? (message as { answer: Answer }).answer;
+  const intake = message.role === "ai" ? startIntake(message.answer, question) : undefined;
   return (
     <AiFrame>
       <div
@@ -831,9 +856,50 @@ function Bubble({ message, sourceLabels }: { message: Message; sourceLabels: Rec
             ))}
           </ul>
         )}
-        {escalate && <Escalate />}
+        {intake ? <IntakeBlock start={intake} active={active} onFlow={onFlow} /> : escalate && <Escalate />}
       </div>
     </AiFrame>
+  );
+}
+
+// 症狀登記：固定題組一題一題問，按鈕回答，最後複述並顯示轉專員按鈕。不呼叫 AI。
+function IntakeBlock({ start, active, onFlow }: { start: Intake; active: boolean; onFlow: (entry: FlowEntry) => void }) {
+  const [intake, setIntake] = useState(start);
+  const question = currentQuestion(intake);
+  function pick(label: string) {
+    const next = answerIntake(intake, label);
+    setIntake(next);
+    if (!currentQuestion(next)) onFlow(intakeFlow(next));
+  }
+  return (
+    <div className="mt-3 border-t border-line pt-3">
+      <p className="leading-relaxed">{INTAKE_INTRO}</p>
+      {intake.answers.map((a, i) => (
+        <p key={i} className="mt-1.5 text-sm text-muted">
+          {intake.set.questions[i].text}　<span className="font-semibold text-ink">{a}</span>
+        </p>
+      ))}
+      {question && active && (
+        <>
+          <p className="mt-2 font-semibold leading-relaxed">{question.text}</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {[...question.options.map((o) => o.label), SKIP].map((label) => (
+              <button
+                key={label}
+                onClick={() => pick(label)}
+                className={`min-h-11 rounded-full border px-3.5 text-sm font-medium transition-colors active:bg-line ${
+                  label === SKIP ? "border-transparent text-muted" : "border-line bg-white hover:border-ink-2/40"
+                }`}
+              >
+                {label === SKIP ? `［${SKIP}］` : label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+      {!question && <p className="mt-2 leading-relaxed">{recap(intake)}</p>}
+      {(!question || !active) && <Escalate note={intake.answers.length ? intakeSummary(intake) : undefined} />}
+    </div>
   );
 }
 
@@ -848,12 +914,16 @@ function AiFrame({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Escalate() {
+// note：症狀登記的摘要，通知專員時一起帶上。
+function Escalate({ note }: { note?: string }) {
   const [called, setCalled] = useState(false);
   return called ? (
     <p className="mt-2 flex items-center gap-2 rounded-xl bg-ok-soft px-3 py-2 text-sm font-medium text-ok">
       <Icon name="check" className="size-4 shrink-0" />
-      已通知服務專員，請稍候，專員會到你的座位說明。
+      <span>
+        已通知服務專員，請稍候，專員會到你的座位說明。
+        {note && <span className="mt-0.5 block font-normal">登記內容：{note}。</span>}
+      </span>
     </p>
   ) : (
     <button
