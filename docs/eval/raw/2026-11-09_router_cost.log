@@ -1,0 +1,57 @@
+
+> mvp@0.1.0 eval:cost
+> vitest run --config scripts/vitest.eval.config.mts scripts/cost.eval.ts
+
+
+ RUN  v4.1.12 C:/claude/HT/mvp/.claude/worktrees/router-v2
+
+ ✓ scripts/cost.eval.ts > AI 每台車成本（真的 Gemini） > 公式自我檢查：100 萬輸入＋100 萬輸出＝0.3＋2.5 美元 1ms
+stdout | scripts/cost.eval.ts > AI 每台車成本（真的 Gemini） > 王先生：1 摘要＋3 追問，跑 3 輪
+#1｜摘要｜輸入 2149｜輸出 346（含 thinking 0）
+
+stdout | scripts/cost.eval.ts > AI 每台車成本（真的 Gemini） > 王先生：1 摘要＋3 追問，跑 3 輪
+#1｜電瓶為什麼衰退得比較快？｜輸入 3253｜輸出 202（含 thinking 0）
+
+stdout | scripts/cost.eval.ts > AI 每台車成本（真的 Gemini） > 王先生：1 摘要＋3 追問，跑 3 輪
+#1｜我下週要載家人出遠門，輪胎可以嗎？｜輸入 3255｜輸出 192（含 thinking 0）
+
+stdout | scripts/cost.eval.ts > AI 每台車成本（真的 Gemini） > 王先生：1 摘要＋3 追問，跑 3 輪
+#1｜煞車下個月再換可以嗎？｜輸入 3178｜輸出 183（含 thinking 0）
+
+stdout | scripts/cost.eval.ts > AI 每台車成本（真的 Gemini） > 王先生：1 摘要＋3 追問，跑 3 輪
+#2｜摘要｜輸入 2149｜輸出 346（含 thinking 0）
+
+stdout | scripts/cost.eval.ts > AI 每台車成本（真的 Gemini） > 王先生：1 摘要＋3 追問，跑 3 輪
+#2｜電瓶為什麼衰退得比較快？｜輸入 3253｜輸出 204（含 thinking 0）
+
+stdout | scripts/cost.eval.ts > AI 每台車成本（真的 Gemini） > 王先生：1 摘要＋3 追問，跑 3 輪
+#2｜我下週要載家人出遠門，輪胎可以嗎？｜輸入 3255｜輸出 174（含 thinking 0）
+
+stdout | scripts/cost.eval.ts > AI 每台車成本（真的 Gemini） > 王先生：1 摘要＋3 追問，跑 3 輪
+#2｜煞車下個月再換可以嗎？｜輸入 3178｜輸出 185（含 thinking 0）
+
+stdout | scripts/cost.eval.ts > AI 每台車成本（真的 Gemini） > 王先生：1 摘要＋3 追問，跑 3 輪
+#3｜摘要｜輸入 2149｜輸出 346（含 thinking 0）
+
+stdout | scripts/cost.eval.ts > AI 每台車成本（真的 Gemini） > 王先生：1 摘要＋3 追問，跑 3 輪
+#3｜電瓶為什麼衰退得比較快？｜輸入 3253｜輸出 207（含 thinking 0）
+
+stdout | scripts/cost.eval.ts > AI 每台車成本（真的 Gemini） > 王先生：1 摘要＋3 追問，跑 3 輪
+#3｜我下週要載家人出遠門，輪胎可以嗎？｜輸入 3255｜輸出 190（含 thinking 0）
+
+stdout | scripts/cost.eval.ts > AI 每台車成本（真的 Gemini） > 王先生：1 摘要＋3 追問，跑 3 輪
+#3｜煞車下個月再換可以嗎？｜輸入 3178｜輸出 181（含 thinking 0）
+每台車平均：輸入 11835、輸出 919 token
+  第 1 輪：輸入 11835、輸出 923、0.005858 美元
+  第 2 輪：輸入 11835、輸出 909、0.005823 美元
+  第 3 輪：輸入 11835、輸出 924、0.005861 美元
+每台車成本：0.005847 美元 ≈ 0.1871 新台幣
+每位專員每月（15 台 × 25 天＝375 台）：2.1927 美元 ≈ 70.17 新台幣
+
+ ✓ scripts/cost.eval.ts > AI 每台車成本（真的 Gemini） > 王先生：1 摘要＋3 追問，跑 3 輪 14108ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  21:17:05
+   Duration  14.41s (transform 81ms, setup 0ms, import 121ms, tests 14.11s, environment 0ms)
+
