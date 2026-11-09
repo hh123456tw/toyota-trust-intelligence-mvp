@@ -175,3 +175,94 @@ describe("5. 已經要轉介專員：閒聊、情緒範本不換", () => {
     expect(r.escalate).toBe(false);
   });
 });
+
+// 上線後修補（#37）：每點都有攻擊例子和不該攔的反例。
+describe("6. 正向要求：「不一定必須更換」不算明說，而且算延後", () => {
+  it.each([
+    "煞車不一定必須更換。",
+    "前煞車來令片不見得必須更換。",
+    "前煞車來令片未必要換。",
+    "前煞車來令片不是一定要換。",
+    "前煞車來令片不用必須更換。",
+    "前煞車來令片必須更換。不過也不一定要換。",
+  ])("攻擊：煞車可以下個月換嗎 → %s", async (answer) => {
+    const r = await run(wang, "煞車可以下個月換嗎", reply(answer, [["brake-pad", "必須更換"]]));
+    expect(r.checkResult).toBe("攔下");
+    expect(r.answer).toBe(brakePreset);
+  });
+
+  it("反例：煞車明說必須更換，可延後的電瓶說「不一定要換」→ 通過", async () => {
+    const answer = "不行，前煞車來令片 2 mm，低於安全門檻，必須更換。電瓶不一定要換，可延後，3 個月後會提醒你回廠。";
+    const r = await run(wang, "煞車可以下個月換嗎", reply(answer, [["brake-pad", "必須更換"], ["battery", "可延後"]]));
+    expect(r.checkResult).toBe("通過");
+  });
+});
+
+describe("7. 症狀題：不判斷的說法後面接「但／不過／可是」再判斷原因 → 攔", () => {
+  it.each(["不能判斷原因但應該是輪胎造成的。", "無法判斷原因不過可能是輪胎的關係。", "沒辦法確定可是大概是碟盤變形。"])("攻擊：方向盤會抖 → %s", async (answer) => {
+    const r = await run(wang, "方向盤會抖", { answer, sources: ["item:tire"], escalate: true, itemConclusions: [] });
+    expect(r.checkResult).toBe("攔下");
+    expect(r.answer).toBe(SYMPTOM_ANSWER);
+  });
+
+  it.each(["不能判斷是不是輪胎造成的但可以請專員安排技師檢查。", "無法判斷原因，不過可以按下面的按鈕請專員。"])("反例：「但」後面沒有判斷原因 → 通過：%s", async (answer) => {
+    const r = await run(wang, "方向盤會抖", { answer, sources: ["item:tire"], escalate: true, itemConclusions: [] });
+    expect(r.checkResult).toBe("通過");
+  });
+});
+
+describe("8. 前幾題有症狀：「是不是X」「會不會是X」也是在問原因", () => {
+  it.each(["那是不是輪胎呢？", "會不會是煞車？", "是輪胎的問題嗎"])("攻擊：抖動後問「%s」→ 攔下，顯示症狀固定句", async (q) => {
+    const r = await run(wang, q, { answer: "可能是輪胎造成的。", sources: ["driving"], escalate: false, itemConclusions: [] }, ["方向盤會抖"]);
+    expect(r.checkResult).toBe("攔下");
+    expect(r.blockedReason).toMatch(/^卡片沒有這個症狀的檢查/);
+    expect(r.answer).toBe(SYMPTOM_ANSWER);
+  });
+
+  it("反例：抖動後問「電瓶是不是要換？」→ 不是在問原因，通過", async () => {
+    const answer = "電瓶健康度 60%，可延後，主要是短程行駛造成的，3 個月後會提醒你回廠。";
+    const r = await run(wang, "電瓶是不是要換？", reply(answer, [["battery", "可延後"]], ["item:battery", "driving"]), ["方向盤會抖"]);
+    expect(r.checkResult).toBe("通過");
+  });
+});
+
+describe("9. 講延後後果的警告不算判斷症狀原因", () => {
+  it.each([
+    ["方向盤會抖，煞車要換嗎", []],
+    ["那可以延後嗎", ["方向盤會抖", BRAKE_Q]],
+  ] as [string, string[]][])("反例：%s → 必須更換的警告句通過", async (q, history) => {
+    for (const answer of [
+      "前煞車來令片必須更換，延後可能造成行車風險。",
+      "前煞車來令片必須更換，不換可能導致煞車距離變長。",
+      "前煞車來令片必須更換，繼續開會造成危險，方向盤抖的原因不能判斷，可以請專員安排技師檢查。",
+    ]) {
+      const r = await run(wang, q, reply(answer, [["brake-pad", "必須更換"]]), history);
+      expect(r.checkResult, answer).toBe("通過");
+    }
+  });
+
+  it("攻擊：警告句前面還是判斷了原因 → 攔下", async () => {
+    const answer = "可能是輪胎的關係。前煞車來令片必須更換，延後可能造成行車風險。";
+    const r = await run(wang, "方向盤會抖，煞車要換嗎", reply(answer, [["brake-pad", "必須更換"]]));
+    expect(r.checkResult).toBe("攔下");
+    expect(r.answer).toBe(SYMPTOM_ANSWER);
+  });
+});
+
+describe("10. 抖動後明確問卡片項目為什麼有問題：可以用行車摘要解釋，但不能把症狀歸給它", () => {
+  const WHY = reply("你近 3 個月約 78% 的行程在 10 公里內，短程行駛導致電瓶比較難充飽。電瓶 60%，可延後，3 個月後會提醒你回廠。", [["battery", "可延後"]], [
+    "item:battery",
+    "driving",
+  ]);
+  it("反例：「電瓶為什麼有問題？」→ 行車摘要解釋通過，仍轉介", async () => {
+    const r = await run(wang, "電瓶為什麼有問題？", WHY, ["方向盤會抖"]);
+    expect(r.checkResult).toBe("通過");
+    expect(r.escalate).toBe(true);
+  });
+
+  it.each(["方向盤會抖是因為電瓶衰退。電瓶 60%，可延後。", "電瓶 60%，可延後。抖動可能是電瓶造成的。"])("攻擊：同一題把症狀歸給電瓶 → 攔下：%s", async (answer) => {
+    const r = await run(wang, "電瓶為什麼有問題？", reply(answer, [["battery", "可延後"]], ["item:battery", "driving"]), ["方向盤會抖"]);
+    expect(r.checkResult).toBe("攔下");
+    expect(r.answer).toBe(SYMPTOM_ANSWER);
+  });
+});

@@ -177,9 +177,11 @@ function mustAsked(vehicle: Vehicle, question: string, history: string[]): Inspe
 }
 // 「低於安全門檻」就是必須更換的定義（GLOSSARY）；「不建議延後」是常見問題預寫回答的開頭。兩者都算明說。
 const STATES_MUST =
-  /(?<!不是|並非|不用|不需要?|不必)必須(?:更換|換)|(?:不能|無法|不可以?|沒辦法|不建議)(?:再)?(?:幫你|幫您)?(?:改成|改為)?可?(?:延後|先?不換|等|拖|再換|撐)|不行|不可以|(?<!沒有?|不會|並未|未)(?:已經?)?低於安全門檻/;
+  /(?<!不是|並非|不用|不需要?|不必|不一定|不見得|未必|一定要)必須(?:更換|換)|(?:不能|無法|不可以?|沒辦法|不建議)(?:再)?(?:幫你|幫您)?(?:改成|改為)?可?(?:延後|先?不換|等|拖|再換|撐)|不行|不可以|(?<!沒有?|不會|並未|未)(?:已經?)?低於安全門檻/;
+// 「不一定必須更換」「未必要換」：講的是必須更換的項目時算延後（上線後修補 #37）。
+const NOT_MUST = /(?:不一定|不見得|未必|不是一定)(?:要|得)?(?:必須)?更?換|不用必須更?換/;
 // 卡片的結論字眼：只在子句講的是不用延後的項目（可延後、正常）時移除，「電瓶可延後」「空氣濾網目前不用換」照樣可以講。
-const CONCLUSION_LABEL = /(?:結論(?:是|為)?)?「?可延後」?|(?:目前|今天)?不(?:用|需要?|必)(?:更?換|處理)/g;
+const CONCLUSION_LABEL = new RegExp(`(?:結論(?:是|為)?)?「?可延後」?|(?:目前|今天)?不(?:用|需要?|必)(?:更?換|處理)|${NOT_MUST.source}`, "g");
 function mustNotStated(vehicle: Vehicle, answer: string, items: InspectionItem[]): string | undefined {
   const sentences = answer.split(/[。！？!?；;\n]/);
   const missing = items.find(
@@ -193,7 +195,7 @@ function mustNotStated(vehicle: Vehicle, answer: string, items: InspectionItem[]
       if (named.length) subject = named;
       if (/沒有.*(?:資料|資訊)/.test(clause)) continue;
       const c = subject.length && subject.every((i) => judge(i).conclusion !== "必須更換") ? clause.replace(CONCLUSION_LABEL, "") : clause;
-      const hit = defers(c, sentence, false) ? "延後" : assuranceIn(c);
+      const hit = defers(c, sentence, false) || NOT_MUST.test(c) ? "延後" : assuranceIn(c);
       if (hit) return `${items[0].name}是必須更換，車主要延後或問安全，回答卻有${hit === "延後" ? "延後說法" : `「${hit}」`}：${clause.trim()}`;
     }
   }
@@ -565,9 +567,15 @@ const hasSymptom = (question: string) => SYMPTOM.test(question.replace(NOT_SYMPT
 const CAUSE_CLAIM = /(?:跟|和|與)[^。，！？]{0,20}有關|是因為|因為[^。！？]{0,20}所以|造成|導致|引起|(?<!沒有?)的關係|可能是|應該是|大概是|變形|翹了/;
 // 明確不判斷的說法（Codex 審查 #37）：從這裡到子句結尾都不算判斷（「無法判斷是不是碟盤變形造成的」）。
 // 不再用「同句有否定詞就放行」：「沒有品質資料，應該是輪胎磨耗造成的」是判斷。
-const NO_JUDGMENT = /(?:不能|無法|沒辦法|沒有辦法)(?:判斷|確定|斷定)[^，,。！？!?]*|(?:需要|要|請)(?:專員安排)?技師(?:檢查)?確認原因/g;
-// 問題在問項目和症狀的關係（「是不是電瓶的問題」「跟輪胎有關嗎」）。
-const RELATION_ASK = /關係|有關|造成|導致|引起|害的|問題/;
+// 「不能判斷原因但應該是輪胎造成的」：到「但／不過／可是」為止，後面照樣比對（上線後修補 #37）。
+const NO_JUDGMENT = /(?:不能|無法|沒辦法|沒有辦法)(?:判斷|確定|斷定)(?:(?!但|不過|可是)[^，,。！？!?])*|(?:需要|要|請)(?:專員安排)?技師(?:檢查)?確認原因/g;
+// 問題在問項目和症狀的關係（「是不是電瓶的問題」「跟輪胎有關嗎」「會不會是煞車」）。
+// 「電瓶是不是要換」「是不是快沒電」問的是狀態，不算（上線後修補 #37）。
+const RELATION_ASK = /關係|有關|造成|導致|引起|害的|問題|(?:是不是|會不會是)(?!要|該|需|能|可|還|很|太|已經?|快)/;
+// 點名項目問為什麼（「電瓶為什麼有問題」）：照規則 1 可以用行車摘要解釋，只檢查有沒有把症狀歸給它。
+const WHY = /為什麼|怎麼會|原因/;
+// 講延後後果的警告（「延後可能造成行車風險」）不是在判斷症狀原因。
+const CONSEQUENCE = /(?:延後|不換|繼續開)[^，,。！？!?]{0,12}?(?:造成|導致|引起)[^，,。！？!?]{0,12}?(?:風險|危險|煞車距離變長)/g;
 // 不說「我會請技師」：要車主按按鈕才會通知專員，原句聽起來像已經在安排。
 export const SYMPTOM_ANSWER = "你描述的狀況，這張卡上沒有相關的檢查資料，不能判斷原因。可以按下面的按鈕，請專員安排技師檢查。";
 // 前幾題描述症狀、這一題問原因（#37）：「方向盤會抖」「今天檢查哪些項目？」「是不是輪胎的關係？」隔題也要攔，看前 3 題任一題。
@@ -575,12 +583,16 @@ export const SYMPTOM_ANSWER = "你描述的狀況，這張卡上沒有相關的�
 // 回答提到卡片項目時不算：R101「方向盤會抖」答輪胎必須更換、來源附 driving，是正常回答。
 // 前幾題的症狀只套用到這一題沒點名卡片項目、或在問項目和症狀的關係（Codex 審查 #37）。
 // 這一題明確問卡片項目（「電瓶為什麼衰退」），照主提示詞規則 1 用行車摘要解釋是允許的。
+// 「電瓶為什麼有問題」的「有問題」不是問關係；「為什麼是電瓶的問題」照樣算。
+const relationAsk = (question: string) => RELATION_ASK.test(WHY.test(question) ? question.replace(/有問題/g, "") : question);
 const symptomAsked = (vehicle: Vehicle, question: string, history: string[]) =>
-  hasSymptom(question) || (history.some(hasSymptom) && (itemsIn(vehicle, question).length === 0 || RELATION_ASK.test(question)));
+  hasSymptom(question) || (history.some(hasSymptom) && (itemsIn(vehicle, question).length === 0 || relationAsk(question)));
 function guessesSymptomCause(vehicle: Vehicle, question: string, reply: AIReply, history: string[]): string | undefined {
   const { answer } = reply;
-  if (!symptomAsked(vehicle, question, history)) return undefined;
-  const claim = answer.split(/[。！？!?\n]/).find((s) => CAUSE_CLAIM.test(s.replace(NO_JUDGMENT, "")));
+  const asked = symptomAsked(vehicle, question, history);
+  if (!asked && !history.some(hasSymptom)) return undefined;
+  // 前幾題有症狀、這一題沒在問它：只攔把症狀歸給某個原因的句子（「抖動可能是電瓶造成的」）。
+  const claim = answer.split(/[。！？!?\n]/).find((s) => (asked || hasSymptom(s)) && CAUSE_CLAIM.test(s.replace(CONSEQUENCE, "").replace(NO_JUDGMENT, "")));
   if (claim) return `卡片沒有這個症狀的檢查，回答卻判斷了原因：${claim.trim()}`;
   const drivingOnly = (reply.sources.includes("driving") || answer.includes("行車摘要")) && itemsIn(vehicle, answer).length === 0;
   return hasSymptom(question) && drivingOnly ? "卡片沒有這個症狀的檢查，回答卻用行車摘要解釋" : undefined;
