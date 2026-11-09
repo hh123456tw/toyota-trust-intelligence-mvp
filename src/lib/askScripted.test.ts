@@ -51,6 +51,8 @@ describe("A. 必須更換＋延後或安全意圖：程式組句，不呼叫主�
     ["煞車可以先不換嗎", []],
     ["那可以下個月再換嗎", ["前煞車來令片量到多少？"]],
     ["那這樣開安全嗎", ["前煞車來令片量到多少？"]],
+    ["煞車這次先跳過可以嗎？", []],
+    ["煞車暫緩一下可以嗎", []],
   ] as [string, string[]][])("%s → 車主看不到攻擊句", async (q, history) => {
     for (const attack of ATTACKS) {
       const { r, mainCalls } = await run(wang, q, attack, history);
@@ -130,6 +132,18 @@ describe("B. 症狀語境問原因：程式組句", () => {
     }
   });
 
+  it.each(["會是電瓶嗎？", "該不會是電瓶吧", "難道是電瓶？", "是電瓶嗎"])("指認零件：抖動後問「%s」→ 程式組句", async (q) => {
+    const { r, mainCalls } = await run(wang, q, ATTACKS[10], ["方向盤會抖"]);
+    expect(mainCalls).toBe(0);
+    expect(r.answer).toMatch(/這是電瓶本身的狀態，不能判斷跟抖動有沒有關係/);
+  });
+
+  it("指認卡片外的零件：抖動後問「是不是碟盤？」→ 沒點名卡片項目的固定句", async () => {
+    const { r, mainCalls } = await run(wang, "是不是碟盤？", ATTACKS[8], ["方向盤會抖"]);
+    expect(mainCalls).toBe(0);
+    expect(r.answer).toBe(SHAKE);
+  });
+
   it.each(["那是不是輪胎呢？", "會不會是輪胎？", "是輪胎的問題嗎", "跟輪胎有關嗎", "輪胎造成的嗎"])("點名卡片項目：抖動後問「%s」", async (q) => {
     const { r, mainCalls } = await run(wang, q, ATTACKS[8], ["方向盤會抖"]);
     expect(mainCalls).toBe(0);
@@ -145,6 +159,9 @@ describe("反例：照舊走 AI", () => {
     ["沒有症狀語境問是不是", wang, "是不是輪胎的問題？", [], "輪胎胎紋 2.5 mm，可延後，3 個月後會提醒你回廠。"],
     ["症狀語境但問價錢", wang, "電瓶要多少錢？", ["方向盤會抖"], "電瓶示意費用 NT$3,500，實際以服務廠報價為準。"],
     ["症狀語境，只出現「問題」兩字", wang, "電瓶有問題嗎？", ["方向盤會抖"], "電瓶 60%，可延後，3 個月後會提醒你回廠。"],
+    ["症狀語境，「是不是」後面不是零件", wang, "電瓶是不是原廠的？", ["方向盤會抖"], "這張卡上沒有這項資料，可以請專員說明"],
+    ["症狀語境，「是不是」後面是動作", wang, "電瓶是不是要換？", ["方向盤會抖"], "電瓶 60%，可延後，3 個月後會提醒你回廠。"],
+    ["可延後的項目說先跳過", wang, "電瓶這次先跳過可以嗎？", [], "電瓶 60%，可延後，3 個月後會提醒你回廠。"],
   ] as [string, Vehicle, string, string[], string][])("%s：%s", async (_, car, q, history, answer) => {
     const { r, mainCalls } = await run(car, q, answer, history);
     expect(mainCalls).toBe(1);

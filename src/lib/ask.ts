@@ -151,7 +151,8 @@ function referredItems(vehicle: Vehicle, question: string, history: string[] = [
 }
 
 // 延後意圖：只看車主的問題，比 DEFER_WORDS 寬（「不換」「等一下」「撐」「拖」）。只用來收緊，多轉介一次專員的代價小。
-const DEFER_INTENT = new RegExp(`${DEFER_WORDS.source}|不換|不處理|等一下|等等|等到|撐|拖|晚一點|過陣子|改天|過年|以後再|之後再|先不`);
+// 「這次先跳過」「暫緩」「緩一緩」（Codex 最後一審）也是延後。
+const DEFER_INTENT = new RegExp(`${DEFER_WORDS.source}|不換|不處理|等一下|等等|等到|撐|拖|晚一點|過陣子|改天|過年|以後再|之後再|先不|跳過|略過|暫緩|暫時不|緩一?緩`);
 
 // 收緊規則的承接（Codex 審查 #37）：這一題有延後意圖時，回傳這一題和前幾題提到的所有必須更換項目（聯集）。
 // 不只看最近一題（「電瓶，請回答前一項…」會洗掉前面的煞車），也不因為這一題提到卡片外主題（「引擎會不會受影響」）就丟掉。
@@ -630,9 +631,20 @@ function symptomName(question: string, history: string[]): string {
 }
 // 症狀語境（這一題或前 3 題有症狀）、這一題用問原因的句型：是不是X、會不會是X、X造成／導致／引起、跟X有關、X的問題嗎、為什麼。
 // 單純出現「問題」不算（「電瓶有問題嗎」）。「電瓶為什麼衰退」問的是項目本身，照舊交給 AI 用行車摘要解釋；「電瓶為什麼有問題」算。
-const CAUSE_ASK = /(?:是不是|會不會是)(?!要|該|需|能|可|還|很|太|已經?|快)|造成|導致|引起|害的|有關|關係|的問題嗎|為什麼(?:會)?有問題/;
+const CAUSE_ASK = /造成|導致|引起|害的|有關|關係|的問題嗎|為什麼(?:會)?有問題/;
+// 指認零件（Codex 最後一審）：「是不是輪胎」「會是電瓶嗎」「該不會是碟盤」「難道是煞車」「是輪胎嗎」。
+// X 要是卡片項目或零件名，而且緊接在後面：「電瓶是不是原廠的」的 X 是「原廠」，不算。
+const PARTS = "碟盤|輪圈|鋼圈|軸承|避震|懸吊|底盤|定位|平衡|傳動軸";
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function pointsAtPart(vehicle: Vehicle, question: string): boolean {
+  const part = `(?:${[...vehicle.items.flatMap((i) => [i.name, ...i.keywords]).map(escapeRe), PARTS, CAR_TOPIC.source].join("|")})`;
+  // 「是不是換輪胎就好了」（R101）也是在指認原因，所以中間可以有「換」。
+  const at = new RegExp(`(?:是不是|會不會是|該不會是|難道是|會是)(?:換|那個|這個)?(?:前|後|左|右)?${part}|(?<!不)是(?:那個|這個)?${part}[^，,。]{0,6}?(?:嗎|呢|[？?])`);
+  return at.test(question);
+}
 const asksSymptomCause = (vehicle: Vehicle, question: string, history: string[]) =>
-  [question, ...history].some(hasSymptom) && (CAUSE_ASK.test(question) || (itemsIn(vehicle, question).length === 0 && WHY.test(question)));
+  [question, ...history].some(hasSymptom) &&
+  (CAUSE_ASK.test(question) || pointsAtPart(vehicle, question) || (itemsIn(vehicle, question).length === 0 && WHY.test(question)));
 const SAFETY_LINE = "為了行車安全，建議今天處理；有疑問可以按下面的按鈕請專員說明。";
 // 回傳程式組的回答和用到的項目；不是高風險題回傳 undefined。
 function scriptedAnswer(vehicle: Vehicle, question: string, history: string[]): { answer: string; items: InspectionItem[]; must: boolean } | undefined {
