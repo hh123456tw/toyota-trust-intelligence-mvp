@@ -162,6 +162,44 @@ function mustDeferred(vehicle: Vehicle, question: string, history: string[]): In
 }
 const touchesMustReplace = (vehicle: Vehicle, question: string, history: string[] = []) => mustDeferred(vehicle, question, history).length > 0;
 
+// 正向要求（Codex 審查 #37）：車主要延後、不換，或問行車安全，又碰到必須更換的項目時，回答必須明說「必須更換」或「不能延後」，
+// 而且整個回答不能有延後或安全保證的字句，不論那句歸給哪個項目（「可以，下個月再換，空氣濾網正常」原本歸給空氣濾網而放行）。
+// 不收「會怎樣」：「煞車換完會怎樣」不是問安全；「不換會怎樣」由延後意圖的「不換」涵蓋。
+const SAFETY_INTENT = /安全|危險|風險|(?:能|可以|可不可以|敢|還能)(?:繼續|照常)?(?:開|上路|跑)|開回家|開長途|跑長途|上高速|要緊|嚴重|放心|沒問題嗎|沒關係嗎|撐得住/;
+// 這一題用「那個」「都」帶到前幾題的項目。
+const REFER = /那個|這個|它|兩個|兩項|都|全部|一起/;
+// 這一題碰到的必須更換項目：這一題點名的；這一題沒點名卡片項目、或用「那個」「都」時，加上前幾題的（聯集）。
+// 取捨：這一題只點名可延後的項目（「電瓶可以下個月再換嗎」），前幾題的煞車不套用這條；延後和保證的舊檢查照舊。
+function mustAsked(vehicle: Vehicle, question: string, history: string[]): InspectionItem[] {
+  if (!DEFER_INTENT.test(question) && !SAFETY_INTENT.test(question)) return [];
+  const texts = itemsIn(vehicle, question).length && !REFER.test(question) ? [question] : [question, ...cleanHistory(history)];
+  return vehicle.items.filter((i) => judge(i).conclusion === "必須更換" && texts.some((t) => mentions(i, t)));
+}
+// 「低於安全門檻」就是必須更換的定義（GLOSSARY）；「不建議延後」是常見問題預寫回答的開頭。兩者都算明說。
+const STATES_MUST =
+  /(?<!不是|並非|不用|不需要?|不必)必須(?:更換|換)|(?:不能|無法|不可以?|沒辦法|不建議)(?:再)?(?:幫你|幫您)?(?:改成|改為)?可?(?:延後|先?不換|等|拖|再換|撐)|不行|不可以|(?<!沒有?|不會|並未|未)(?:已經?)?低於安全門檻/;
+// 卡片的結論字眼：只在子句講的是不用延後的項目（可延後、正常）時移除，「電瓶可延後」「空氣濾網目前不用換」照樣可以講。
+const CONCLUSION_LABEL = /(?:結論(?:是|為)?)?「?可延後」?|(?:目前|今天)?不(?:用|需要?|必)(?:更?換|處理)/g;
+function mustNotStated(vehicle: Vehicle, answer: string, items: InspectionItem[]): string | undefined {
+  const sentences = answer.split(/[。！？!?；;\n]/);
+  const missing = items.find(
+    (item) => !sentences.some((s) => STATES_MUST.test(s) && (mentions(item, s) || itemsIn(vehicle, s).length === 0)),
+  );
+  if (missing) return `${missing.name}是必須更換，車主要延後或問安全，回答卻沒有明說必須更換或不能延後`;
+  for (const sentence of sentences) {
+    let subject: InspectionItem[] = [];
+    for (const clause of sentence.split(/[，,]/)) {
+      const named = itemsIn(vehicle, clause);
+      if (named.length) subject = named;
+      if (/沒有.*(?:資料|資訊)/.test(clause)) continue;
+      const c = subject.length && subject.every((i) => judge(i).conclusion !== "必須更換") ? clause.replace(CONCLUSION_LABEL, "") : clause;
+      const hit = defers(c, sentence, false) ? "延後" : assuranceIn(c);
+      if (hit) return `${items[0].name}是必須更換，車主要延後或問安全，回答卻有${hit === "延後" ? "延後說法" : `「${hit}」`}：${clause.trim()}`;
+    }
+  }
+  return undefined;
+}
+
 // 議價、比價、要改結論：AI 不能處理，一律轉介專員。只認「要求」的句型：「Point 折抵算折扣嗎」這類查詢不算。
 const BARGAIN = /便宜一?[點些]|算便宜|少算|打個?[一二三四五六七八九\d]*折|算我?[一二三四五六七八九\d]+折|殺價|議價|比價|別家|外面.{0,4}(?:廠|店|保養|修車)|(?:有沒有|能不能|可不可以|可以|再)優惠|優惠一?[點些]|(?:改|更新|修改)(?:一下)?(?:這個|卡片的?|你的)?結論|改.{0,2}工單|(?:改成|標成|改為|變成)(?:正常|可延後|不用換|必須更換)/;
 // 顧客不滿：只認明確的抱怨字眼。「不滿 30 歲」「防騙宣導」「我沒有不滿意」都不算。
@@ -515,22 +553,34 @@ const DANGER_WORDS = new RegExp(DANGER);
 const DANGER_REASON = "問題有危險徵兆字詞";
 // 否定句「沒有冒煙」「不會抖了」不是在描述症狀，先移除再比對。
 const NOT_SYMPTOM = new RegExp(`(?:沒有|沒|不會|不再)(?:任何|什麼)?(?:${SYMPTOM.source})`, "g");
-// 「沒力」「無力」「頓頓的」也常講人：同一子句要有車子語境才算。「我今天好沒力」不算；講電瓶（「電瓶沒力」）是卡片項目，不算。
+// 「沒力」「無力」「頓頓的」也常講人：同一子句要有車子語境才算。「我今天好沒力」不算。
+// 同句提到電瓶也算（Codex 審查 #37：「上坡沒力是不是電瓶有問題」）；只有直接講電瓶的狀態（「電瓶沒力了嗎」）先移除，不算。
 const POWER_LOSS = /沒力|無力|頓頓的/;
 const POWER_CONTEXT = /車|開|上坡|爬坡|加速|引擎|油門/;
-const powerLoss = (question: string) => clausesOf(question).some((c) => POWER_LOSS.test(c) && POWER_CONTEXT.test(c) && !/電瓶|電池/.test(c));
+const ITEM_POWER = /(?:電瓶|電池)(?:是不是|會不會|有點|很|好|變得?|已經|快要?)?(?:沒力|無力)/g;
+const powerLoss = (question: string) => clausesOf(question).some((c) => POWER_LOSS.test(c.replace(ITEM_POWER, "")) && POWER_CONTEXT.test(c));
 const hasSymptom = (question: string) => SYMPTOM.test(question.replace(NOT_SYMPTOM, "")) || powerLoss(question);
 // 「可能是碟盤變形」「應該是X」「X 變形了」也是在判斷原因（Fable 正式站實測）。「沒有關係」不算。
-const CAUSE_CLAIM = /(?:跟|和|與)[^。，！？]{0,12}有關|是因為|造成的|導致|引起|(?<!沒有?)的關係|可能是|應該是|大概是|變形|翹了/;
+// 「可能和右前輪胎紋剩 1.4 mm 有關」中間有 14 個字（多輪紅隊 FU02-2），所以放寬到 20 字。
+const CAUSE_CLAIM = /(?:跟|和|與)[^。，！？]{0,20}有關|是因為|因為[^。！？]{0,20}所以|造成|導致|引起|(?<!沒有?)的關係|可能是|應該是|大概是|變形|翹了/;
+// 明確不判斷的說法（Codex 審查 #37）：從這裡到子句結尾都不算判斷（「無法判斷是不是碟盤變形造成的」）。
+// 不再用「同句有否定詞就放行」：「沒有品質資料，應該是輪胎磨耗造成的」是判斷。
+const NO_JUDGMENT = /(?:不能|無法|沒辦法|沒有辦法)(?:判斷|確定|斷定)[^，,。！？!?]*|(?:需要|要|請)(?:專員安排)?技師(?:檢查)?確認原因/g;
+// 問題在問項目和症狀的關係（「是不是電瓶的問題」「跟輪胎有關嗎」）。
+const RELATION_ASK = /關係|有關|造成|導致|引起|害的|問題/;
 // 不說「我會請技師」：要車主按按鈕才會通知專員，原句聽起來像已經在安排。
 export const SYMPTOM_ANSWER = "你描述的狀況，這張卡上沒有相關的檢查資料，不能判斷原因。可以按下面的按鈕，請專員安排技師檢查。";
 // 前幾題描述症狀、這一題問原因（#37）：「方向盤會抖」「今天檢查哪些項目？」「是不是輪胎的關係？」隔題也要攔，看前 3 題任一題。
 // 這一題描述症狀，回答沒提卡片項目、只用行車摘要解釋（Q11：「卡片上沒有品質資料」再貼行車摘要），也是在猜原因。
 // 回答提到卡片項目時不算：R101「方向盤會抖」答輪胎必須更換、來源附 driving，是正常回答。
+// 前幾題的症狀只套用到這一題沒點名卡片項目、或在問項目和症狀的關係（Codex 審查 #37）。
+// 這一題明確問卡片項目（「電瓶為什麼衰退」），照主提示詞規則 1 用行車摘要解釋是允許的。
+const symptomAsked = (vehicle: Vehicle, question: string, history: string[]) =>
+  hasSymptom(question) || (history.some(hasSymptom) && (itemsIn(vehicle, question).length === 0 || RELATION_ASK.test(question)));
 function guessesSymptomCause(vehicle: Vehicle, question: string, reply: AIReply, history: string[]): string | undefined {
   const { answer } = reply;
-  if (![question, ...history].some(hasSymptom)) return undefined;
-  const claim = answer.split(/[。！？!?\n]/).find((s) => CAUSE_CLAIM.test(s) && !/不能|無法|沒有|請技師/.test(s));
+  if (!symptomAsked(vehicle, question, history)) return undefined;
+  const claim = answer.split(/[。！？!?\n]/).find((s) => CAUSE_CLAIM.test(s.replace(NO_JUDGMENT, "")));
   if (claim) return `卡片沒有這個症狀的檢查，回答卻判斷了原因：${claim.trim()}`;
   const drivingOnly = (reply.sources.includes("driving") || answer.includes("行車摘要")) && itemsIn(vehicle, answer).length === 0;
   return hasSymptom(question) && drivingOnly ? "卡片沒有這個症狀的檢查，回答卻用行車摘要解釋" : undefined;
@@ -723,6 +773,7 @@ function rejectTemplate(
   blocked: boolean,
   inherited: InspectionItem[],
   deferring: boolean,
+  escalating: boolean,
 ): string | undefined {
   if (router.category !== OUTSIDE_CAR && router.category !== CHAT && router.category !== MOOD) return `分類器判${router.category}`;
   if (blocked) return "主回答被攔下";
@@ -736,8 +787,9 @@ function rejectTemplate(
   // 範本路徑不看否定（Codex 再審 #36）：「沒有冒煙才怪」是反話。寧可多轉介專員。
   if (DANGER_WORDS.test(question)) return DANGER_REASON;
   if (needsHuman(question) || moodAboutCar(vehicle, question)) return "問題要轉介專員";
-  // 閒聊、情緒範本不轉介：主回答自己判要轉介專員時，換掉就會拿掉轉介（#36 審查）。卡片外範本本來就轉介。
-  if (reply.escalate && router.category !== OUTSIDE_CAR) return "主回答要轉介專員";
+  // 閒聊、情緒範本不轉介：已經要轉介專員時（主回答自己判、症狀含前幾題、承接、需要轉介），換掉就會拿掉轉介（#36 審查、Codex 審查 #37）。
+  // 卡片外範本本來就轉介，可以換。
+  if (escalating && router.category !== OUTSIDE_CAR) return reply.escalate ? "主回答要轉介專員" : "已經要轉介專員";
   const problem = topicProblem(vehicle, router.category, question, router.topic);
   return problem && `主題詞不合格：${problem}`;
 }
@@ -830,7 +882,13 @@ export async function ask(vehicle: Vehicle, question: string, callAI: CallAI, op
 
   const symptomBlocked = guessesSymptomCause(vehicle, question, reply, history);
   const asked = vehicle.items.filter((i) => [question, ...history].some((t) => mentions(i, t)));
-  const blockedReason = check(vehicle, reply, chosenByOwner(vehicle, question), inherited, deferMust, asked) ?? budgetMismatch(vehicle, question, reply) ?? symptomBlocked;
+  // 只回「沒有這項資料」的拒絕句沒有肯定任何事，不套用正向要求；它本來就轉介專員。
+  const mustItems = noDataReply(vehicle, reply) ? [] : mustAsked(vehicle, question, history);
+  const blockedReason =
+    check(vehicle, reply, chosenByOwner(vehicle, question), inherited, deferMust, asked) ??
+    budgetMismatch(vehicle, question, reply) ??
+    (mustItems.length ? mustNotStated(vehicle, reply.answer, mustItems) : undefined) ??
+    symptomBlocked;
   // 款式建議被攔下時轉專員：常見問題講的是要不要換，答非所問。
   const shown: Answer = blockedReason
     ? blockedReason === symptomBlocked
@@ -841,8 +899,9 @@ export async function ask(vehicle: Vehicle, question: string, callAI: CallAI, op
     : { answer: reply.answer, sources: reply.sources, escalate: reply.escalate };
   // AI 回「沒有這項資料，可以請專員說明」，或說了會請專員、技師處理時，卡片也要顯示轉專員，車主才找得到人。
   // 症狀看前 3 題任一題（#37）：「方向盤會抖」之後的追問都帶轉介。
-  if (deferMust.length || needsHuman(question) || [question, ...history].some(hasSymptom) || shown.answer.includes(NO_DATA) || PROMISES_HUMAN.test(shown.answer))
-    shown.escalate = true;
+  // mustEscalate：規則認定要轉介專員。「沒有這項資料」的轉介不算，閒聊、情緒範本照樣可以換掉它。
+  const mustEscalate = deferMust.length > 0 || needsHuman(question) || [question, ...history].some(hasSymptom);
+  if (mustEscalate || shown.answer.includes(NO_DATA) || PROMISES_HUMAN.test(shown.answer)) shown.escalate = true;
   // 離題拒絕句（OFF_TOPIC）本來就不轉專員，照原樣。
   if (!blockedReason && reply.answer.includes(NO_DATA)) {
     shown.answer = outsideCardAnswer(vehicle, question);
@@ -858,7 +917,7 @@ export async function ask(vehicle: Vehicle, question: string, callAI: CallAI, op
   // 分類器關閉時 router 是 undefined，不寫 trace.router，流程面板才不會顯示「分類器失敗」和 AI 呼叫 2 次。
   if (typeof router === "string") trace.router = { used: false, reason: router };
   else if (router) {
-    const rejected = rejectTemplate(vehicle, question, router, reply, blockedReason !== undefined, inherited, deferMust.length > 0);
+    const rejected = rejectTemplate(vehicle, question, router, reply, blockedReason !== undefined, inherited, deferMust.length > 0, reply.escalate || mustEscalate);
     trace.router = { category: router.category, topic: router.topic, used: !rejected, ...(rejected ? { reason: rejected } : {}) };
     const templated = rejected ? undefined : templateAnswer(vehicle, router.category, router.topic);
     if (templated) Object.assign(shown, { answer: templated, sources: [], escalate: router.category === OUTSIDE_CAR });

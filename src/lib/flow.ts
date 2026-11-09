@@ -114,3 +114,14 @@ export function handoverFlow(h: Handover): FlowEntry {
 export function staffConfirmFlow(): FlowEntry {
   return { title: "專員確認檢查結果摘要", steps: ["專員看過結論清單和 AI 摘要，確認後向車主說明"], aiCalls: 0 };
 }
+
+// 按「請專員來說明」：示意版沒有通知任何人（Codex 審查 #37），畫面只說正式版會怎麼做。note：症狀登記的內容。
+export const notifyText = (note?: string) =>
+  note ? `（示意）正式版會把通知送到服務專員的平板，並附上：${note}` : "（示意）正式版會把通知送到服務專員的平板。";
+export function notifyFlow(note?: string): FlowEntry {
+  return {
+    title: "請專員來說明（示意）",
+    steps: ["示意版沒有送出通知", note ? `正式版會送到服務專員的平板，附上：${note}` : "正式版會送到服務專員的平板"],
+    aiCalls: 0,
+  };
+}

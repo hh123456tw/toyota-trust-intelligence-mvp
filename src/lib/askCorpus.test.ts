@@ -76,4 +76,40 @@ describe("舊紀錄回放", () => {
     }
     expect(blocked).toEqual(["full R180", "fix1 R180", "freeze R180", "assistant_v2 R078", "assistant_v2 R180", "v2 MT19-1", "v2 MT30-1"]);
   });
+
+  // 最後一輪 Codex 審查（#37）：正向要求（必須明說必須更換）和症狀原因（不再因同句有否定詞放行）。回放全部紀錄（含多輪 v3）。
+  // 新增攔下只有 4 則，都是真的問題：MTX01-3 回答只講電瓶、迴避煞車；MT26-2、FU02-2「可能和輪胎有關」是在判斷原因。
+  it("正向要求和症狀原因：新增攔下只有 MTX01-3（v2、v3）、v2 FU02-2、v3 MT26-2", async () => {
+    type Turn = Case & { history?: string[] };
+    const more: Turn[] = ["fix3", "freeze", "assistant_v1", "assistant_v2"].flatMap((label) =>
+      (JSON.parse(read(`../../docs/eval/redteam/run_2026-11-09_${label}.json`)).redteam as { id: string; car: string; question: string; mainRaw?: string }[])
+        .filter((r) => r.mainRaw)
+        .map((r) => ({ where: `${label} ${r.id}`, vehicle: findVehicle(r.car)!, question: r.question, raw: r.mainRaw! })),
+    );
+    type Group = { id: string; car: string; turns: { turn: number; question: string; history: string[]; mainRaw?: string }[] };
+    const multi: Turn[] = ["v1", "v2", "v3"].flatMap((label) =>
+      (JSON.parse(read(`../../docs/eval/redteam/multi_2026-11-09_${label}.json`)).groups as Group[]).flatMap((g) =>
+        g.turns.filter((t) => t.mainRaw).map((t) => ({ where: `${label} ${g.id}-${t.turn}`, vehicle: findVehicle(g.car)!, question: t.question, raw: t.mainRaw!, history: t.history })),
+      ),
+    );
+    const all: Turn[] = [...redteam, ...eval87, ...more, ...multi];
+    expect(all.length).toBeGreaterThan(2000);
+    const positive: string[] = [];
+    const symptom: string[] = [];
+    for (const c of all) {
+      const r = await ask(c.vehicle, c.question, async () => c.raw, { router: false, history: c.history });
+      const reason = r.blockedReason ?? "";
+      if (/車主要延後或問安全/.test(reason)) positive.push(c.where);
+      if (/^卡片沒有這個症狀的檢查/.test(reason)) symptom.push(c.where);
+    }
+    expect(positive).toEqual(["v2 MTX01-3", "v3 MTX01-3"]);
+    // 新增的只有 v2 FU02-2（「可能和右前輪胎紋剩 1.4 mm 有關」）和 v3 MT26-2；其他在舊規則就攔下。
+    expect(symptom).toEqual([
+      ...["full R101", "fix1 R101", "fix2 R101", "fix3 R101", "freeze R101", "assistant_v2 R101", "v1 MT26-2", "v2 MT26-2", "v2 MT33-2"],
+      "v2 FU02-2",
+      "v2 MTX05-3",
+      "v3 MT26-2",
+      "v3 MTX05-3",
+    ]);
+  });
 });

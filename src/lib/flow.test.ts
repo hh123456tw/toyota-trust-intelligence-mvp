@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { cardItems } from "./card";
-import { askFlow, handoverFlow, isBlockedStep, presetFlow, staffConfirmFlow, summaryFlow } from "./flow";
+import { askFlow, handoverFlow, isBlockedStep, notifyFlow, notifyText, presetFlow, staffConfirmFlow, summaryFlow } from "./flow";
 import { handover } from "./handover";
 import { findVehicle } from "./vehicles";
 
@@ -178,5 +178,26 @@ describe("askFlow：不呼叫 AI 的回答", () => {
   it("反例：款式清單（有來源）→ 仍寫款式清單", () => {
     const e = askFlow("輪胎多少錢", 200, { ...base, trace: { mentionedItems: ["item:tire"], data: ["item:tire"], aiSources: ["item:tire"], noAI: true } }, labels);
     expect(e.steps[0]).toBe("使用卡片上的款式清單回答，不呼叫 AI");
+  });
+});
+
+// 產品誠實（Codex 審查 #37）：示意版按「請專員來說明」沒有通知任何人，畫面和流程面板都不能說「已通知」。
+describe("請專員來說明（示意）", () => {
+  it("有登記內容：寫正式版會送到專員平板，並附上內容", () => {
+    expect(notifyText("冷氣，完全不冷")).toBe("（示意）正式版會把通知送到服務專員的平板，並附上：冷氣，完全不冷");
+  });
+  it("沒有登記內容", () => {
+    expect(notifyText()).toBe("（示意）正式版會把通知送到服務專員的平板。");
+  });
+  it("反例：不說已通知、不說專員會過來", () => {
+    for (const t of [notifyText(), notifyText("冷氣")]) expect(t).not.toMatch(/已通知|請稍候|會到你的座位/);
+  });
+  it("流程面板記一筆：示意、沒有送出通知、AI 呼叫 0 次", () => {
+    expect(notifyFlow("冷氣，完全不冷")).toEqual({
+      title: "請專員來說明（示意）",
+      steps: ["示意版沒有送出通知", "正式版會送到服務專員的平板，附上：冷氣，完全不冷"],
+      aiCalls: 0,
+    });
+    expect(notifyFlow().steps).toEqual(["示意版沒有送出通知", "正式版會送到服務專員的平板"]);
   });
 });

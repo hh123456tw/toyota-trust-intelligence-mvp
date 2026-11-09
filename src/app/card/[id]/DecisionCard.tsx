@@ -6,7 +6,7 @@ import { useRef, useState } from "react";
 import type { Answer, Preset } from "@/lib/answers";
 import type { AskResult } from "@/lib/ask";
 import type { CardItem, Gauge } from "@/lib/card";
-import { askFlow, handoverFlow, presetFlow, type FlowEntry } from "@/lib/flow";
+import { askFlow, handoverFlow, notifyFlow, notifyText, presetFlow, type FlowEntry } from "@/lib/flow";
 import { currentMeasurements } from "@/lib/card";
 import { choiceKey, handover, needsOptionPick, pruneChoices, type Choice } from "@/lib/handover";
 import { HISTORY_MAX } from "@/lib/askShared";
@@ -415,7 +415,7 @@ function ItemCard({
             {escalated && !choice && (
               <p className="mt-2 flex items-center gap-2 rounded-xl bg-paper px-3 py-2.5 text-sm font-medium">
                 <Icon name="person" className="size-4 shrink-0" />
-                已通知服務專員，專員會到你的座位當面說明。
+                {notifyText()}
               </p>
             )}
             {(choice || escalated) && (
@@ -818,7 +818,7 @@ function Bubble({
       <AiFrame>
         <div className="rounded-2xl rounded-tl-md bg-paper px-3.5 py-2.5 text-sm text-muted">
           {message.text}
-          <Escalate />
+          <Escalate onFlow={onFlow} />
         </div>
       </AiFrame>
     );
@@ -857,7 +857,7 @@ function Bubble({
             ))}
           </ul>
         )}
-        {intake ? <IntakeBlock start={intake} active={active} onFlow={onFlow} /> : escalate && <Escalate />}
+        {intake ? <IntakeBlock start={intake} active={active} onFlow={onFlow} /> : escalate && <Escalate onFlow={onFlow} />}
       </div>
     </AiFrame>
   );
@@ -901,7 +901,7 @@ function IntakeBlock({ start, active, onFlow }: { start: Intake; active: boolean
       {!question && <p className="mt-2 leading-relaxed">{recap(intake)}</p>}
       {/* 車主中途改問別的：原問題或已選答案有安全訊號，照樣提醒（Codex 審查 #37）。 */}
       {question && !active && safetyNote(intake) && <p className="mt-2 leading-relaxed">{safetyNote(intake)}</p>}
-      {(!question || !active) && <Escalate note={intake.answers.length ? intakeSummary(intake) : undefined} />}
+      {(!question || !active) && <Escalate note={intake.answers.length ? intakeSummary(intake) : undefined} onFlow={onFlow} />}
     </div>
   );
 }
@@ -917,20 +917,20 @@ function AiFrame({ children }: { children: React.ReactNode }) {
   );
 }
 
-// note：症狀登記的摘要，通知專員時一起帶上。
-function Escalate({ note }: { note?: string }) {
+// note：症狀登記的摘要，通知專員時一起帶上。示意版沒有真的送出通知（Codex 審查 #37）。
+function Escalate({ note, onFlow }: { note?: string; onFlow: (entry: FlowEntry) => void }) {
   const [called, setCalled] = useState(false);
   return called ? (
     <p className="mt-2 flex items-center gap-2 rounded-xl bg-ok-soft px-3 py-2 text-sm font-medium text-ok">
       <Icon name="check" className="size-4 shrink-0" />
-      <span>
-        已通知服務專員，請稍候，專員會到你的座位說明。
-        {note && <span className="mt-0.5 block font-normal">登記內容：{note}。</span>}
-      </span>
+      <span>{notifyText(note)}</span>
     </p>
   ) : (
     <button
-      onClick={() => setCalled(true)}
+      onClick={() => {
+        setCalled(true);
+        onFlow(notifyFlow(note));
+      }}
       className="mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-must text-sm font-semibold text-white transition-opacity active:opacity-80"
     >
       <Icon name="person" className="size-4" />
