@@ -669,6 +669,8 @@ function Chat(props: {
     e.preventDefault();
     const question = input.trim();
     if (!question || busy) return;
+    // 對話記憶（#37）：同一張卡車主最近 3 題的原文，不送 AI 回答。
+    const history = messages.flatMap((m) => (m.role === "user" ? [m.text] : [])).slice(-3);
     setInput("");
     push({ role: "user", text: question });
     setBusy(true);
@@ -676,7 +678,7 @@ function Chat(props: {
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: askHeaders(),
-        body: JSON.stringify({ vehicleId, question, measurements, preferences }),
+        body: JSON.stringify({ vehicleId, question, measurements, preferences, history }),
       });
       const data = await res.json();
       push(res.ok ? { role: "ai", answer: data } : { role: "error", text: data.error });

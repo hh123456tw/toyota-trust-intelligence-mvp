@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { ask, simulateTampered, summarize } from "@/lib/ask";
+import { ask, HISTORY_MAX, parseHistory, simulateTampered, summarize } from "@/lib/ask";
 import { applyMeasurements } from "@/lib/card";
 import { callGemini } from "@/lib/gemini";
 import { applyPreferences } from "@/lib/preferences";
@@ -38,6 +38,9 @@ export async function POST(request: NextRequest) {
   if (!summary && (!question || question.length > MAX_QUESTION_LENGTH)) {
     return Response.json({ error: `問題請在 ${MAX_QUESTION_LENGTH} 字以內` }, { status: 400 });
   }
+  // 對話記憶（#37）：只收車主前幾題的原文（字串陣列），不收 AI 回答。
+  const history = parseHistory(body?.history);
+  if (!history) return Response.json({ error: `history 要是最多 ${HISTORY_MAX} 題的文字陣列` }, { status: 400 });
 
   const failMessage = summary
     ? "AI 暫時無法整理摘要，請稍後再試"
@@ -56,7 +59,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const callAI = (system: string, user: string, signal?: AbortSignal) => callGemini(apiKey, system, user, undefined, signal);
-    return Response.json(summary ? await summarize(vehicle, callAI) : await ask(vehicle, question, callAI));
+    return Response.json(summary ? await summarize(vehicle, callAI) : await ask(vehicle, question, callAI, { history }));
   } catch (err) {
     console.error(err);
     return Response.json({ error: failMessage }, { status: 502 });

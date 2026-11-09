@@ -41,15 +41,21 @@ export function askFlow(
     : [];
   // 採用範本時，車主看到的是範本；答案檢查檢查的是主回答，要寫清楚。
   const checkLabel = router?.used ? "答案檢查（主回答）" : "答案檢查";
+  // 對話記憶（#37）：只有車主前幾題的原文，沒有 AI 回答。
+  const memo = [
+    ...(trace.history?.length ? [`參考前幾題：${trace.history.map((h) => `「${h}」`).join("、")}`] : []),
+    ...(trace.referredItems?.length ? [`這一題接著問：${list(trace.referredItems, labels, "")}`] : []),
+  ];
   if (trace.crisis) return { title, steps: ["危機訊息：回固定的求助句（1925 安心專線），不呼叫 AI"], aiCalls: 0 };
   if (trace.noAI) {
-    return { title, steps: [trace.aiSources.length ? "使用卡片上的款式清單回答，不呼叫 AI" : "打招呼，由程式自我介紹，不呼叫 AI", `引用的來源：${list(trace.aiSources, labels, "無")}`], aiCalls: 0 };
+    return { title, steps: [trace.aiSources.length ? "使用卡片上的款式清單回答，不呼叫 AI" : "打招呼，由程式自我介紹，不呼叫 AI", ...memo, `引用的來源：${list(trace.aiSources, labels, "無")}`], aiCalls: 0 };
   }
   return {
     title,
     steps: [
       ...(replay ? [`AI 回答：11/9 真實 Gemini 回答的紀錄重播（${replay.log}），這次沒有呼叫 AI`] : simulated ? ["AI 回答：模擬的竄改回答，沒有呼叫 AI"] : []),
       `理解的問題：${trace.mentionedItems.length ? `提到 ${list(trace.mentionedItems, labels, "")}` : "沒有提到特定項目"}`,
+      ...memo,
       `用了哪些資料：${list(trace.data, labels, "無")}`,
       `引用的來源：${list(trace.aiSources, labels, "無")}`,
       `${checkLabel}：${checkResult === "攔下" ? `攔下（${blockedReason}）` : "通過"}`,
