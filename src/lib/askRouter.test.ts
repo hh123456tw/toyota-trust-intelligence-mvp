@@ -84,13 +84,13 @@ describe("範本制：分類器只回類別和主題詞，句子由程式組", (
     expect(r.trace.router).toEqual({ category: "卡片外的車子問題", topic: "冷氣", used: true });
   });
 
-  it("閒聊 + 主回答離題拒絕 → 閒聊範本套主題詞，不轉介專員", async () => {
+  it("閒聊 + 主回答離題拒絕 → 閒聊範本（不放主題詞），不轉介專員", async () => {
     const r = await ask(wang, "今天天氣如何", fakeAI(OFF_TOPIC, route("閒聊", "天氣")));
     expect(r.answer).toBe(WEATHER_REPLY);
     expect(r.escalate).toBe(false);
   });
 
-  it("閒聊、主題詞空白 → 「這題我不清楚喔」範本", async () => {
+  it("閒聊、主題詞空白 → 閒聊範本（不放主題詞）", async () => {
     const r = await ask(wang, "我今天好累喔", fakeAI(OFF_TOPIC, route("閒聊", "")));
     expect(r.answer).toBe(CHAT_REPLY);
     expect(r.escalate).toBe(false);
