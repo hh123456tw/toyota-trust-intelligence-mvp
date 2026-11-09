@@ -166,3 +166,17 @@ describe("isBlockedStep：流程面板標紅", () => {
     }
   });
 });
+
+describe("askFlow：不呼叫 AI 的回答", () => {
+  const labels = {};
+  const base = { answer: "x", sources: [], escalate: false, checkResult: "通過" as const };
+  it("打招呼（沒有來源）→ 寫自我介紹，不寫款式清單", () => {
+    const e = askFlow("你好你是誰", 200, { ...base, trace: { mentionedItems: [], data: [], aiSources: [], noAI: true } }, labels);
+    expect(e.steps[0]).toBe("打招呼，由程式自我介紹，不呼叫 AI");
+    expect(e.aiCalls).toBe(0);
+  });
+  it("反例：款式清單（有來源）→ 仍寫款式清單", () => {
+    const e = askFlow("輪胎多少錢", 200, { ...base, trace: { mentionedItems: ["item:tire"], data: ["item:tire"], aiSources: ["item:tire"], noAI: true } }, labels);
+    expect(e.steps[0]).toBe("使用卡片上的款式清單回答，不呼叫 AI");
+  });
+});

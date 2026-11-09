@@ -36,7 +36,7 @@ export function askFlow(
     ? [`分類器：${router.category ?? "失敗"}`, `候選回答：${router.used ? "採用" : `沒採用（${router.reason}）`}`]
     : [];
   if (trace.noAI) {
-    return { title, steps: ["使用卡片上的款式清單回答，不呼叫 AI", `引用的來源：${list(trace.aiSources, labels, "無")}`], aiCalls: 0 };
+    return { title, steps: [trace.aiSources.length ? "使用卡片上的款式清單回答，不呼叫 AI" : "打招呼，由程式自我介紹，不呼叫 AI", `引用的來源：${list(trace.aiSources, labels, "無")}`], aiCalls: 0 };
   }
   return {
     title,

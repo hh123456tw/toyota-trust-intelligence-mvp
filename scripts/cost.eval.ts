@@ -61,7 +61,7 @@ describe("AI 每台車成本（真的 Gemini）", () => {
         `每台車平均：輸入 ${avgIn.toFixed(0)}、輸出 ${avgOut.toFixed(0)} token`,
         ...cars.map((c, i) => `  第 ${i + 1} 輪：輸入 ${sum(c, "input")}、輸出 ${sum(c, "output")}、${costUsd(sum(c, "input"), sum(c, "output")).toFixed(6)} 美元`),
         `每台車成本：${usd.toFixed(6)} 美元 ≈ ${(usd * TWD_PER_USD).toFixed(4)} 新台幣`,
-        `每位專員每月（15 台 × 25 天＝${monthCars} 台）：${(usd * monthCars).toFixed(4)} 美元 ≈ ${(usd * monthCars * TWD_PER_USD).toFixed(2)} 新台幣`,
+        `每個大廠每月（大廠每天約 15 台 × 25 天＝${monthCars} 台）：${(usd * monthCars).toFixed(4)} 美元 ≈ ${(usd * monthCars * TWD_PER_USD).toFixed(2)} 新台幣`,
       ].join("\n"),
     );
   }, 600_000);
