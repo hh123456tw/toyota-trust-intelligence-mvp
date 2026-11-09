@@ -18,12 +18,12 @@ const FINAL_NAME = "11/10 上線版（像真人助理）";
 const AFTER = [1, 2, 3].map((n) => ({ file: `${FINAL}${n}.log`, label: `第 ${n} 次`, ...load(`${FINAL}${n}.log`) }));
 
 // 紅隊：上線版這次的單輪、多輪紀錄（scripts/redteam.eval.ts、redteam_multi.eval.ts）。檔名日期是 UTC。
-// 單輪是 t38c（測試端修補後重跑）；多輪沿用 t38b。
+// 單輪、多輪都是 t38e（補最後一條症狀檢查規則後重跑）。
 const REDTEAM_DIR = "docs/eval/redteam";
-const REDTEAM_SINGLE = "run_2026-11-09_t38c.md";
-const REDTEAM_MULTI = "multi_2026-11-09_t38b.md";
-// 之後只補了一條收緊的症狀檢查，沒有重跑紅隊和 29 題（使用者決定）。
-const LAST_RULE_NOTE = "最後一條症狀檢查規則（必須更換項目不能出現可延後）只跑自動測試與 6 題症狀小測。";
+const REDTEAM_SINGLE = "run_2026-11-09_t38e.md";
+const REDTEAM_MULTI = "multi_2026-11-09_t38e.md";
+// 最後一條收緊的症狀檢查之後重跑了紅隊；29 題沿用 t38c（使用者決定）。
+const LAST_RULE_NOTE = "最後補的症狀檢查規則（必須更換項目不能出現可延後）之後重跑了紅隊；下方 29 題回歸測試是補這條規則前的同版程式所測。";
 const red = parseRedteam(
   readFileSync(join(process.cwd(), REDTEAM_DIR, REDTEAM_SINGLE), "utf-8"),
   readFileSync(join(process.cwd(), REDTEAM_DIR, REDTEAM_MULTI), "utf-8"),
