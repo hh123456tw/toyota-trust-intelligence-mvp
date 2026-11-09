@@ -261,19 +261,19 @@ describe("流程紀錄", () => {
 });
 
 describe("分類器開關", () => {
-  it("正式站預設關閉：不呼叫分類器，行為同 v37", async () => {
-    expect(ROUTER_ENABLED).toBe(false);
+  it("關閉時（router: false）不呼叫分類器，行為同 v37", async () => {
+    expect(ROUTER_ENABLED).toBe(true);
     const prompts: string[] = [];
     await realAsk(findVehicle("wang")!, "我冷氣不冷", async (s) => {
       prompts.push(s);
       return JSON.stringify({ answer: "這張卡上沒有這項資料，可以請專員說明", sources: [], escalate: true, itemConclusions: [] });
-    });
+    }, { router: false });
     expect(prompts).toHaveLength(1);
   });
   it("關閉時 trace 沒有分類器資訊，流程面板寫 AI 呼叫 1 次", async () => {
     const r = await realAsk(findVehicle("wang")!, "我冷氣不冷", async () =>
       JSON.stringify({ answer: "這張卡上沒有這項資料，可以請專員說明", sources: [], escalate: true, itemConclusions: [] }),
-    );
+    { router: false });
     expect(r.trace.router).toBeUndefined();
     expect(askFlow("我冷氣不冷", 200, r, {}).aiCalls).toBe(1);
   });
