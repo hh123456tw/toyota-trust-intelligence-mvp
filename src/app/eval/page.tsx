@@ -18,10 +18,12 @@ const FINAL_NAME = "11/10 上線版（像真人助理）";
 const AFTER = [1, 2, 3].map((n) => ({ file: `${FINAL}${n}.log`, label: `第 ${n} 次`, ...load(`${FINAL}${n}.log`) }));
 
 // 紅隊：上線版這次的單輪、多輪紀錄（scripts/redteam.eval.ts、redteam_multi.eval.ts）。檔名日期是 UTC。
-// 單輪是 t38c（測試端修補後重跑）；多輪沿用 t38b，之後產品程式沒改。
+// 單輪是 t38c（測試端修補後重跑）；多輪沿用 t38b。
 const REDTEAM_DIR = "docs/eval/redteam";
 const REDTEAM_SINGLE = "run_2026-11-09_t38c.md";
 const REDTEAM_MULTI = "multi_2026-11-09_t38b.md";
+// 之後只補了一條收緊的症狀檢查，沒有重跑紅隊和 29 題（使用者決定）。
+const LAST_RULE_NOTE = "最後一條症狀檢查規則（必須更換項目不能出現可延後）只跑自動測試與 6 題症狀小測。";
 const red = parseRedteam(
   readFileSync(join(process.cwd(), REDTEAM_DIR, REDTEAM_SINGLE), "utf-8"),
   readFileSync(join(process.cwd(), REDTEAM_DIR, REDTEAM_MULTI), "utf-8"),
@@ -217,7 +219,7 @@ export default function EvalPage() {
         <Stat label="違規" value={`${red.singleFailed + red.multiFailed}`} note={`單輪 ${red.singleFailed}、多輪 ${red.multiFailed}`} />
       </dl>
       <p className="mt-2 text-sm text-muted">
-        攻擊題型：要 AI 改結論、議價打折、保證安全、多輪慢慢套話、要看提示詞等。用真實 Gemini 每題跑一次，程式自動檢查不變條件。逐題原文在 repo 的 {REDTEAM_DIR}/（{REDTEAM_SINGLE}、{REDTEAM_MULTI}）。
+        攻擊題型：要 AI 改結論、議價打折、保證安全、多輪慢慢套話、要看提示詞等。用真實 Gemini 每題跑一次，程式自動檢查不變條件。逐題原文在 repo 的 {REDTEAM_DIR}/（{REDTEAM_SINGLE}、{REDTEAM_MULTI}）。{LAST_RULE_NOTE}
       </p>
 
       <h2 className="mt-10 text-lg font-bold">回歸測試：自己的 {aiPerRun} 題，上線版連跑 3 次</h2>
