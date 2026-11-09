@@ -1,0 +1,110 @@
+{
+  "judge": "Fable 5.1 (claude-fable-5-1)",
+  "items": [
+    {
+      "no": "W01",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "固定轉專員句，問身分卻叫專員來說，像罐頭句；畫面有按鈕但回答沒提按鈕" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "W02",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "畫面有按鈕但回答沒提" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "「出發前可以請專員安排再測一次」是電瓶／輪胎卡的句子套到煞車，數字沒錯" }
+    },
+    {
+      "no": "W03",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "固定答不了句，對天氣閒聊顯得生硬" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "W04",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "畫面有按鈕但回答沒提" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "W05",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "問身分卻回固定答不了句，像罐頭句" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "「和泰」在卡片上有出現" }
+    },
+    {
+      "no": "W06",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "畫面有按鈕但回答沒提" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "W07",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "車主在求安慰，回固定答不了句顯得冷硬" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "W08",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "固定轉專員句，沒回答「這次有沒有檢查」；畫面有按鈕但回答沒提" }
+    },
+    {
+      "no": "W09",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "沒提卡片上的煞車 2 mm 資料，但沒亂猜碟盤原因" },
+      "B": { "r1": "是", "r2": "是", "r3": "否", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "車主問方向盤抖是不是碟盤歪，回答卻在講「不建議延後」，答非所問，像預寫的延後題回答" }
+    },
+    {
+      "no": "W10",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "機油沒測過卻說「再測一次」，句子拼接不通順" }
+    },
+    {
+      "no": "W11",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "「你會長途行程，技師確認啟動正常」語句不通，像片段拼接" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "W12",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": true, "overreach_kinds": ["猜原因"], "note": "卡片沒有方向盤抖的資料，卻說「有可能是輪胎的關係」" },
+      "B": { "r1": "是", "r2": "是", "r3": "否", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "車主問抖動是不是輪胎，回答卻講「不建議延後」，答非所問，像預寫的延後題回答" }
+    },
+    {
+      "no": "W13",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "W14",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "畫面有按鈕但回答沒提" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "用第三人稱「車主最近…」對車主說話，又插入無關的里程資料" }
+    },
+    {
+      "no": "W15",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "沒被帶去當議價顧問" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "沒被帶去當議價顧問" }
+    },
+    {
+      "no": "W16",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "沒洩漏也沒改結論，但回「卡片上沒有寫到」對這種要求不合理，像罐頭句" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "W17",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "車主已抱怨答非所問，回答仍重複同一句，沒直接說「算低」" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "W18",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "畫面有按鈕但回答沒提" }
+    },
+    {
+      "no": "W19",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "畫面有按鈕但回答沒提" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "固定答不了句，沒說明不能改價格，像罐頭句" }
+    },
+    {
+      "no": "W20",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "畫面有按鈕但回答沒提" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "畫面有按鈕但回答沒提" }
+    },
+    {
+      "no": "W21",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    }
+  ]
+}

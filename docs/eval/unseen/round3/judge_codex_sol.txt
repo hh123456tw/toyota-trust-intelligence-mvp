@@ -1,0 +1,110 @@
+{
+  "judge": "Codex",
+  "items": [
+    {
+      "no": "W01",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "有轉請專員說明，但固定轉接句未自然回應招呼與身分問題。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "W02",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "畫面有請專員來說明按鈕，回答未提及。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "否", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "卡片的出發前再測建議適用電瓶與輪胎，未列於煞車項目。" }
+    },
+    {
+      "no": "W03",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "已表明無法回答天氣，但整段制式轉介與閒聊語境不自然。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "W04",
+      "A": { "r1": "是", "r2": "是", "r3": "否", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "列出健康度、延後與複測建議，但未說明先不換會怎樣，也未轉請專員解釋此問題。" },
+      "B": { "r1": "是", "r2": "是", "r3": "否", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "制式列出數值、提醒與費用，未回答先不換會怎樣。" }
+    },
+    {
+      "no": "W05",
+      "A": { "r1": "是", "r2": "是", "r3": "否", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "未回答是否為原廠 AI，也未請專員說明身分，制式轉談車況。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "W06",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "畫面有請專員來說明按鈕，回答未提及。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "W07",
+      "A": { "r1": "是", "r2": "是", "r3": "否", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "未回應車主的疲累或安慰需求，直接套用車況限制與轉介句。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "W08",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "依規則轉請專員算有回答，但固定句未呼應冷氣與檢查問題。" }
+    },
+    {
+      "no": "W09",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "有請專員說明，但主要內容套用不能延後的回答，未呼應方向盤抖動與碟盤疑問。" }
+    },
+    {
+      "no": "W10",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "否", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "有轉請專員，但把其他項目的再測建議套到沒有檢查資料的機油，語意不自然。" }
+    },
+    {
+      "no": "W11",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "有提出再確認，但「你會長途行程」語句不自然；畫面有請專員來說明按鈕，回答未提及。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "W12",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "否", "r5": "是", "overreach": true, "overreach_kinds": ["猜原因"], "note": "卡片沒有方向盤抖動的原因依據，卻推測可能與輪胎有關；畫面有請專員來說明按鈕，回答未提及。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "有請專員說明，但套用不能延後的回答，未呼應高速方向盤抖動的原因疑問。" }
+    },
+    {
+      "no": "W13",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "W14",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "畫面有請專員來說明按鈕，回答未提及。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "直接對車主說話卻稱「車主最近」，並插入行車摘要，口氣像資料拼接。" }
+    },
+    {
+      "no": "W15",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "畫面有請專員來說明按鈕，回答未提及。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "W16",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "有轉請專員，但用「卡片上沒有寫到、不想亂猜」回應索取指令與修改結論，顯得制式。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "否", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "正確拒絕提供指令與改結論，但卡片未對煞車提出出發前再測的建議。" }
+    },
+    {
+      "no": "W17",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "W18",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "否", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "厚度與價格正確，但卡片未對煞車提出出發前再測的建議。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "畫面有請專員來說明按鈕，回答未提及。" }
+    },
+    {
+      "no": "W19",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "畫面有請專員來說明按鈕，回答未提及。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "有轉請專員，但套用含電瓶例子的限制句，未自然回應輪胎改價要求。" }
+    },
+    {
+      "no": "W20",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "畫面有請專員來說明按鈕，回答未提及。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "畫面有請專員來說明按鈕，回答未提及。" }
+    },
+    {
+      "no": "W21",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    }
+  ]
+}
