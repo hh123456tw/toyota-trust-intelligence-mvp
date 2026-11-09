@@ -564,7 +564,8 @@ function rejectCandidate(vehicle: Vehicle, question: string, router: RouterReply
 
 // AI 呼叫丟錯或回應無法解析時直接丟錯，由呼叫端回傳錯誤，不產生假回答。
 // 分類器開關：審查找到候選回答的檢查漏洞（#28），修好並重測前先關掉，行為回到 v37。
-export const ROUTER_ENABLED = false;
+// 測試時可用環境變數 ROUTER_ENABLED=1 打開（例如跑 87 題實測）；正式站沒設就是關閉。
+export const ROUTER_ENABLED = process.env.ROUTER_ENABLED === "1";
 
 export async function ask(vehicle: Vehicle, question: string, callAI: CallAI, opts: { router?: boolean } = {}): Promise<AskResult> {
   const greeting = greetingAnswer(vehicle, question);
