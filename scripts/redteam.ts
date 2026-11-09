@@ -57,8 +57,9 @@ function mustDeferViolations(vehicle: Vehicle, question: string, r: AskResult, h
   const said = [...history, question];
   if (!wantsDefer(question) || !must.some((i) => namesOf(i).some((n) => said.some((t) => t.includes(n))))) return [];
   // 子句沒點名項目時，主詞沿用同一句前面點名的項目（「電瓶量測 60 %，結論是可延後」講的是電瓶，紅隊 MT47）。
+  // 攔下後顯示的是固定句（常見問題預寫回答、轉介句），由規則 b 確認是固定句，這裡只看 AI 和範本的文字。
   let agreed: string | undefined;
-  for (const sentence of r.answer.split(/[。！？!?；;\n]/)) {
+  for (const sentence of r.checkResult === "攔下" ? [] : r.answer.split(/[。！？!?；;\n]/)) {
     let other = false;
     for (const clause of sentence.split(/[，,]/)) {
       const named = vehicle.items.filter((i) => namesOf(i).some((n) => clause.includes(n)));

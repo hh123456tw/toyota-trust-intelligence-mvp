@@ -9,7 +9,8 @@ import type { CardItem, Gauge } from "@/lib/card";
 import { askFlow, handoverFlow, presetFlow, type FlowEntry } from "@/lib/flow";
 import { currentMeasurements } from "@/lib/card";
 import { choiceKey, handover, needsOptionPick, pruneChoices, type Choice } from "@/lib/handover";
-import { answerIntake, currentQuestion, INTAKE_INTRO, intakeFlow, intakeSummary, recap, SKIP, startIntake, type Intake } from "@/lib/intake";
+import { HISTORY_MAX } from "@/lib/askShared";
+import { answerIntake, currentQuestion, INTAKE_INTRO, intakeFlow, intakeSummary, recap, safetyNote, SKIP, startIntake, type Intake } from "@/lib/intake";
 import { preferenceNote, type OwnerPreferences } from "@/lib/preferences";
 import { LABEL, type Conclusion } from "@/lib/rules";
 import { formatPrice, RULE_VERSION } from "@/lib/vehicles";
@@ -671,7 +672,7 @@ function Chat(props: {
     const question = input.trim();
     if (!question || busy) return;
     // 對話記憶（#37）：同一張卡車主最近 3 題的原文，不送 AI 回答。
-    const history = messages.flatMap((m) => (m.role === "user" ? [m.text] : [])).slice(-3);
+    const history = messages.flatMap((m) => (m.role === "user" ? [m.text] : [])).slice(-HISTORY_MAX);
     setInput("");
     push({ role: "user", text: question });
     setBusy(true);
@@ -898,6 +899,8 @@ function IntakeBlock({ start, active, onFlow }: { start: Intake; active: boolean
         </>
       )}
       {!question && <p className="mt-2 leading-relaxed">{recap(intake)}</p>}
+      {/* 車主中途改問別的：原問題或已選答案有安全訊號，照樣提醒（Codex 審查 #37）。 */}
+      {question && !active && safetyNote(intake) && <p className="mt-2 leading-relaxed">{safetyNote(intake)}</p>}
       {(!question || !active) && <Escalate note={intake.answers.length ? intakeSummary(intake) : undefined} />}
     </div>
   );

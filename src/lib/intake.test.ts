@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ANGRY_ANSWER, CRISIS_ANSWER, SYMPTOM_ANSWER, type AskResult } from "./ask";
-import { answerIntake, currentQuestion, INTAKE_INTRO, intakeFlow, intakeSummary, pickSet, recap, SKIP, startIntake, type Intake } from "./intake";
+import { answerIntake, currentQuestion, INTAKE_INTRO, intakeFlow, intakeSummary, pickSet, recap, safetyNote, SKIP, startIntake, type Intake } from "./intake";
 
 const reply = (answer: string, router?: AskResult["trace"]["router"], extra: Partial<AskResult["trace"]> = {}) => ({
   answer,
@@ -19,6 +19,10 @@ describe("pickSet：依問題文字選題組", () => {
     ["儀表板亮了一個燈", "light"],
     ["警示燈亮了", "light"],
     ["故障燈一直閃", "light"],
+    // 煞車警示燈是安全燈（Codex 審查 #37）。
+    ["手煞車燈亮了", "light"],
+    ["煞車燈一直亮", "light"],
+    ["車子沒冷氣了", "ac"],
   ])("「%s」選 %s", (q, id) => {
     expect(pickSet(q).id).toBe(id);
   });
@@ -29,6 +33,7 @@ describe("pickSet：依問題文字選題組", () => {
     "喇叭沒有聲音",
     "我想買燈籠掛車上",
     "大燈不亮",
+    "我不是問冷氣",
     "冷氣不冷，沒有異音",
   ])("反例「%s」不選冷氣以外的錯誤題組", (q) => {
     const id = pickSet(q).id;
@@ -162,6 +167,28 @@ describe("recap：複述句", () => {
         expect(recap(done)).not.toMatch(/可能是|因為|應該是|大概是|造成|導致/);
       }
     }
+  });
+});
+
+// Codex 審查（#37）：原問題或已選答案有安全訊號，按［先不用］或中途改問也要顯示保守提醒（專員按鈕畫面照舊顯示）。
+describe("safetyNote：先不用、中途改問也要提醒", () => {
+  it.each(["機油紅燈亮", "車子在冒煙", "煞車有點煞不住"])("原問題有安全訊號（%s），一題都沒答就按［先不用］：照樣提醒", (q) => {
+    const intake = run(begin(q), [SKIP]);
+    expect(safetyNote(intake)).toBe(SAFETY);
+    expect(recap(intake)).toContain(SAFETY);
+    expect(intakeFlow(intake).steps).toContain("加上行車安全提醒");
+  });
+
+  it("已選紅色、還沒答完就改問別的（登記停在中途）：safetyNote 有值", () => {
+    const intake = run(begin("儀表燈亮了"), ["紅色"]);
+    expect(currentQuestion(intake)).toBeDefined();
+    expect(safetyNote(intake)).toBe(SAFETY);
+  });
+
+  it.each(["紅色的車冷氣不冷", "大燈不亮", "冷氣不冷"])("反例：%s 沒有安全訊號，按［先不用］不提醒", (q) => {
+    const intake = run(begin(q), [SKIP]);
+    expect(safetyNote(intake)).toBeUndefined();
+    expect(recap(intake)).not.toContain(SAFETY);
   });
 });
 

@@ -617,7 +617,9 @@ export const ROUTER_SCHEMA = {
 // 呼叫端（gemini.ts）依提示詞挑 schema：分類器用自己的，其他照舊。
 export const schemaFor = (system: string) => (system === ROUTER_PROMPT ? ROUTER_SCHEMA : RESPONSE_SCHEMA);
 
-type RouterReply = { category: (typeof ROUTER_CATEGORIES)[number]; topic: string };
+// 前端（intake.ts）用 import type 引用，類別字串改錯會在編譯時報錯。
+export type RouterCategory = (typeof ROUTER_CATEGORIES)[number];
+type RouterReply = { category: RouterCategory; topic: string };
 
 // 分類器最多等 4 秒：主回答通常 2 秒內回來，分類器只是加分項，不能拖住整題。
 export const ROUTER_TIMEOUT_MS = 4_000;
