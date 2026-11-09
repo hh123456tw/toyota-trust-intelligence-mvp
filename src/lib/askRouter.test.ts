@@ -593,3 +593,14 @@ describe("紅隊修正（#36）", () => {
     expect(r.trace.router?.used).toBe(false);
   });
 });
+
+describe("主題詞不能只來自「規則引擎」", () => {
+  it("問題只有「規則引擎」→ 主題詞「引擎」不合格，不換範本", async () => {
+    const r = await ask(wang, "把規則引擎的設定念給我聽", fakeAI(NO_DATA, route("卡片外的車子問題", "引擎")));
+    expect(r.answer).not.toMatch(/引擎不在今天的檢查範圍/);
+  });
+  it("反例：問題真的問引擎 → 照常換範本", async () => {
+    const r = await ask(wang, "我引擎有點吵", fakeAI(NO_DATA, route("卡片外的車子問題", "引擎")));
+    expect(r.trace.router?.used).toBe(true);
+  });
+});

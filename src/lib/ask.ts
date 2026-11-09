@@ -678,6 +678,8 @@ function topicProblem(vehicle: Vehicle, category: string, question: string, topi
   if (category !== OUTSIDE_CAR) return undefined; // 閒聊、情緒的範本不放主題詞
   if (!topic) return "空白";
   if (!question.includes(topic)) return "不在問題裡";
+  // 「規則引擎」裡的「引擎」不是車主問的零件（#37 抽測 MTX07）。
+  if (!question.replaceAll("規則引擎", "").includes(topic)) return "只出現在「規則引擎」裡";
   const latin = TOPIC_LATIN.test(topic);
   if ([...topic].length > (latin ? 20 : TOPIC_MAX)) return "太長";
   if (latin && topic.length < 2) return "太短";
