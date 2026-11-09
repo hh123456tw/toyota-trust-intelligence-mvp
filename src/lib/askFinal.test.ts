@@ -2,7 +2,9 @@
 // 做法是正向要求：回答必須明說什麼，不是再加黑名單。
 import { describe, expect, it } from "vitest";
 import { presetsFor } from "./answers";
-import { ask, ESCALATE_ANSWER, SYMPTOM_ANSWER } from "./ask";
+import { ask as askScripted, ESCALATE_ANSWER, SYMPTOM_ANSWER } from "./ask";
+// 這裡測答案檢查（第二層）：關掉高風險題程式組句，讓假 AI 的回答真的經過檢查。程式組句見 askScripted.test.ts。
+const ask: typeof askScripted = (v, q, ai, o = {}) => askScripted(v, q, ai, { scripted: false, ...o });
 import { findVehicle } from "./vehicles";
 
 const wang = findVehicle("wang")!;

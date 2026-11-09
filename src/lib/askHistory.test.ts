@@ -1,6 +1,8 @@
 // 對話記憶（#37）：追問時帶車主前幾題的原文。前端送來的歷史不可信，只當「車主說過的話」，不收 AI 回答。
 import { describe, expect, it } from "vitest";
-import { ask, parseHistory } from "./ask";
+import { ask as askScripted, parseHistory } from "./ask";
+// 這裡測答案檢查（第二層）：關掉高風險題程式組句，讓假 AI 的回答真的經過檢查。程式組句見 askScripted.test.ts。
+const ask: typeof askScripted = (v, q, ai, o = {}) => askScripted(v, q, ai, { scripted: false, ...o });
 import { askFlow } from "./flow";
 import { findVehicle } from "./vehicles";
 

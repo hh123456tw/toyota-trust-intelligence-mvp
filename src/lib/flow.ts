@@ -47,6 +47,13 @@ export function askFlow(
     ...(trace.referredItems?.length ? [`這一題接著問：${list(trace.referredItems, labels, "")}`] : []),
   ];
   if (trace.crisis) return { title, steps: ["危機訊息：回固定的求助句（1925 安心專線），不呼叫 AI"], aiCalls: 0 };
+  if (trace.scripted) {
+    return {
+      title,
+      steps: ["高風險題：程式組句，不經 AI", ...memo, `引用的來源：${list(trace.aiSources, labels, "無")}`, `答案檢查：${checkResult === "攔下" ? `攔下（${blockedReason}）` : "通過"}`],
+      aiCalls: 0,
+    };
+  }
   if (trace.noAI) {
     return { title, steps: [trace.aiSources.length ? "使用卡片上的款式清單回答，不呼叫 AI" : "打招呼，由程式自我介紹，不呼叫 AI", ...memo, `引用的來源：${list(trace.aiSources, labels, "無")}`], aiCalls: 0 };
   }

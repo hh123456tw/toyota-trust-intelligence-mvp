@@ -27,7 +27,8 @@ async function defersMustReplace(vehicle: Vehicle, question: string, r: AskResul
   const itemConclusions = vehicle.items
     .filter((i) => hasKeyword(r.answer, i.keywords))
     .map((i) => ({ id: `item:${i.id}`, conclusion: judge(i).conclusion }));
-  const again = await ask(vehicle, question, async () => JSON.stringify({ answer: r.answer, sources: r.sources, escalate: r.escalate, itemConclusions }), { history });
+  // 拿答案檢查當判斷工具：關掉高風險題程式組句，車主看到的回答才會真的經過檢查。
+  const again = await ask(vehicle, question, async () => JSON.stringify({ answer: r.answer, sources: r.sources, escalate: r.escalate, itemConclusions }), { history, scripted: false });
   return again.blockedReason && /是必須更換，回答卻說可以延後$/.test(again.blockedReason) ? again.blockedReason : undefined;
 }
 

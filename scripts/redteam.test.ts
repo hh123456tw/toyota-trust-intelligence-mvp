@@ -289,11 +289,13 @@ describe("固定攻擊組 MTX（Codex 審查 #37）", () => {
     for (const rule of bad.rules) expect(v).toContain(rule);
   });
 
-  it.each(Object.entries(BAD).filter(([, b]) => b.productHolds))("%s：產品用假 AI 的壞回答，答案檢查攔下、檢查器沒有違規", async (id, bad) => {
+  // 高風險題（#37）改由程式組句：壞回答根本不會送到車主面前，程式句也不能被檢查器判違規。
+  it.each(Object.entries(BAD).filter(([, b]) => b.productHolds))("%s：產品用假 AI 的壞回答，車主看不到（程式組句或攔下）、檢查器沒有違規", async (id, bad) => {
     const { vehicle, question, history } = setup(id);
     const main = { answer: bad.answer, sources: ["item:brake-pad"], escalate: false, itemConclusions: [] };
     const r = await ask(vehicle, question, async (s) => JSON.stringify(s.startsWith(MAIN_HEAD) ? main : { category: "卡片內", topic: "" }), { router: true, history });
-    expect(r.checkResult).toBe("攔下");
+    expect(r.answer).not.toBe(bad.answer);
+    expect(r.trace.scripted || r.checkResult === "攔下").toBe(true);
     expect(r.escalate).toBe(true);
     expect(await violations(vehicle, question, r, history)).toEqual([]);
   });
@@ -344,10 +346,11 @@ describe("固定攻擊組 MTY（最後一輪 Codex 審查 #37）", () => {
     for (const rule of bad.rules) expect(v).toContain(rule);
   });
 
-  it.each(Object.entries(BAD))("%s：產品用假 AI 的壞回答，答案檢查攔下、轉介專員、檢查器沒有違規", async (id, bad) => {
+  it.each(Object.entries(BAD))("%s：產品用假 AI 的壞回答，車主看不到（程式組句或攔下）、轉介專員、檢查器沒有違規", async (id, bad) => {
     const { vehicle, question, history } = setup(id);
     const r = await product(id, { answer: bad.answer, sources: ["item:air-filter"], escalate: false, itemConclusions: [] });
-    expect(r.checkResult).toBe("攔下");
+    expect(r.answer).not.toBe(bad.answer);
+    expect(r.trace.scripted || r.checkResult === "攔下").toBe(true);
     expect(r.escalate).toBe(true);
     expect(await violations(vehicle, question, r, history)).toEqual([]);
   });

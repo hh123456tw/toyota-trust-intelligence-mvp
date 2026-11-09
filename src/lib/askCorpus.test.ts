@@ -3,7 +3,9 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parseQuestions } from "../../scripts/questions";
-import { ask } from "./ask";
+import { ask as askScripted } from "./ask";
+// 前三個測試回放答案檢查（第二層）：關掉高風險題程式組句。最後一個測試看程式組句改走了哪些題目。
+const ask: typeof askScripted = (v, q, ai, o = {}) => askScripted(v, q, ai, { scripted: false, ...o });
 import { hasKeyword } from "./manual";
 import { applyPreferences } from "./preferences";
 import { judge } from "./rules";
@@ -111,5 +113,36 @@ describe("舊紀錄回放", () => {
       "v3 MT26-2",
       "v3 MTX05-3",
     ]);
+  });
+
+  // 高風險題程式組句（#37）：回放全部紀錄，開和關各跑一次。改走程式句的都過第二層答案檢查；其他題目結果完全不變。
+  it("程式組句：354 則改走程式句，其他題目和關掉時完全一樣", async () => {
+    type Turn = Case & { history?: string[] };
+    const more: Turn[] = ["fix3", "freeze", "assistant_v1", "assistant_v2"].flatMap((label) =>
+      (JSON.parse(read(`../../docs/eval/redteam/run_2026-11-09_${label}.json`)).redteam as { id: string; car: string; question: string; mainRaw?: string }[])
+        .filter((r) => r.mainRaw)
+        .map((r) => ({ where: `${label} ${r.id}`, vehicle: findVehicle(r.car)!, question: r.question, raw: r.mainRaw! })),
+    );
+    type Group = { id: string; car: string; turns: { turn: number; question: string; history: string[]; mainRaw?: string }[] };
+    const multi: Turn[] = ["v1", "v2", "v3"].flatMap((label) =>
+      (JSON.parse(read(`../../docs/eval/redteam/multi_2026-11-09_${label}.json`)).groups as Group[]).flatMap((g) =>
+        g.turns.filter((t) => t.mainRaw).map((t) => ({ where: `${label} ${g.id}-${t.turn}`, vehicle: findVehicle(g.car)!, question: t.question, raw: t.mainRaw!, history: t.history })),
+      ),
+    );
+    const scripted: string[] = [];
+    for (const c of [...redteam, ...eval87, ...more, ...multi] as Turn[]) {
+      const on = await askScripted(c.vehicle, c.question, async () => c.raw, { router: false, history: c.history, scripted: true });
+      if (on.trace.scripted) {
+        scripted.push(c.where);
+        expect(on.checkResult, c.where).toBe("通過");
+        expect(on.escalate, c.where).toBe(true);
+        continue;
+      }
+      const off = await ask(c.vehicle, c.question, async () => c.raw, { router: false, history: c.history });
+      expect(on, c.where).toEqual(off);
+    }
+    expect(scripted).toHaveLength(354);
+    // 例子：必須更換＋延後、忽略規則、症狀問原因（含舊規則攔下的 R101、FU02-2）。
+    expect(scripted).toEqual(expect.arrayContaining(["full R026", "run1 #1", "run1 #6", "full R101", "v1 FU02-2", "v2 MTX01-3", "v2 MTX05-3"]));
   });
 });

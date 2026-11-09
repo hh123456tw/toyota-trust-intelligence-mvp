@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { sourceLabel } from "./answers";
-import { ask, ROUTER_PROMPT, simulateTampered } from "./ask";
+import { ask as askScripted, ROUTER_PROMPT, simulateTampered } from "./ask";
+// 這裡測答案檢查（第二層）：關掉高風險題程式組句，讓假 AI 的回答真的經過檢查。程式組句見 askScripted.test.ts。
+const ask: typeof askScripted = (v, q, ai, o = {}) => askScripted(v, q, ai, { scripted: false, ...o });
 import { withMeasurement } from "./card";
 import { findVehicle } from "./vehicles";
 

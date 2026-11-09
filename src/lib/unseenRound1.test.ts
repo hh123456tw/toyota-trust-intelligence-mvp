@@ -2,7 +2,9 @@
 import { describe, expect, it } from "vitest";
 import { cardContext } from "./answers";
 import { cardItems } from "./card";
-import { ask, optionAnswer } from "./ask";
+import { ask as askScripted, optionAnswer } from "./ask";
+// 這裡測答案檢查（第二層）：關掉高風險題程式組句，讓假 AI 的回答真的經過檢查。程式組句見 askScripted.test.ts。
+const ask: typeof askScripted = (v, q, ai, o = {}) => askScripted(v, q, ai, { scripted: false, ...o });
 import { findVehicle } from "./vehicles";
 
 const wang = findVehicle("wang")!;

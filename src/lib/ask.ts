@@ -5,7 +5,7 @@ import { DANGER, HISTORY_MAX } from "./askShared";
 import { findExcerpts, hasKeyword, OTHER_PARTS } from "./manual";
 import { HANDLING, preferenceSummaryLine } from "./preferences";
 import { REAL_REPLAY } from "./replay";
-import { judge, type Conclusion } from "./rules";
+import { judge, LABEL, type Conclusion } from "./rules";
 import { baseOption, findVehicle, formatPrice, priceLabel, visibleOptions, type InspectionItem, type Vehicle } from "./vehicles";
 
 // AI 呼叫函式：收系統提示詞和使用者內容，回傳 AI 的原始 JSON 文字。
@@ -19,7 +19,8 @@ export type AskResult = Answer & {
   // 給流程面板：問題提到哪些項目、給 AI 的資料（來源代號）、AI 原本引用哪些來源。不含被攔下的原回答。
   // crisis：危機訊息，回固定的求助句。
   // history：參考的車主前幾題（#37）。referredItems：這一題沒點名、從前幾題接過來的項目。
-  trace: { mentionedItems: string[]; data: string[]; aiSources: string[]; noAI?: boolean; crisis?: boolean; router?: RouterTrace; history?: string[]; referredItems?: string[] };
+  // scripted：高風險題（必須更換＋延後或安全、症狀語境問原因），由程式組句，不呼叫 AI。
+  trace: { mentionedItems: string[]; data: string[]; aiSources: string[]; noAI?: boolean; crisis?: boolean; scripted?: boolean; router?: RouterTrace; history?: string[]; referredItems?: string[] };
 };
 
 // 分類器的結果：類別和主題詞（分類器失敗時沒有）、有沒有採用範本、沒採用的原因。
@@ -607,6 +608,44 @@ function guessesSymptomCause(vehicle: Vehicle, question: string, reply: AIReply,
   return hasSymptom(question) && drivingOnly ? "卡片沒有這個症狀的檢查，回答卻用行車摘要解釋" : undefined;
 }
 
+// 高風險題由程式組句（#37）：一句一句補檢查規則擋不完 AI 的說法，這兩類題目乾脆不讓 AI 寫。
+// 數值、門檻、費用全部來自卡片和規則引擎。原本的答案檢查仍檢查程式句，當第二層。
+function itemLine(item: InspectionItem): string {
+  const v = judge(item);
+  const reason = `${item.name}${v.reason.replace(/。$/, "")}`;
+  if (v.conclusion === "必須更換") return `${reason}，結論是必須更換，不能延後。示意費用 ${priceLabel(item, true)}，實際以服務廠報價為準。`;
+  if (v.conclusion === "可延後") return `${reason}，結論是可延後，${v.reminderMonths} 個月後會提醒你回廠。`;
+  return `${reason}，結論是${LABEL[v.conclusion]}。`;
+}
+// 症狀的名稱：這一題優先，再看前幾題最近的一題。「抖」說成「抖動」。
+function symptomName(question: string, history: string[]): string {
+  for (const text of [question, ...[...history].reverse()]) {
+    const m = SYMPTOM.exec(text.replace(NOT_SYMPTOM, ""));
+    if (m) return m[0] === "抖" ? "抖動" : m[0];
+    if (powerLoss(text)) return "沒力";
+  }
+  return "這個狀況";
+}
+// 症狀語境（這一題或前 3 題有症狀）、這一題在問原因或關係。點名項目時要有關係字眼（「電瓶為什麼有問題」「是不是輪胎」）；
+// 「電瓶為什麼衰退」問的是項目本身，照舊交給 AI 用行車摘要解釋。
+const asksSymptomCause = (vehicle: Vehicle, question: string, history: string[]) =>
+  [question, ...history].some(hasSymptom) && (RELATION_ASK.test(question) || (itemsIn(vehicle, question).length === 0 && WHY.test(question)));
+const SAFETY_LINE = "為了行車安全，建議今天處理；有疑問可以按下面的按鈕請專員說明。";
+// 回傳程式組的回答和用到的項目；不是高風險題回傳 undefined。
+function scriptedAnswer(vehicle: Vehicle, question: string, history: string[]): { answer: string; items: InspectionItem[]; must: boolean } | undefined {
+  const must = mustAsked(vehicle, question, history);
+  if (must.length) return { answer: must.map(itemLine).join("") + SAFETY_LINE, items: must, must: true };
+  if (!asksSymptomCause(vehicle, question, history)) return undefined;
+  const s = symptomName(question, history);
+  const named = itemsIn(vehicle, question);
+  if (!named.length) return { answer: `我沒辦法從卡片資料判斷${s}的原因，亂猜可能讓你誤會。可以按下面的按鈕，請技師實際檢查。`, items: [], must: false };
+  const names = named.map((i) => i.name).join("、");
+  // 卡片的行車摘要沒有「哪個項目、什麼原因」的結構化欄位，所以不帶原因，避免編造。
+  // 用「不能判斷跟抖動有沒有關係」，不用「不一定有關」：紅隊檢查器 h 會把「有關」當成判斷原因。
+  const answer = `${named.map(itemLine).join("")}這是${names}本身的狀態，不能判斷跟${s}有沒有關係，${s}要請技師實際檢查。可以按下面的按鈕請專員安排。`;
+  return { answer, items: named, must: false };
+}
+
 // 攔下時的替代回答：問題提到的項目和某個常見問題一樣，就給它的預寫回答；否則轉介專員。
 // 預寫回答寫死示範量測值：技師改過任何一個值，就不用預寫回答，避免顯示舊數值。
 function fallback(vehicle: Vehicle, question: string): Answer {
@@ -860,7 +899,16 @@ export function parseHistory(x: unknown): string[] | undefined {
 export const CRISIS_ANSWER =
   "聽到你這樣說，我很擔心你。你不是一個人：現在就可以撥 1925 安心專線（24 小時、免付費），會有專人陪你談。也請按下面的按鈕，或直接告訴身邊的現場人員，讓他們過來陪你。";
 
-export async function ask(vehicle: Vehicle, question: string, callAI: CallAI, opts: { router?: boolean; history?: string[] } = {}): Promise<AskResult> {
+// 高風險題程式組句的開關：預設開。緊急時設環境變數 SCRIPTED_ENABLED 為 0、false 或 off 就回到全部交給 AI（答案檢查照舊）。
+// 舊的答案檢查測試傳 scripted: false，直接測第二層。
+export const SCRIPTED_ENABLED = routerEnabled(process.env.SCRIPTED_ENABLED);
+
+export async function ask(
+  vehicle: Vehicle,
+  question: string,
+  callAI: CallAI,
+  opts: { router?: boolean; history?: string[]; scripted?: boolean } = {},
+): Promise<AskResult> {
   const history = cleanHistory(opts.history ?? []);
   if (isCrisis(vehicle, question))
     return { answer: CRISIS_ANSWER, sources: [], escalate: true, checkResult: "通過", trace: { mentionedItems: [], data: [], aiSources: [], noAI: true, crisis: true } };
@@ -871,6 +919,21 @@ export async function ask(vehicle: Vehicle, question: string, callAI: CallAI, op
   const deferMust = mustDeferred(vehicle, question, history);
   const shownHistory = history.map(clip);
   const memo = { ...(history.length > 0 && { history: shownHistory }), ...(inherited.length > 0 && { referredItems: inherited.map((i) => `item:${i.id}`) }) };
+  const scripted = (opts.scripted ?? SCRIPTED_ENABLED) ? scriptedAnswer(vehicle, question, history) : undefined;
+  if (scripted) {
+    const sources = scripted.items.map((i) => `item:${i.id}`);
+    const reply: AIReply = { answer: scripted.answer, sources, escalate: true, itemConclusions: scripted.items.map((i) => ({ id: `item:${i.id}`, conclusion: judge(i).conclusion })) };
+    // 第二層：程式句也過原本的答案檢查。沒點名項目的症狀句沒有數字、項目和來源，不用檢查。
+    const asked = vehicle.items.filter((i) => [question, ...history].some((t) => mentions(i, t)));
+    const blockedReason = scripted.items.length
+      ? (check(vehicle, reply, chosenByOwner(vehicle, question), inherited, deferMust, asked) ??
+        (scripted.must ? mustNotStated(vehicle, reply.answer, scripted.items) : undefined))
+      : undefined;
+    const trace = { mentionedItems: vehicle.items.filter((i) => mentions(i, question)).map((i) => `item:${i.id}`), data: sources, aiSources: sources, noAI: true, scripted: true, ...memo };
+    return blockedReason
+      ? { answer: ESCALATE_ANSWER, sources: [], escalate: true, checkResult: "攔下", blockedReason, trace }
+      : { answer: reply.answer, sources, escalate: true, checkResult: "通過", trace };
+  }
   const listed = optionAnswer(vehicle, question, history);
   if (listed) {
     const { itemId, ...shown } = listed;
@@ -968,7 +1031,8 @@ export async function simulateTampered(
     escalate: false,
     itemConclusions: [{ id: `item:${item.id}`, conclusion: "必須更換" }],
   };
-  const result = await ask(vehicle, question, async () => JSON.stringify(tampered), { router: false });
+  // 展示的是答案檢查（第二層）攔下竄改回答，所以關掉高風險題程式組句。
+  const result = await ask(vehicle, question, async () => JSON.stringify(tampered), { router: false, scripted: false });
   return { ...result, simulated: true, question, ...(useReal && { replay: { original: real.answer, log: real.log } }) };
 }
 

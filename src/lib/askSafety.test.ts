@@ -1,6 +1,8 @@
 // 部署前審查（#36）找到的答案檢查漏洞：主回答路徑（v37 也有）。分類器關閉，只測主回答。
 import { describe, expect, it } from "vitest";
-import { ask as realAsk, needsHuman, SYMPTOM_ANSWER } from "./ask";
+import { ask as askScripted, needsHuman, SYMPTOM_ANSWER } from "./ask";
+// 這裡測答案檢查（第二層）：關掉高風險題程式組句，讓假 AI 的回答真的經過檢查。程式組句見 askScripted.test.ts。
+const realAsk: typeof askScripted = (v, q, ai, o = {}) => askScripted(v, q, ai, { scripted: false, ...o });
 import { hasKeyword } from "./manual";
 import { judge } from "./rules";
 import { findVehicle } from "./vehicles";
