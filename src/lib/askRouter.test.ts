@@ -1,6 +1,9 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { ask, RESPONSE_SCHEMA } from "./ask";
+import { ask as realAsk, RESPONSE_SCHEMA, ROUTER_ENABLED } from "./ask";
+
+// 這支測分類器本身，所以明確打開分類器（正式站目前關閉，見 ROUTER_ENABLED）。
+const ask: typeof realAsk = (v, q, ai) => realAsk(v, q, ai, { router: true });
 import { askFlow } from "./flow";
 import { findVehicle } from "./vehicles";
 
@@ -192,5 +195,17 @@ describe("流程紀錄", () => {
 
   it("連線失敗（502）時 AI 呼叫算 2 次", () => {
     expect(askFlow("q", 502, { error: "x" }, {}).aiCalls).toBe(2);
+  });
+});
+
+describe("分類器開關", () => {
+  it("正式站預設關閉：不呼叫分類器，行為同 v37", async () => {
+    expect(ROUTER_ENABLED).toBe(false);
+    const prompts: string[] = [];
+    await realAsk(findVehicle("wang")!, "我冷氣不冷", async (s) => {
+      prompts.push(s);
+      return JSON.stringify({ answer: "這張卡上沒有這項資料，可以請專員說明", sources: [], escalate: true, itemConclusions: [] });
+    });
+    expect(prompts).toHaveLength(1);
   });
 });

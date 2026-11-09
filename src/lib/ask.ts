@@ -569,7 +569,10 @@ function rejectCandidate(vehicle: Vehicle, question: string, router: RouterReply
 }
 
 // AI 呼叫丟錯或回應無法解析時直接丟錯，由呼叫端回傳錯誤，不產生假回答。
-export async function ask(vehicle: Vehicle, question: string, callAI: CallAI): Promise<AskResult> {
+// 分類器開關：審查找到候選回答的檢查漏洞（#28），修好並重測前先關掉，行為回到 v37。
+export const ROUTER_ENABLED = false;
+
+export async function ask(vehicle: Vehicle, question: string, callAI: CallAI, opts: { router?: boolean } = {}): Promise<AskResult> {
   const greeting = greetingAnswer(vehicle, question);
   if (greeting) return { ...greeting, checkResult: "通過", trace: { mentionedItems: [], data: [], aiSources: [], noAI: true } };
   const listed = optionAnswer(vehicle, question);
@@ -582,7 +585,7 @@ export async function ask(vehicle: Vehicle, question: string, callAI: CallAI): P
   const docs = excerpts.length ? `\n\n原廠文件片段：\n${JSON.stringify(excerpts, null, 2)}` : "";
   const user = `卡片資料：\n${JSON.stringify(cardContext(vehicle), null, 2)}${docs}\n\n車主的問題：${question}`;
   // 分類器和主回答同時送出；分類器自己吞掉錯誤，主回答失敗照 v37 丟錯。
-  const [mainText, router] = await Promise.all([callAI(SYSTEM_PROMPT, user), route(vehicle, question, callAI)]);
+  const [mainText, router] = await Promise.all([callAI(SYSTEM_PROMPT, user), (opts.router ?? ROUTER_ENABLED) ? route(vehicle, question, callAI) : undefined]);
   const reply = parseReply(mainText);
   const trace: AskResult["trace"] = {
     mentionedItems: vehicle.items.filter((i) => mentions(i, question)).map((i) => `item:${i.id}`),
