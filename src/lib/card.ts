@@ -143,6 +143,7 @@ export function cardProps(vehicle: Vehicle) {
   // 來源代號對應的顯示文字，讓畫面把 AI 回答的來源轉成看得懂的標籤。
   const keys = validSources(vehicle, [
     "driving",
+    "routine",
     ...vehicle.items.flatMap((i) => [`item:${i.id}`, `trend:${i.id}`]),
     ...EXCERPTS.map((e) => `doc:${e.id}`),
     ...DEALER_FACTS.map(dealerSource),

@@ -17,6 +17,7 @@ export type Preset = {
 
 export function sourceLabel(vehicle: Vehicle, key: string): string | undefined {
   if (key === "driving") return `行車摘要（${vehicle.drivingSummary.period}）`;
+  if (key === "routine") return vehicle.routine.length ? `定期保養：${vehicle.routine.join("、")}` : undefined;
   if (key.startsWith("item:")) {
     const item = vehicle.items.find((i) => `item:${i.id}` === key);
     if (!item) return undefined;
@@ -107,6 +108,12 @@ export function presetsFor(vehicleId: string): Preset[] {
 export function contextSources(vehicle: Vehicle): string[] {
   return [...vehicle.items.flatMap((i) => (trendText(i) ? [`item:${i.id}`, `trend:${i.id}`] : [`item:${i.id}`])), "driving", ...DEALER_FACTS.map(dealerSource)];
 }
+
+// 定期保養（t39）：只在車主問到定期保養項目時給主回答。不放進 cardContext，其他題目和檢查結果摘要的資料不變。
+export const routineFact = (vehicle: Vehicle) =>
+  vehicle.routine.length
+    ? { 定期保養: { 來源代號: "routine", 內容: `今天定期保養會更換：${vehicle.routine.join("、")}，保養內含，不用另外決定；不是檢查項目，卡片上沒有另外列費用。` } }
+    : {};
 
 // 給 AI 的卡片資料：只包含它可以引用的內容。
 export function cardContext(vehicle: Vehicle) {

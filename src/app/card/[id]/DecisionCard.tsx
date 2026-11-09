@@ -8,7 +8,7 @@ import type { AskResult } from "@/lib/ask";
 import type { CardItem, Gauge } from "@/lib/card";
 import { askFlow, handoverFlow, notifyFlow, notifyText, presetFlow, type FlowEntry } from "@/lib/flow";
 import { currentMeasurements } from "@/lib/card";
-import { choiceKey, handover, needsOptionPick, pruneChoices, type Choice } from "@/lib/handover";
+import { choiceKey, handover, needsOptionPick, pruneChoices, routineLine, type Choice } from "@/lib/handover";
 import { HISTORY_MAX } from "@/lib/askShared";
 import { answerIntake, currentQuestion, INTAKE_INTRO, intakeFlow, intakeSummary, recap, safetyNote, SKIP, startIntake, type Intake } from "@/lib/intake";
 import { preferenceNote, type OwnerPreferences } from "@/lib/preferences";
@@ -159,6 +159,7 @@ export default function DecisionCard(props: {
               }
             />
           ))}
+          {routineLine(vehicle.routine) && <p className="px-1 text-sm text-muted">{routineLine(vehicle.routine)}</p>}
         </section>
 
         <div className="mx-4 mt-3 flex gap-3 rounded-2xl border border-line bg-white p-4">

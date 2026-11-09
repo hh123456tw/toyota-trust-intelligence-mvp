@@ -166,7 +166,7 @@ export const EXCERPTS: Excerpt[] = [
 ];
 
 // 字面包含項目關鍵字、其實是別的零件：比對前先拿掉。追問流程比對檢查項目也用這個。
-export const OTHER_PARTS = /煞車油|煞車燈|冷氣濾網|遙控器電池|鑰匙電池/g;
+export const OTHER_PARTS = /煞車油|煞車燈|冷氣濾網|機油濾網|機油濾芯|遙控器電池|鑰匙電池/g;
 
 // 文字包含任一關鍵字（英文不分大小寫）。追問流程比對檢查項目也用這個。
 export function hasKeyword(text: string, keywords: string[]): boolean {

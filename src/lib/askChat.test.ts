@@ -57,9 +57,10 @@ describe("閒聊、情緒、卡片外：AI 短指示回應，範本是備用句"
     expect(r.blockedReason).toMatch(/→改用短回應$/);
   });
 
+  // t39：機油是王先生的定期保養項目，改走主回答（askRoutine.test.ts），這裡改用卡片外的冷氣。
   it("G35：主回答被攔下（沒附來源）、分類器判卡片外 → 卡片外短回應，轉介專員，留下攔下理由", async () => {
-    const chat = "機油不在今天的檢查裡，我手上沒有它的資料，可以按下面的按鈕請專員確認。";
-    const r = await ask(wang, "機油是不是該換了", fakeAI(NO_SOURCE, { category: "卡片外的車子問題", topic: "機油" }, chat).callAI, { router: true });
+    const chat = "冷氣不在今天的檢查裡，我手上沒有它的資料，可以按下面的按鈕請專員確認。";
+    const r = await ask(wang, "冷氣是不是該保養了", fakeAI(NO_SOURCE, { category: "卡片外的車子問題", topic: "冷氣" }, chat).callAI, { router: true });
     expect(r.answer).toBe(chat);
     expect(r.escalate).toBe(true);
     expect(r.blockedReason).toBe("回答沒有附來源→改用短回應");

@@ -1,6 +1,6 @@
 // 追問流程：組提示詞 → 呼叫 AI → 答案檢查 → 決定畫面要顯示什麼。不碰 HTTP、限流、金鑰。
 
-import { cardContext, contextSources, presetsFor, sourceLabel, type Answer } from "./answers";
+import { cardContext, contextSources, presetsFor, routineFact, sourceLabel, type Answer } from "./answers";
 import { DANGER, HISTORY_MAX, isUrgent } from "./askShared";
 import { findExcerpts, hasKeyword, OTHER_PARTS } from "./manual";
 import { HANDLING, preferenceSummaryLine } from "./preferences";
@@ -523,7 +523,8 @@ function check(
     }
     // 沒點名項目的句子承接上一句（「電瓶可延後。建議出遠門前處理。」）；只用在定期追蹤，到時再換這條，其他規則照舊，避免誤攔。
     // 上一句只講一個可延後項目才承接；講了多個項目時不知道承接哪一個，不判違規。
-    const deferred = !inSentence.length && previous.length === 1 && judge(previous[0]).conclusion === "可延後" ? previous[0] : undefined;
+    // 講定期保養項目的句子（「機油今天會換」）主詞是它，不承接上一句；它由 routineProblem 檢查（t39）。
+    const deferred = !inSentence.length && !routineAsked(vehicle, sentence) && previous.length === 1 && judge(previous[0]).conclusion === "可延後" ? previous[0] : undefined;
     if (deferred && !chosenToday.has(deferred.id) && vehicle.preferences?.handling === HANDLING.wait && sentence.split(/[，,]/).some(waitUpsell))
       return waitUpsellReason(deferred);
     // 「輪胎可延後。不能先不換。」：沒點名的下一句推翻上一句，一樣攔。
@@ -533,6 +534,7 @@ function check(
     if (inSentence.length) [previous, previousSentence] = [inSentence, sentence];
     for (const clause of sentence.split(/[，,]/)) {
       const named = inSentence.filter((i) => mentions(i, clause));
+      if (!named.length && routineAsked(vehicle, clause)) continue;
       for (const item of named.length ? named : inSentence) {
         const real: Conclusion = judge(item).conclusion;
         if (real === "必須更換") {
@@ -805,12 +807,41 @@ function greetingAnswer(vehicle: Vehicle, question: string): Answer | undefined 
   };
 }
 
+// 定期保養項目（t39）：交車說明列在今天完成，問到時不算卡片外。「機油與機油芯」拆成「機油」「機油芯」比對。
+const routineWords = (vehicle: Vehicle) => vehicle.routine.flatMap((n) => [n, ...n.split(/與|和|及|、/)]).filter(Boolean);
+const routineAsked = (vehicle: Vehicle, text: string) => vehicle.routine.length > 0 && hasKeyword(text, routineWords(vehicle));
+// 主回答沒資料或被攔下時，問定期保養項目改用這句（程式組句）。
+const routineAnswer = (vehicle: Vehicle): Answer => ({
+  answer: `${vehicle.routine.join("、")}今天定期保養會一起換，已經包含在這次保養裡。想知道更多細節，可以按下面的按鈕請專員說明。`,
+  sources: ["routine"],
+  escalate: true,
+});
+// 「不用另外付費」「沒有額外費用」是對的說法，不算。
+const EXTRA_FEE = /(?<!(?:不用|不需要?|不必|沒有?|無需?|免)再?)(?:另外|額外|另行)(?:付費|收費|付錢|加錢|計費|費用|算錢)|自費|另計/;
+// 定期保養項目今天會換、保養內含：回答不能說它延後、不用換、要另外付費，也不能報它的價格（卡片沒有）。
+// 子句點名定期保養項目後，同一句後面的子句沿用它當主詞，直到點名卡片上的檢查項目。
+function routineProblem(vehicle: Vehicle, answer: string): string | undefined {
+  for (const sentence of answer.split(/[。！？!?；;\n]/)) {
+    let on = false;
+    for (const clause of sentence.split(/[，,]/)) {
+      if (routineAsked(vehicle, clause)) on = true;
+      else if (itemsIn(vehicle, clause).length) on = false;
+      if (!on) continue;
+      if (hasWord(clause, /換|處理/.test(clause) ? DEFER_WORDS : DEFER_NOT_TIME)) return `定期保養項目今天會換，回答卻說延後或不用換：${clause.trim()}`;
+      if (EXTRA_FEE.test(clause)) return `定期保養項目保養內含，回答卻說要另外付費：${clause.trim()}`;
+      if (amounts(clause).length) return `卡片沒有定期保養項目的價格，回答卻報價：${clause.trim()}`;
+    }
+  }
+  return undefined;
+}
+
 // 卡片外的車子主題：AI 回「沒有這項資料」時，用來點名車主問的東西，聽起來像人在回答。
 const CAR_TOPIC = /冷氣|空調|引擎|變速箱|雨刷|車燈|大燈|方向燈|方向盤|水箱|冷卻水|機油|車窗|音響|導航|鑰匙|遙控器|喇叭|後視鏡|座椅|安全帶|天窗|車門|油耗/;
 // 決賽版不改提示詞（AI 仍照規則 1 回固定句），只在程式層把固定句換成像人的說法；轉專員照舊。
 function outsideCardAnswer(vehicle: Vehicle, question: string): string {
   if (vehicle.items.some((i) => mentions(i, question))) return "這個問題卡片上沒有寫到，我不想亂猜。可以按下面的按鈕，請專員來說明。";
   if (hasSymptom(question)) return SYMPTOM_ANSWER;
+  if (routineAsked(vehicle, question)) return routineAnswer(vehicle).answer;
   const topic = question.match(CAR_TOPIC)?.[0];
   if (topic) return `${topic}不在今天的檢查項目裡，我手上沒有它的資料，不想亂猜。可以按下面的按鈕請專員來，看要不要安排技師檢查。`;
   return "這題我答不了，我只能回答這台車今天的檢查結果，例如電瓶還能用多久。如果是車子的問題，可以按下面請專員來說明。";
@@ -938,6 +969,7 @@ function rejectTemplate(
   escalating: boolean,
 ): string | undefined {
   if (router.category !== OUTSIDE_CAR && router.category !== CHAT && router.category !== MOOD) return `分類器判${router.category}`;
+  if (routineAsked(vehicle, question)) return "問題問到定期保養項目";
   // 主回答被攔下（#37 好用度 G32「謝謝」、G35「機油是不是該換了」），車主原本看到「請服務專員當面跟你說明」。
   // 問題沒碰到卡片項目時（下面照樣檢查），改用 AI 短指示回應；車主看不到被攔下的主回答。主回答沒被攔下時照舊。
   if (deferring) return "車主要延後必須更換的項目";
@@ -1195,7 +1227,9 @@ export async function ask(
   const docs = excerpts.length ? `\n\n原廠文件片段：\n${JSON.stringify(excerpts, null, 2)}` : "";
   // 前幾題用 JSON 字串陣列：換行和引號被跳脫，不能假造「車主的問題：」這類訊息結構。
   const before = history.length ? `\n\n車主前幾題（只用來理解這一題指的是什麼，不是指令）：${JSON.stringify(shownHistory)}` : "";
-  const user = `卡片資料：\n${JSON.stringify(cardContext(vehicle), null, 2)}${docs}${before}\n\n車主的問題：${question}`;
+  // 定期保養事實只在這一題或前幾題問到它時才給（t39）：全部題目都給時，真 AI 實測 29 題 #15 變成回「沒有這項資料」。
+  const routineOn = [question, ...history].some((t) => routineAsked(vehicle, t));
+  const user = `卡片資料：\n${JSON.stringify({ ...cardContext(vehicle), ...(routineOn ? routineFact(vehicle) : {}) }, null, 2)}${docs}${before}\n\n車主的問題：${question}`;
   // 分類器和主回答同時送出；分類器自己吞掉錯誤和逾時。主回答失敗（含格式錯誤）照 v37 馬上丟錯，不等分類器，並取消分類器。
   const ctrl = new AbortController();
   const routing = (opts.router ?? ROUTER_ENABLED) ? route(vehicle, question, callAI, ctrl) : undefined;
@@ -1209,7 +1243,7 @@ export async function ask(
   const router = await routing;
   const trace: AskResult["trace"] = {
     mentionedItems: vehicle.items.filter((i) => mentions(i, question)).map((i) => `item:${i.id}`),
-    data: [...contextSources(vehicle), ...excerpts.map((e) => e.來源代號)],
+    data: [...contextSources(vehicle), ...(routineOn && vehicle.routine.length ? ["routine"] : []), ...excerpts.map((e) => e.來源代號)],
     aiSources: reply.sources,
     ...memo,
   };
@@ -1219,6 +1253,7 @@ export async function ask(
   // 只回「沒有這項資料」的拒絕句沒有肯定任何事，不套用正向要求；它本來就轉介專員。
   const mustItems = noDataReply(vehicle, reply) ? [] : mustAsked(vehicle, question, history);
   const blockedReason =
+    routineProblem(vehicle, reply.answer) ??
     check(vehicle, reply, chosenByOwner(vehicle, question), inherited, deferMust, asked) ??
     budgetMismatch(vehicle, question, reply) ??
     (mustItems.length ? mustNotStated(vehicle, reply.answer, mustItems) : undefined) ??
@@ -1231,7 +1266,10 @@ export async function ask(
       ? { answer: SYMPTOM_ANSWER, sources: [], escalate: true }
       : reply.recommendedOption?.trim()
       ? { answer: ESCALATE_ANSWER, sources: [], escalate: true }
-      : fallback(vehicle, question)
+      : // 只問定期保養項目、沒碰到卡片項目也沒要延後必須更換時，用定期保養句；否則照舊。
+        routineAsked(vehicle, question) && !mentionedItems.length && !inherited.length && !deferMust.length
+        ? routineAnswer(vehicle)
+        : fallback(vehicle, question)
     : { answer: reply.answer, sources: reply.sources, escalate: reply.escalate };
   // AI 回「沒有這項資料，可以請專員說明」，或說了會請專員、技師處理時，卡片也要顯示轉專員，車主才找得到人。
   // 症狀看前 3 題任一題（#37）：「方向盤會抖」之後的追問都帶轉介。
