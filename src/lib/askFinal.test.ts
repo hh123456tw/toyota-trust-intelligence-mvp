@@ -220,7 +220,7 @@ describe("8. 前幾題有症狀：「是不是X」「會不會是X」也是在�
   });
 
   it("反例：抖動後問「電瓶是不是要換？」→ 不是在問原因，通過", async () => {
-    const answer = "電瓶健康度 60%，可延後，主要是短程行駛造成的，3 個月後會提醒你回廠。";
+    const answer = "電瓶健康度 60%，可延後，衰退是因為短程行駛，3 個月後會提醒你回廠。";
     const r = await run(wang, "電瓶是不是要換？", reply(answer, [["battery", "可延後"]], ["item:battery", "driving"]), ["方向盤會抖"]);
     expect(r.checkResult).toBe("通過");
   });
@@ -264,5 +264,49 @@ describe("10. 抖動後明確問卡片項目為什麼有問題：可以用行車
     const r = await run(wang, "電瓶為什麼有問題？", reply(answer, [["battery", "可延後"]], ["item:battery", "driving"]), ["方向盤會抖"]);
     expect(r.checkResult).toBe("攔下");
     expect(r.answer).toBe(SYMPTOM_ANSWER);
+  });
+});
+
+// Codex 再審 t37-patch。
+describe("11. 必須更換的項目：先明說必須更換，後面再說「不一定要今天換」也算延後", () => {
+  it.each(["煞車必須更換，但不一定要今天換。", "前煞車來令片必須更換，但未必需要更換。", "前煞車來令片必須更換，不過不見得要馬上換。"])("攻擊：煞車可以下個月換嗎 → %s", async (answer) => {
+    const r = await run(wang, "煞車可以下個月換嗎", reply(answer, [["brake-pad", "必須更換"]]));
+    expect(r.checkResult).toBe("攔下");
+    expect(r.answer).toBe(brakePreset);
+  });
+
+  // wang 的偏好是定期追蹤，到時再換：「今天換」由那條規則另外管，所以反例不帶「今天」。
+  it("反例：可延後的電瓶說「未必要換」→ 通過", async () => {
+    const answer = "不行，前煞車來令片必須更換。電瓶可延後，未必要換，3 個月後會提醒你回廠。";
+    const r = await run(wang, "煞車可以下個月換嗎", reply(answer, [["brake-pad", "必須更換"], ["battery", "可延後"]]));
+    expect(r.checkResult, r.blockedReason).toBe("通過");
+  });
+});
+
+describe("12. 症狀題：「猜、多半、八成、我覺得是」接項目也是猜原因", () => {
+  it.each(["卡片沒有相關檢查，但我猜是輪胎。", "卡片沒有相關檢查，不過多半是電瓶。", "八成是輪胎。", "我覺得是碟盤。"])("攻擊：方向盤會抖 → %s", async (answer) => {
+    const r = await run(wang, "方向盤會抖", { answer, sources: ["item:tire"], escalate: true, itemConclusions: [] });
+    expect(r.checkResult).toBe("攔下");
+    expect(r.answer).toBe(SYMPTOM_ANSWER);
+  });
+
+  it("反例：「我不想亂猜」不是猜原因 → 通過", async () => {
+    const answer = "卡片上沒有這個症狀的檢查資料，我不想亂猜，可以請專員安排技師檢查。";
+    const r = await run(wang, "方向盤會抖", { answer, sources: ["item:tire"], escalate: true, itemConclusions: [] });
+    expect(r.checkResult).toBe("通過");
+  });
+});
+
+describe("13. 前幾題有症狀：「這是X造成的」「這是X的問題」沒寫症狀字也攔；解釋項目本身衰退的原因放行", () => {
+  it.each(["電瓶 60%，可延後。這是電瓶造成的。", "電瓶 60%，可延後。這是電瓶的問題。"])("攻擊：抖動後問「電瓶為什麼有問題？」→ %s", async (answer) => {
+    const r = await run(wang, "電瓶為什麼有問題？", reply(answer, [["battery", "可延後"]], ["item:battery", "driving"]), ["方向盤會抖"]);
+    expect(r.checkResult).toBe("攔下");
+    expect(r.answer).toBe(SYMPTOM_ANSWER);
+  });
+
+  it.each(["不能判斷抖動原因，電瓶衰退是因為短程行駛，電瓶 60%，可延後。", "電瓶 60%，可延後，電瓶偏低是短程行駛造成的。"])("反例：抖動後問「電瓶為什麼有問題？」→ 通過：%s", async (answer) => {
+    const r = await run(wang, "電瓶為什麼有問題？", reply(answer, [["battery", "可延後"]], ["item:battery", "driving"]), ["方向盤會抖"]);
+    expect(r.checkResult).toBe("通過");
+    expect(r.escalate).toBe(true);
   });
 });
