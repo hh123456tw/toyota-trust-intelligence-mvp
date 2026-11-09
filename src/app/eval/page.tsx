@@ -235,10 +235,10 @@ export default function EvalPage() {
         </table>
       </div>
       <p className="mt-2 text-xs text-muted">
-        限制：題目由其他 AI 模型出，不是真的車主；每輪只跑一次；第二輪之後的修正沒有再用新題驗證。逐題原文與判讀在 repo 的 docs/eval/unseen/。
+        限制：題目由其他 AI 模型出，不是真的車主；每輪只跑一次；第二輪找到的問題還沒修。逐題原文與判讀在 repo 的 docs/eval/unseen/。
       </p>
 
-      <h2 className="mt-10 text-lg font-bold">回歸測試：自己的 {aiPerRun} 題，凍結版連跑 3 次</h2>
+      <h2 className="mt-10 text-lg font-bold">回歸測試：自己的 {aiPerRun} 題，決賽版連跑 3 次</h2>
       <p className="mt-2 text-sm text-muted">同一份題目用真的 Gemini 連跑 3 次，不挑最好的一次。題目開發時看過，用來確認修好的地方沒有壞。</p>
 
       <dl className="mt-4 grid gap-3 sm:grid-cols-3">
