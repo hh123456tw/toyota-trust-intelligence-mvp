@@ -325,7 +325,14 @@ export function visibleOptions(item: InspectionItem, conclusion: Conclusion): Pr
 
 // 給 AI 和檢查結果摘要的費用文字。必須更換且有款式時，費用依車主選的款式而定。
 export function priceLabel(item: Pick<InspectionItem, "price" | "options">, mustReplace: boolean): string {
-  return mustReplace && item.options?.length ? `${formatPrice(item.price)} 起（依款式）` : formatPrice(item.price);
+  const note = baseOption(item)?.priceNote;
+  if (mustReplace && item.options?.length) return `${formatPrice(item.price)} 起（依款式${note ? `；最低款${note}` : ""}）`;
+  return note ? `${formatPrice(item.price)}（${note}）` : formatPrice(item.price);
+}
+
+// 項目費用對應的那一款（最低款）。王先生的輪胎可延後、不列款式，卡片仍要寫出「每條 × 條數」，第二輪 V02 判讀人看不出 11,200 是 4 條。
+export function baseOption(item: { price?: number; options?: ProductOption[] }): ProductOption | undefined {
+  return item.options?.find((o) => o.price === item.price);
 }
 
 export function formatPrice(price: number): string {

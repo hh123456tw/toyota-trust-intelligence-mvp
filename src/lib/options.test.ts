@@ -134,13 +134,13 @@ describe("價格資料", () => {
 
   it("AI 拿到的費用寫「起（依款式）」", () => {
     const tire = cardContext(lin).檢查項目.find((x) => x.來源代號 === "item:tire")!;
-    expect(tire.示意費用).toBe("NT$5,600 起（依款式）");
+    expect(tire.示意費用).toBe("NT$5,600 起（依款式；最低款每條 NT$2,800 × 2 條）");
   });
 
   it("反例：輪胎改成可延後時，費用不寫「起」", () => {
     const deferrable = { ...lin, items: withMeasurement(lin.items, "tire", 2) };
     const tire = cardContext(deferrable).檢查項目.find((x) => x.來源代號 === "item:tire")!;
-    expect(tire.示意費用).toBe("NT$5,600");
+    expect(tire.示意費用).toBe("NT$5,600（每條 NT$2,800 × 2 條）");
   });
 });
 
@@ -164,10 +164,19 @@ describe("問價格由程式照清單回答；沒有優惠資料", () => {
     expect(optionAnswer(lin, "輪胎多少錢，可以算便宜一點嗎")!.escalate).toBe(true);
   });
 
-  it("問價格順便問優惠：照清單列價格，不出現優惠", () => {
-    const r = optionAnswer(lin, "輪胎多少錢，會不會有優惠？")!;
-    expect(r.answer).toContain("NT$5,600");
-    expect(r.answer).not.toMatch(/優惠中|原價|11\/30/);
+  it("問價格順便問優惠：清單答不了優惠，交給 AI", () => {
+    expect(optionAnswer(lin, "輪胎多少錢，會不會有優惠？")).toBeUndefined();
+  });
+
+  it("一題問好幾件事，清單只答得了價格：交給 AI（第二輪 V03、V08）", () => {
+    expect(optionAnswer(lin, "我那兩條輪胎換要多少錢 幾點能牽車 能刷卡嗎")).toBeUndefined();
+    expect(optionAnswer(lin, "在原廠換輪胎和外面換，品質差在哪？外面會比較便宜嗎？")).toBeUndefined();
+    expect(optionAnswer(lin, "外面輪胎多少錢？")).toBeUndefined();
+  });
+
+  it("每一段都在問輪胎或價格：照清單回答", () => {
+    for (const q of ["我那兩條輪胎換要多少錢", "輪胎多少錢？長效款價格呢？", "長效款 費用多少", "輪胎換一換要多少錢啊"])
+      expect(optionAnswer(lin, q), q).toBeDefined();
   });
 
   it("反例：同時問價格和安全，安全優先，不走清單", () => {

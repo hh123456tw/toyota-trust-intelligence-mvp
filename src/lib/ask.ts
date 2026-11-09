@@ -4,7 +4,7 @@ import { cardContext, contextSources, presetsFor, sourceLabel, type Answer } fro
 import { findExcerpts, hasKeyword, OTHER_PARTS } from "./manual";
 import { HANDLING, preferenceSummaryLine } from "./preferences";
 import { judge, type Conclusion } from "./rules";
-import { findVehicle, formatPrice, priceLabel, visibleOptions, type InspectionItem, type Vehicle } from "./vehicles";
+import { baseOption, findVehicle, formatPrice, priceLabel, visibleOptions, type InspectionItem, type Vehicle } from "./vehicles";
 
 // AI 呼叫函式：收系統提示詞和使用者內容，回傳 AI 的原始 JSON 文字。
 export type CallAI = (system: string, user: string) => Promise<string>;
@@ -367,7 +367,8 @@ function check(vehicle: Vehicle, reply: AIReply, chosenToday: Set<string> = new 
   }
   prices.delete(0);
   // 款式的「每條」價格也印在卡片上，可以單獨講，但不參與合計。
-  for (const i of vehicle.items) for (const o of visibleOptions(i, judge(i).conclusion) ?? []) prices.add(o.unitPrice);
+  for (const i of vehicle.items.filter((i) => judge(i).conclusion !== "正常"))
+    for (const o of [...(visibleOptions(i, judge(i).conclusion) ?? []), baseOption(i)]) if (o) prices.add(o.unitPrice);
   const wrong = amounts(reply.answer).find((a) => !prices.has(a));
   if (wrong !== undefined) return `回答提到的金額 ${formatPrice(wrong)} 不在卡片上`;
 
@@ -396,14 +397,20 @@ function fallback(vehicle: Vehicle, question: string): Answer {
 const PRICE_WORDS = /多少錢|價格|費用|便宜/;
 // 問安全的走 AI 和轉專員，不能只回價格。
 const SAFETY_WORDS = /安全|危險|風險|會怎樣|打滑|不換/;
+// 拿外面的店來比，清單答不了「差在哪」，交給 AI。
+const OUTSIDE_WORDS = /外面|別家|坊間|輪胎行|其他店/;
 
 export function optionAnswer(vehicle: Vehicle, question: string): (Answer & { itemId: string }) | undefined {
   // 問延後的，走原本的安全流程，不能被清單回答蓋掉。
-  if (touchesMustReplace(vehicle, question) || SAFETY_WORDS.test(question) || !PRICE_WORDS.test(question)) return undefined;
+  if (touchesMustReplace(vehicle, question) || SAFETY_WORDS.test(question) || OUTSIDE_WORDS.test(question) || !PRICE_WORDS.test(question)) return undefined;
   for (const item of vehicle.items) {
     const options = visibleOptions(item, judge(item).conclusion);
     if (!options) continue;
-    if (!options.some((o) => question.includes(o.name)) && !mentions(item, question)) continue;
+    const aboutItem = (s: string) => options.some((o) => s.includes(o.name)) || mentions(item, s);
+    if (!aboutItem(question)) continue;
+    // 每一段都在問這個項目或價格才回清單。第二輪 V03「多少錢 幾點能牽車 能刷卡嗎」只回了價格，其他兩件沒回答。
+    const clauses = question.split(/[，,。？?！!、；;\s]+/).filter(Boolean);
+    if (!clauses.every((c) => PRICE_WORDS.test(c) || aboutItem(c))) return undefined;
     const list = options.map((o) => `${o.name} ${formatPrice(o.price)}（${o.priceNote}）`).join("、");
     return {
       answer: `${item.name}可以選的款式：${list}，皆為示意。規格列在卡片的清單裡。想知道哪款適合你，可以告訴我你平常怎麼開。`,
