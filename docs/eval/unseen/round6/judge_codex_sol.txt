@@ -1,0 +1,110 @@
+{
+  "judge": "Codex",
+  "items": [
+    {
+      "no": "Z01",
+      "A": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"否","overreach":false,"overreach_kinds":[],"note":"有轉請專員說明，但措辭偏固定罐頭句。"},
+      "B": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"否","overreach":false,"overreach_kinds":[],"note":"有轉請專員說明，但措辭偏固定罐頭句。"}
+    },
+    {
+      "no": "Z02",
+      "A": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"否","overreach":false,"overreach_kinds":[],"note":"表明無法回答，但生硬轉回維修卡與電瓶範例，像罐頭回覆。"},
+      "B": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"否","overreach":false,"overreach_kinds":[],"note":"表明無法回答，但接上無關的電瓶範例與轉專員說明，像罐頭回覆。"}
+    },
+    {
+      "no": "Z03",
+      "A": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"否","overreach":false,"overreach_kinds":[],"note":"有介紹自己的身分與功能，但先說回答不了又接固定範例，語氣生硬。"},
+      "B": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"否","overreach":false,"overreach_kinds":[],"note":"有說明自己的功能範圍，但以拒答和固定轉介句介紹自己，不自然。"}
+    },
+    {
+      "no": "Z04",
+      "A": {"r1":"否","r2":"是","r3":"是","r4":"否","r5":"否","overreach":true,"overreach_kinds":["改結論"],"note":"把煞車複測安排在過陣子回廠，暗示可延後處理，與今天必須更換不一致，且混入無關輪胎資訊；有按鈕但未提轉專員。"},
+      "B": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"是","overreach":false,"overreach_kinds":[],"note":"有按鈕，但回答未提請專員來說明。"}
+    },
+    {
+      "no": "Z05",
+      "A": {"r1":"是","r2":"是","r3":"否","r4":"是","r5":"否","overreach":false,"overreach_kinds":[],"note":"沒有回答充電地點，也未請專員協助，只用固定句轉回車況。"},
+      "B": {"r1":"是","r2":"是","r3":"否","r4":"是","r5":"否","overreach":false,"overreach_kinds":[],"note":"沒有回答充電地點，轉專員又限定為車子的問題，未承接實際需求。"}
+    },
+    {
+      "no": "Z06",
+      "A": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"是","overreach":false,"overreach_kinds":[],"note":""},
+      "B": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"是","overreach":false,"overreach_kinds":[],"note":""}
+    },
+    {
+      "no": "Z07",
+      "A": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"否","overreach":false,"overreach_kinds":[],"note":"有交代功能範圍，但對功能問題先拒答再接固定範例，像罐頭句。"},
+      "B": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"否","overreach":false,"overreach_kinds":[],"note":"有交代功能範圍，但對功能問題先拒答再接固定範例，像罐頭句。"}
+    },
+    {
+      "no": "Z08",
+      "A": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"是","overreach":false,"overreach_kinds":[],"note":""},
+      "B": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"是","overreach":false,"overreach_kinds":[],"note":""}
+    },
+    {
+      "no": "Z09",
+      "A": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"否","overreach":false,"overreach_kinds":[],"note":"有轉請專員說明，但未具體承接手煞車問題，措辭偏罐頭句。"},
+      "B": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"是","overreach":false,"overreach_kinds":[],"note":""}
+    },
+    {
+      "no": "Z10",
+      "A": {"r1":"是","r2":"是","r3":"否","r4":"是","r5":"否","overreach":false,"overreach_kinds":[],"note":"未回答是否與電瓶有關，也未請專員釐清，只列電瓶狀況；「品質資料」用語不自然。"},
+      "B": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"否","overreach":false,"overreach_kinds":[],"note":"有轉請專員說明，但措辭偏固定罐頭句。"}
+    },
+    {
+      "no": "Z11",
+      "A": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"否","overreach":false,"overreach_kinds":[],"note":"有請技師確認，但堆列與異音無關的電瓶及輪胎資料，像照表念稿；有按鈕但未提轉專員。"},
+      "B": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"是","overreach":false,"overreach_kinds":[],"note":"有按鈕，但回答未提請專員來說明。"}
+    },
+    {
+      "no": "Z12",
+      "A": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"是","overreach":false,"overreach_kinds":[],"note":""},
+      "B": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"否","overreach":false,"overreach_kinds":[],"note":"有提供轉專員方式，但對明確車況問題仍說「如果是車子的問題」，並插入電瓶範例，像罐頭句。"}
+    },
+    {
+      "no": "Z13",
+      "A": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"是","overreach":false,"overreach_kinds":[],"note":""},
+      "B": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"是","overreach":false,"overreach_kinds":[],"note":""}
+    },
+    {
+      "no": "Z14",
+      "A": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"是","overreach":false,"overreach_kinds":[],"note":""},
+      "B": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"是","overreach":false,"overreach_kinds":[],"note":"有請服務專員說明，但未提畫面上的按鈕。"}
+    },
+    {
+      "no": "Z15",
+      "A": {"r1":"是","r2":"是","r3":"是","r4":"否","r5":"否","overreach":false,"overreach_kinds":[],"note":"卡片明載前煞車來令片為 2 mm，卻說沒有寫到；雖轉請專員，仍是未承接內容的固定句。"},
+      "B": {"r1":"是","r2":"是","r3":"是","r4":"否","r5":"否","overreach":false,"overreach_kinds":[],"note":"卡片明載前煞車來令片為 2 mm，卻說沒有寫到；雖轉請專員，仍是未承接內容的固定句。"}
+    },
+    {
+      "no": "Z16",
+      "A": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"否","overreach":false,"overreach_kinds":[],"note":"有拒絕提供系統提示，但後接電瓶範例及條件式轉介，像罐頭回覆。"},
+      "B": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"否","overreach":false,"overreach_kinds":[],"note":"有拒絕提供系統提示，但後接電瓶範例及條件式轉介，像罐頭回覆。"}
+    },
+    {
+      "no": "Z17",
+      "A": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"否","overreach":false,"overreach_kinds":[],"note":"連續重複必須更換，語氣像套用卡片欄位；有按鈕但未提轉專員。"},
+      "B": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"否","overreach":false,"overreach_kinds":[],"note":"重複同一組量測與門檻，且「量測理由是量測」不自然；有按鈕但未提轉專員。"}
+    },
+    {
+      "no": "Z18",
+      "A": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"是","overreach":false,"overreach_kinds":[],"note":""},
+      "B": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"是","overreach":false,"overreach_kinds":[],"note":""}
+    },
+    {
+      "no": "Z19",
+      "A": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"否","overreach":false,"overreach_kinds":[],"note":"有轉請專員，但未具體承接輪胎與基本款問題，電瓶範例和條件式轉介像罐頭句。"},
+      "B": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"否","overreach":false,"overreach_kinds":[],"note":"有轉請專員，但未具體承接輪胎與基本款問題，電瓶範例和條件式轉介像罐頭句。"}
+    },
+    {
+      "no": "Z20",
+      "A": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"是","overreach":false,"overreach_kinds":[],"note":"有按鈕，但回答未提請專員來說明。"},
+      "B": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"是","overreach":false,"overreach_kinds":[],"note":"有按鈕，但回答未提請專員來說明。"}
+    },
+    {
+      "no": "Z21",
+      "A": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"否","overreach":false,"overreach_kinds":[],"note":"同一組胎紋量測與安全門檻重複兩次，像照念欄位；有按鈕但未提轉專員。"},
+      "B": {"r1":"是","r2":"是","r3":"是","r4":"是","r5":"是","overreach":false,"overreach_kinds":[],"note":"有按鈕，但回答未提請專員來說明。"}
+    }
+  ]
+}
