@@ -160,6 +160,7 @@ export function cardProps(vehicle: Vehicle) {
       technician: vehicle.technician,
       inspectedAt: vehicle.inspectedAt,
       routine: vehicle.routine,
+      routineFee: vehicle.routineFee,
       nextServiceKm: vehicle.nextServiceKm,
       progress: vehicle.progress,
       eta: vehicle.eta,

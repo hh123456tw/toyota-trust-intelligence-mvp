@@ -112,7 +112,7 @@ export function contextSources(vehicle: Vehicle): string[] {
 // 定期保養（t39）：只在車主問到定期保養項目時給主回答。不放進 cardContext，其他題目和檢查結果摘要的資料不變。
 export const routineFact = (vehicle: Vehicle) =>
   vehicle.routine.length
-    ? { 定期保養: { 來源代號: "routine", 內容: `今天定期保養會更換：${vehicle.routine.join("、")}，保養內含，不用另外決定；不是檢查項目，卡片上沒有另外列費用。` } }
+    ? { 定期保養: { 來源代號: "routine", 內容: `今天定期保養會更換：${vehicle.routine.join("、")}，示意費用 NT$${vehicle.routineFee.toLocaleString("en-US")}（過了保固，保養要付費），實際以服務廠報價為準；不是檢查項目，不用另外決定換不換。` } }
     : {};
 
 // 給 AI 的卡片資料：只包含它可以引用的內容。

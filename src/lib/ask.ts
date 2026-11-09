@@ -601,6 +601,8 @@ function check(
     const choices = [i.price, ...(visibleOptions(i, judge(i).conclusion) ?? []).map((o) => o.price)];
     prices = new Set([...prices].flatMap((p) => [p, ...choices.map((c) => p + c)]));
   }
+  // 定期保養的示意費用也印在卡片上（今天一定會做），可以單獨講，也可以加進合計。
+  if (vehicle.routine.length) prices = new Set([...prices].flatMap((p) => [p, p + vehicle.routineFee]));
   prices.delete(0);
   // 款式的「每條」價格也印在卡片上，可以單獨講，但不參與合計。
   for (const i of vehicle.items.filter((i) => judge(i).conclusion !== "正常"))
@@ -812,24 +814,28 @@ const routineWords = (vehicle: Vehicle) => vehicle.routine.flatMap((n) => [n, ..
 const routineAsked = (vehicle: Vehicle, text: string) => vehicle.routine.length > 0 && hasKeyword(text, routineWords(vehicle));
 // 主回答沒資料或被攔下時，問定期保養項目改用這句（程式組句）。
 const routineAnswer = (vehicle: Vehicle): Answer => ({
-  answer: `${vehicle.routine.join("、")}今天定期保養會一起換，已經包含在這次保養裡。想知道更多細節，可以按下面的按鈕請專員說明。`,
+  answer: `${vehicle.routine.join("、")}今天定期保養會一起換，示意費用 NT$${vehicle.routineFee.toLocaleString("en-US")}，實際以服務廠報價為準。有疑問可以按下面的按鈕請專員說明。`,
   sources: ["routine"],
   escalate: true,
 });
 // 「不用另外付費」「沒有額外費用」是對的說法，不算。
+// 費用含在保養費裡，不是免費（過保固後保養要付費）：說免費、不用錢也不對。
+const ROUTINE_FREE = /免費|不用錢|不用付(?:錢|費)|不收(?:錢|費)|不要錢/;
 const EXTRA_FEE = /(?<!(?:不用|不需要?|不必|沒有?|無需?|免)再?)(?:另外|額外|另行)(?:付費|收費|付錢|加錢|計費|費用|算錢)|自費|另計/;
-// 定期保養項目今天會換、保養內含：回答不能說它延後、不用換、要另外付費，也不能報它的價格（卡片沒有）。
+// 定期保養項目今天會換、費用含在保養費裡：回答不能說它延後、不用換、要另外付費、免費，金額只能是卡片上的示意費用。
 // 子句點名定期保養項目後，同一句後面的子句沿用它當主詞，直到點名卡片上的檢查項目。
 function routineProblem(vehicle: Vehicle, answer: string): string | undefined {
   for (const sentence of answer.split(/[。！？!?；;\n]/)) {
     let on = false;
-    for (const clause of sentence.split(/[，,]/)) {
+    // 半形逗號後面接數字是千分位（NT$1,800），不切。
+    for (const clause of sentence.split(/，|,(?!\d)/)) {
       if (routineAsked(vehicle, clause)) on = true;
       else if (itemsIn(vehicle, clause).length) on = false;
       if (!on) continue;
       if (hasWord(clause, /換|處理/.test(clause) ? DEFER_WORDS : DEFER_NOT_TIME)) return `定期保養項目今天會換，回答卻說延後或不用換：${clause.trim()}`;
-      if (EXTRA_FEE.test(clause)) return `定期保養項目保養內含，回答卻說要另外付費：${clause.trim()}`;
-      if (amounts(clause).length) return `卡片沒有定期保養項目的價格，回答卻報價：${clause.trim()}`;
+      if (EXTRA_FEE.test(clause)) return `定期保養項目費用含在保養費裡，回答卻說要另外付費：${clause.trim()}`;
+      if (ROUTINE_FREE.test(clause)) return `定期保養項目費用含在保養費裡，回答卻說免費：${clause.trim()}`;
+      if (amounts(clause).some((n) => n !== vehicle.routineFee)) return `定期保養項目的示意費用是 NT$${vehicle.routineFee}，回答的金額不一致：${clause.trim()}`;
     }
   }
   return undefined;

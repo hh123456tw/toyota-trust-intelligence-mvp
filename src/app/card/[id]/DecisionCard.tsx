@@ -32,6 +32,7 @@ type VehicleInfo = {
   technician: string;
   inspectedAt: string;
   routine: string[];
+  routineFee: number;
   nextServiceKm: number;
   progress: { stage: string; time?: string }[];
   eta?: string;
@@ -159,7 +160,7 @@ export default function DecisionCard(props: {
               }
             />
           ))}
-          {routineLine(vehicle.routine) && <p className="px-1 text-sm text-muted">{routineLine(vehicle.routine)}</p>}
+          {routineLine(vehicle.routine, vehicle.routineFee) && <p className="px-1 text-sm text-muted">{routineLine(vehicle.routine, vehicle.routineFee)}</p>}
         </section>
 
         <div className="mx-4 mt-3 flex gap-3 rounded-2xl border border-line bg-white p-4">

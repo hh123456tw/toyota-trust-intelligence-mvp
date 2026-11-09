@@ -20,8 +20,8 @@ export const needsOptionPick = (item: CardItem, picked?: string) =>
   !!item.options && !item.options.some((o) => o.id === picked);
 
 // 決策卡項目清單後面的一行（t39）：交車說明列了定期保養，卡片也要列，車主才不會以為機油沒換。
-export const routineLine = (routine: string[]) =>
-  routine.length ? `本次定期保養：${routine.join("、")}（保養內含，不用另外決定）` : undefined;
+export const routineLine = (routine: string[], fee: number) =>
+  routine.length ? `本次定期保養：${routine.join("、")}（示意費用 NT$${fee.toLocaleString("en-US")}，實際以服務廠報價為準）` : undefined;
 
 export type Handover = {
   // 今天完成：定期保養項目（沒有 item）、車主已授權的必須更換、車主選今天換的可延後項目。

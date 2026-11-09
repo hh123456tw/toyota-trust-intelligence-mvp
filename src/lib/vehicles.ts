@@ -91,6 +91,8 @@ export type Vehicle = {
   lastOptionGrade?: string;
   // 定期保養本來就會做的項目（不經規則引擎），交車說明列在「今天完成」。
   routine: string[];
+  // 定期保養項目的示意費用（新台幣，含工資）。和卡片項目一樣標「示意」，實際以服務廠報價為準。
+  routineFee: number;
   // 下次定期保養還有幾公里，交車說明的「下次提醒」用。
   nextServiceKm: number;
   // 保養進度（示意）。time 沒有值表示還沒到這一步；eta 沒有值時只顯示階段。
@@ -141,6 +143,7 @@ export const vehicles: Vehicle[] = [
     // 示範：王先生已填好偏好。長期偏好（處理方式、最在意）代表車主檔裡已有的；本次情況（下週要載家人長途）是這次接待確認的。
     preferences: { handling: "定期追蹤，到時再換", priority: "價格", longTrip: "有", recentIssue: "沒有" },
     routine: ["機油與機油芯"],
+    routineFee: 1800,
     nextServiceKm: 5000,
     progress: [
       { stage: "接待完成", time: "10:05" },
@@ -240,6 +243,7 @@ export const vehicles: Vehicle[] = [
       note: "多為高速公路長途行駛，每週約 400 公里。",
     },
     routine: ["機油與機油芯"],
+    routineFee: 1800,
     nextServiceKm: 5000,
     progress: [
       { stage: "接待完成", time: "09:30" },
