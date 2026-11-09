@@ -354,12 +354,14 @@ function chosenByOwner(vehicle: Vehicle, question: string): Set<string> {
 
 // inherited：這一題沒點名、從前幾題接過來的項目（#37）。回答完全沒點名項目時，把它們當成回答在講的項目。
 // deferMust：車主要延後的必須更換項目（聯集，見 mustDeferred）。沒點名項目的句子也要對它們檢查一次。
+// asked：這一題和前幾題提到的所有項目（聯集）。回答沒點名項目時，安全保證照這些項目檢查。
 function check(
   vehicle: Vehicle,
   reply: AIReply,
   chosenToday: Set<string> = new Set(),
   inherited: InspectionItem[] = [],
   deferMust: InspectionItem[] = [],
+  asked: InspectionItem[] = [],
 ): string | undefined {
   const conclusions = new Map(vehicle.items.map((i) => [`item:${i.id}`, judge(i).conclusion]));
 
@@ -448,6 +450,15 @@ function check(
     }
   }
 
+  // 回答提到安全相關項目（煞車、輪胎），不論結論，整個回答都不能有安全保證（紅隊 #37：R078、MT19、MT30）。
+  // 取捨：不分「放心」講的是哪個項目，正常的煞車配「請放心」也攔（R180），多攔一次只換成固定句。
+  const safety = (inAnswer.length ? inAnswer : [...inherited, ...asked]).find((i) => i.safetyRelated);
+  if (safety)
+    for (const clause of itemText.split(/[。！？!?；;，,\n]/)) {
+      const hit = OTHERS.test(clause) ? undefined : assuranceIn(clause);
+      if (hit) return `回答提到安全相關的${safety.name}，卻說「${hit}」`;
+    }
+
   const options = vehicle.items.flatMap((i) => visibleOptions(i, judge(i).conclusion) ?? []);
   const recommended = reply.recommendedOption?.trim();
   if (recommended) {
@@ -498,21 +509,31 @@ function check(
 
 // 車主描述卡片沒有檢查的症狀時，AI 不能判斷原因。第二輪 V11：「方向盤會抖，跟胎紋有關嗎」AI 答「這跟胎紋有關喔」；抖動也可能是平衡或定位。
 // 危險徵兆（#36 審查，字詞在 askShared.ts）：「水溫過高快冒煙了」被分類器判情緒，換成同理句還拿掉轉介。這些字一律算症狀，不換範本、轉介專員。
-const SYMPTOM = new RegExp(`抖|震動|異音|怪聲|拉偏|偏向一邊|漏油|漏水|異味|燒焦|警示燈|故障燈|發不動|難發動|發車(?:有點)?慢|頓挫|${DANGER}`);
+// 動力異常（第七輪盲評 Q11「上坡沒力」）：加速慢、爬坡吃力、動力變差一定是講車。
+const SYMPTOM = new RegExp(`抖|震動|異音|怪聲|拉偏|偏向一邊|漏油|漏水|異味|燒焦|警示燈|故障燈|發不動|難發動|發車(?:有點)?慢|頓挫|加速慢|爬坡吃力|動力變差|${DANGER}`);
 const DANGER_WORDS = new RegExp(DANGER);
 const DANGER_REASON = "問題有危險徵兆字詞";
 // 否定句「沒有冒煙」「不會抖了」不是在描述症狀，先移除再比對。
 const NOT_SYMPTOM = new RegExp(`(?:沒有|沒|不會|不再)(?:任何|什麼)?(?:${SYMPTOM.source})`, "g");
-const hasSymptom = (question: string) => SYMPTOM.test(question.replace(NOT_SYMPTOM, ""));
+// 「沒力」「無力」「頓頓的」也常講人：同一子句要有車子語境才算。「我今天好沒力」不算；講電瓶（「電瓶沒力」）是卡片項目，不算。
+const POWER_LOSS = /沒力|無力|頓頓的/;
+const POWER_CONTEXT = /車|開|上坡|爬坡|加速|引擎|油門/;
+const powerLoss = (question: string) => clausesOf(question).some((c) => POWER_LOSS.test(c) && POWER_CONTEXT.test(c) && !/電瓶|電池/.test(c));
+const hasSymptom = (question: string) => SYMPTOM.test(question.replace(NOT_SYMPTOM, "")) || powerLoss(question);
 // 「可能是碟盤變形」「應該是X」「X 變形了」也是在判斷原因（Fable 正式站實測）。「沒有關係」不算。
 const CAUSE_CLAIM = /(?:跟|和|與)[^。，！？]{0,12}有關|是因為|造成的|導致|引起|(?<!沒有?)的關係|可能是|應該是|大概是|變形|翹了/;
 // 不說「我會請技師」：要車主按按鈕才會通知專員，原句聽起來像已經在安排。
 export const SYMPTOM_ANSWER = "你描述的狀況，這張卡上沒有相關的檢查資料，不能判斷原因。可以按下面的按鈕，請專員安排技師檢查。";
 // 前幾題描述症狀、這一題問原因（#37）：「方向盤會抖」「今天檢查哪些項目？」「是不是輪胎的關係？」隔題也要攔，看前 3 題任一題。
-function guessesSymptomCause(question: string, answer: string, history: string[]): string | undefined {
+// 這一題描述症狀，回答沒提卡片項目、只用行車摘要解釋（Q11：「卡片上沒有品質資料」再貼行車摘要），也是在猜原因。
+// 回答提到卡片項目時不算：R101「方向盤會抖」答輪胎必須更換、來源附 driving，是正常回答。
+function guessesSymptomCause(vehicle: Vehicle, question: string, reply: AIReply, history: string[]): string | undefined {
+  const { answer } = reply;
   if (![question, ...history].some(hasSymptom)) return undefined;
   const claim = answer.split(/[。！？!?\n]/).find((s) => CAUSE_CLAIM.test(s) && !/不能|無法|沒有|請技師/.test(s));
-  return claim ? `卡片沒有這個症狀的檢查，回答卻判斷了原因：${claim.trim()}` : undefined;
+  if (claim) return `卡片沒有這個症狀的檢查，回答卻判斷了原因：${claim.trim()}`;
+  const drivingOnly = (reply.sources.includes("driving") || answer.includes("行車摘要")) && itemsIn(vehicle, answer).length === 0;
+  return hasSymptom(question) && drivingOnly ? "卡片沒有這個症狀的檢查，回答卻用行車摘要解釋" : undefined;
 }
 
 // 攔下時的替代回答：問題提到的項目和某個常見問題一樣，就給它的預寫回答；否則轉介專員。
@@ -807,8 +828,9 @@ export async function ask(vehicle: Vehicle, question: string, callAI: CallAI, op
     ...memo,
   };
 
-  const symptomBlocked = guessesSymptomCause(question, reply.answer, history);
-  const blockedReason = check(vehicle, reply, chosenByOwner(vehicle, question), inherited, deferMust) ?? budgetMismatch(vehicle, question, reply) ?? symptomBlocked;
+  const symptomBlocked = guessesSymptomCause(vehicle, question, reply, history);
+  const asked = vehicle.items.filter((i) => [question, ...history].some((t) => mentions(i, t)));
+  const blockedReason = check(vehicle, reply, chosenByOwner(vehicle, question), inherited, deferMust, asked) ?? budgetMismatch(vehicle, question, reply) ?? symptomBlocked;
   // 款式建議被攔下時轉專員：常見問題講的是要不要換，答非所問。
   const shown: Answer = blockedReason
     ? blockedReason === symptomBlocked
