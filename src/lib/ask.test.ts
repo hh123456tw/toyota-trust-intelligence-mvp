@@ -371,20 +371,28 @@ describe("ask：原廠文件片段", () => {
 });
 
 describe("simulateTampered：展示用的竄改回答", () => {
-  it("王先生：竄改回答說煞車可延到下個月 → 真的答案檢查攔下，顯示替代回答，不呼叫真 AI", async () => {
+  it("王先生：重播 11/9 真實說錯的一句（定期追蹤，到時再換）→ 真的答案檢查攔下，顯示替代回答，不呼叫真 AI", async () => {
     const r = await simulateTampered(wang);
     expect(r.simulated).toBe(true);
-    expect(r.question).toBe("前煞車來令片可以下個月再換嗎？");
+    expect(r.replay?.original).toContain("定期追蹤，到時再換");
+    expect(r.question).toBe("你怎麼知道煞車剩 2mm？");
     expect(r.checkResult).toBe("攔下");
     expect(r.blockedReason).toBe("前煞車來令片是必須更換，回答卻說可以延後");
-    expect(r.answer).not.toContain("撐到下個月");
+    expect(r.answer).not.toContain("到時再換");
     expect(r.answer).toContain("不建議延後");
     expect(r.escalate).toBe(true);
     expect(r.trace.aiSources).toEqual(["item:brake-pad"]);
   });
 
-  it("對照車（林小姐）：竄改的是必須更換的輪胎", async () => {
+  it("反例：技師改過煞車量測值 → 不重播真實紀錄（數值對不上），改用竄改句", async () => {
+    const r = await simulateTampered({ ...wang, items: withMeasurement(wang.items, "brake-pad", 2.5) });
+    expect(r.replay).toBeUndefined();
+    expect(r.checkResult).toBe("攔下");
+  });
+
+  it("對照車（林小姐）：沒有真實紀錄，竄改的是必須更換的輪胎", async () => {
     const r = await simulateTampered(lin);
+    expect(r.replay).toBeUndefined();
     expect(r.checkResult).toBe("攔下");
     expect(r.blockedReason).toBe("輪胎胎紋是必須更換，回答卻說可以延後");
   });

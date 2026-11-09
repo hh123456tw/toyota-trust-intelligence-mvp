@@ -3,6 +3,7 @@
 import { cardContext, contextSources, presetsFor, sourceLabel, type Answer } from "./answers";
 import { findExcerpts, hasKeyword, OTHER_PARTS } from "./manual";
 import { HANDLING, preferenceSummaryLine } from "./preferences";
+import { REAL_REPLAY } from "./replay";
 import { judge, type Conclusion } from "./rules";
 import { baseOption, findVehicle, formatPrice, priceLabel, visibleOptions, type InspectionItem, type Vehicle } from "./vehicles";
 
@@ -768,18 +769,25 @@ export async function ask(vehicle: Vehicle, question: string, callAI: CallAI, op
 // 展示用：真模型不會被惡意追問騙到，影片拍不到「攔下」。
 // 這裡用一則固定的竄改回答（說必須更換的項目可以撐到下個月，來源合法）取代 AI 呼叫，走真的答案檢查和替代回答。
 // 不呼叫 AI。結果一律標 simulated，畫面和流程面板都要顯示「模擬」。
-export async function simulateTampered(vehicle: Vehicle): Promise<AskResult & { simulated: true; question: string }> {
+export async function simulateTampered(
+  vehicle: Vehicle,
+): Promise<AskResult & { simulated: true; question: string; replay?: { original: string; log: string } }> {
   const item = vehicle.items.find((i) => judge(i).conclusion === "必須更換");
   if (!item) throw new Error("這台車沒有必須更換的項目，無法模擬");
-  const question = `${item.name}可以下個月再換嗎？`;
+  // 有真實紀錄、而且技師沒改過那一項的量測值，就重播真實說錯的那一句；否則用竄改句。
+  const real = REAL_REPLAY[vehicle.id];
+  const base = findVehicle(vehicle.id)?.items.find((i) => i.id === real?.itemId);
+  const edited = vehicle.items.find((i) => i.id === real?.itemId)?.measurement?.value !== base?.measurement?.value;
+  const useReal = real && item.id === real.itemId && !edited;
+  const question = useReal ? real.question : `${item.name}可以下個月再換嗎？`;
   const tampered = {
-    answer: `${item.name}還可以撐到下個月再換，不用擔心。`,
+    answer: useReal ? real.answer : `${item.name}還可以撐到下個月再換，不用擔心。`,
     sources: [`item:${item.id}`],
     escalate: false,
     itemConclusions: [{ id: `item:${item.id}`, conclusion: "必須更換" }],
   };
-  const result = await ask(vehicle, question, async () => JSON.stringify(tampered));
-  return { ...result, simulated: true, question };
+  const result = await ask(vehicle, question, async () => JSON.stringify(tampered), { router: false });
+  return { ...result, simulated: true, question, ...(useReal && { replay: { original: real.answer, log: real.log } }) };
 }
 
 // 檢查結果摘要：AI 把同一張卡整理成服務專員 30 秒能講完的版本。

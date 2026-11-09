@@ -1,5 +1,6 @@
 "use client";
 
+import { REAL_REPLAY } from "@/lib/replay";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import type { Answer, Preset } from "@/lib/answers";
@@ -42,7 +43,7 @@ type Message =
   // preset：常見問題的預寫回答，泡泡上標「不呼叫 AI」，才分得出和 AI 回答的差別。
   | { role: "ai"; answer: Answer; preset?: boolean }
   // 技師頁的模擬：一定帶「模擬」標籤和答案檢查結果，不會看起來像真的回答。
-  | { role: "simulated"; result: AskResult }
+  | { role: "simulated"; result: AskResult & { replay?: { original: string; log: string } } }
   | { role: "error"; text: string };
 
 // 每種結論的顏色和圖示。圖示加文字，不只靠顏色區分。
@@ -770,7 +771,7 @@ function Chat(props: {
           disabled={busy}
           className="mt-3 min-h-11 w-full rounded-xl border-2 border-dashed border-defer bg-defer-soft text-sm font-semibold text-defer disabled:opacity-40"
         >
-          模擬：AI 回答被竄改（展示答案檢查，不呼叫 AI）
+          {REAL_REPLAY[vehicleId] ? "重播真實攔截：11/9 實測時 AI 真的說錯的一句（不呼叫 AI）" : "模擬：AI 回答被竄改（展示答案檢查，不呼叫 AI）"}
         </button>
       )}
     </section>
@@ -807,7 +808,9 @@ function Bubble({ message, sourceLabels }: { message: Message; sourceLabels: Rec
         )}
         {simulated && (
           <p className="mb-2 rounded-lg bg-defer-soft px-2 py-1 text-sm font-semibold text-defer">
-            模擬｜AI 回答被竄改（未呼叫 AI）→ 答案檢查：
+            {simulated.replay ? "重播真實紀錄｜11/9 實測 AI 原本回答：" : "模擬｜AI 回答被竄改（未呼叫 AI）"}
+            {simulated.replay && <span className="block font-normal text-ink">「{simulated.replay.original}」</span>}
+            → 答案檢查：
             {simulated.checkResult === "攔下" ? `攔下（${simulated.blockedReason}）` : "通過"}
             {simulated.checkResult === "攔下" && "。以下是改顯示的替代回答："}
           </p>

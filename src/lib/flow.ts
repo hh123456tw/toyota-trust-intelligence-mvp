@@ -25,7 +25,8 @@ export function askFlow(
   labels: Labels,
 ): FlowEntry {
   const simulated = "simulated" in data && data.simulated === true;
-  const title = simulated ? `模擬：AI 回答被竄改（${question}）` : `追問：${question}`;
+  const replay = "replay" in data ? (data.replay as { log: string } | undefined) : undefined;
+  const title = replay ? `重播真實攔截（${question}）` : simulated ? `模擬：AI 回答被竄改（${question}）` : `追問：${question}`;
   if (status !== 200 || "error" in data) {
     // 502：主回答和分類器都送出了。
     return { title, steps: [`失敗：${"error" in data ? data.error : "未知錯誤"}`], aiCalls: status === 502 ? 2 : 0 };
@@ -47,7 +48,7 @@ export function askFlow(
   return {
     title,
     steps: [
-      ...(simulated ? ["AI 回答：模擬的竄改回答，沒有呼叫 AI"] : []),
+      ...(replay ? [`AI 回答：11/9 真實 Gemini 回答的紀錄重播（${replay.log}），這次沒有呼叫 AI`] : simulated ? ["AI 回答：模擬的竄改回答，沒有呼叫 AI"] : []),
       `理解的問題：${trace.mentionedItems.length ? `提到 ${list(trace.mentionedItems, labels, "")}` : "沒有提到特定項目"}`,
       `用了哪些資料：${list(trace.data, labels, "無")}`,
       `引用的來源：${list(trace.aiSources, labels, "無")}`,
