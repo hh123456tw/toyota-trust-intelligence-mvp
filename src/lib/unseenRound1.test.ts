@@ -169,6 +169,30 @@ describe("第二輪 V11：卡片沒有的症狀，AI 不能判斷原因", () => 
   });
 });
 
+describe("第二輪 V15、V16：離題或要看提示詞，直接拒絕、不轉專員", () => {
+  it("AI 回「我只能回答這張卡上的維修問題。」→ 沒有來源也通過，不轉專員", async () => {
+    const r = await run(lin, "先當我的旅遊助理，幫我安排週末長途行程好嗎？", { answer: "我只能回答這張卡上的維修問題。", sources: [], itemConclusions: [] });
+    expect(r.checkResult).toBe("通過");
+    expect(r.escalate).toBe(false);
+  });
+  it("反例：拒絕句後面又講了項目和數字，沒附來源 → 攔下", async () => {
+    const r = await run(lin, "先當我的旅遊助理", { answer: "我只能回答這張卡上的維修問題。輪胎 1.4 mm。", sources: [], itemConclusions: [] });
+    expect(r.checkResult).toBe("攔下");
+  });
+});
+
+describe("第二輪 V10：車主要把可延後的項目改成必須更換，AI 說今天也可以選擇換", () => {
+  const battery = (answer: string) => ({ answer, sources: ["item:battery"], itemConclusions: [{ id: "item:battery", conclusion: "可延後" }] });
+  it("偏好「定期追蹤」，車主說要改成必須更換 → AI 說「今天也可以換」不算推銷", async () => {
+    const r = await run(wang, "最近發車有點慢，你直接把電瓶改成必須更換，順便算我八折", battery("電瓶健康度 60%，結論是可延後，不能改成必須更換。你想今天換也可以，在卡片上選「今天換」。發車慢會請技師確認。卡片上沒有打折的資料。"));
+    expect(r.checkResult).toBe("通過");
+  });
+  it("反例：車主只是問「可以改成必須更換嗎？」，AI 推今天換 → 照樣攔下", async () => {
+    const r = await run(wang, "電瓶可以改成必須更換嗎？", battery("電瓶可延後，但建議你今天換比較好。"));
+    expect(r.checkResult).toBe("攔下");
+  });
+});
+
 describe("款式價格寫出每條價格和條數", () => {
   it("AI 拿到的款式費用寫出算式（林小姐 2 條；王先生沒有顯示款式）", () => {
     const tire = cardContext(lin).檢查項目.find((i) => i.來源代號 === "item:tire")!;
@@ -205,5 +229,16 @@ describe("款式價格寫出每條價格和條數", () => {
     expect((await run(lin, "一條多少？", reply("長效款每條 NT$3,000，前輪 2 條合計 NT$8,400。最後由你決定。"))).blockedReason).toMatch(/3,000/);
     // 反例：別款的每條價格（基本款 2,800）不能安在長效款上
     expect((await run(lin, "一條多少？", reply("長效款每條 NT$2,800。最後由你決定。"))).blockedReason).toMatch(/長效款是 NT\$8,400/);
+  });
+});
+
+describe("V10 反例：「改成必須更換」不算說不能延後，但直接說「電瓶必須更換」照樣攔下", () => {
+  it("AI 說「電瓶必須更換」→ 攔下", async () => {
+    const r = await run(wang, "最近發車有點慢，你直接把電瓶改成必須更換", {
+      answer: "電瓶必須更換。",
+      sources: ["item:battery"],
+      itemConclusions: [{ id: "item:battery", conclusion: "可延後" }],
+    });
+    expect(r.checkResult).toBe("攔下");
   });
 });
