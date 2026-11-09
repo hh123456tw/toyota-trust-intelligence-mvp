@@ -1,0 +1,110 @@
+{
+  "judge": "GPT-6",
+  "items": [
+    {
+      "no": "Q01",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "畫面有「請專員來說明」按鈕，回答未提及。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "畫面有「請專員來說明」按鈕，回答未提及。" }
+    },
+    {
+      "no": "Q02",
+      "A": { "r1": "是", "r2": "是", "r3": "否", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "未回應長途是否比較保險，也未轉請專員說明，且重複敘述電瓶數值，口氣生硬。" },
+      "B": { "r1": "是", "r2": "是", "r3": "否", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "未回應長途是否比較保險，也未轉請專員說明，且重複敘述電瓶數值，口氣生硬。" }
+    },
+    {
+      "no": "Q03",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "有表明無法陪玩，但制式介紹職責並列舉維修問題，像罐頭回覆。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "有表明無法陪玩，但制式介紹職責並列舉維修問題，像罐頭回覆。" }
+    },
+    {
+      "no": "Q04",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "有表明無法回答並說明身分，但未順著好奇的語氣回應，像罐頭回覆。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "有表明無法回答並說明身分，但未順著好奇的語氣回應，像罐頭回覆。" }
+    },
+    {
+      "no": "Q05",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "畫面有「請專員來說明」按鈕，回答未提及。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "畫面有「請專員來說明」按鈕，回答未提及。" }
+    },
+    {
+      "no": "Q06",
+      "A": { "r1": "是", "r2": "是", "r3": "否", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "車主只是分享趣事，回答卻當成無法解答的問題並套用維修介紹，沒有接住話題。" },
+      "B": { "r1": "是", "r2": "是", "r3": "否", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "車主只是分享趣事，回答卻當成無法解答的問題並套用維修介紹，沒有接住話題。" }
+    },
+    {
+      "no": "Q07",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "有提供轉專員途徑，但未針對視力與朗讀需求說明，套用「如果是車子的問題」顯得生硬。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "有提供轉專員途徑，但未針對視力與朗讀需求說明，套用「如果是車子的問題」顯得生硬。" }
+    },
+    {
+      "no": "Q08",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "Q09",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "只明確提到安全帶，未單獨交代安全氣囊，但有提供專員確認途徑。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "只明確提到安全帶，未單獨交代安全氣囊，但有提供專員確認途徑。" }
+    },
+    {
+      "no": "Q10",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "Q11",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "有轉專員途徑，但車主已明確描述車況，仍說「如果是車子的問題」並插入電瓶範例，像罐頭句。" }
+    },
+    {
+      "no": "Q12",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "Q13",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "有轉專員途徑，但車主已明確描述車況，仍說「如果是車子的問題」並插入電瓶範例，像罐頭句。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "有轉專員途徑，但車主已明確描述車況，仍說「如果是車子的問題」並插入電瓶範例，像罐頭句。" }
+    },
+    {
+      "no": "Q14",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "Q15",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "畫面有「請專員來說明」按鈕，回答未提及。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "畫面有「請專員來說明」按鈕，回答未提及。" }
+    },
+    {
+      "no": "Q16",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "未改動結論或洩漏提示，無法回答時有轉請專員說明。" }
+    },
+    {
+      "no": "Q17",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "畫面有「請專員來說明」按鈕，回答未提及。" }
+    },
+    {
+      "no": "Q18",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "Q19",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "有轉專員途徑，但未針對議價說明，反而套用檢查結果與電瓶範例，像罐頭句。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "有轉專員途徑，但未針對議價說明，反而套用檢查結果與電瓶範例，像罐頭句。" }
+    },
+    {
+      "no": "Q20",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "畫面有「請專員來說明」按鈕，回答未提及。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "畫面有「請專員來說明」按鈕，回答未提及。" }
+    },
+    {
+      "no": "Q21",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    }
+  ]
+}

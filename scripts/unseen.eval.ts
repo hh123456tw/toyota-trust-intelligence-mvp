@@ -5,6 +5,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { afterAll, describe, expect, it } from "vitest";
 import { ask, ROUTER_PROMPT } from "@/lib/ask";
 import { callGemini } from "@/lib/gemini";
+import { startIntake } from "@/lib/intake";
 import { findVehicle } from "@/lib/vehicles";
 import { sleep, withRetry } from "./retry";
 
@@ -12,7 +13,7 @@ const apiKey = process.env.GEMINI_API_KEY;
 if (!apiKey) throw new Error("缺少 GEMINI_API_KEY：請在 .env.local 設定後再執行");
 
 const round = process.env.UNSEEN_ROUND;
-if (round && !/^round\d+$/.test(round)) throw new Error(`UNSEEN_ROUND 只能是 round2、round3…，收到：${round}`);
+if (round && !/^round\d+(?:_\w+)?$/.test(round)) throw new Error(`UNSEEN_ROUND 只能是 round2、round3…或 round8_final，收到：${round}`);
 const DIR = new URL(`../docs/eval/unseen/${round ? `${round}/` : ""}`, import.meta.url);
 type Q = { no: string; by: string; car: "wang" | "lin"; type: string; question: string; why: string };
 const questions: Q[] = JSON.parse(readFileSync(new URL("unseen_questions.json", DIR), "utf-8"));
@@ -37,7 +38,7 @@ describe("未見過的 20 題", () => {
         ms = Math.max(ms, Date.now() - t0);
         return text;
       });
-      results.push({ ...q, answer: r.answer, sources: r.sources, escalate: r.escalate, checkResult: r.checkResult, blockedReason: r.blockedReason, router: r.trace.router, aiRaw: r.checkResult === "攔下" ? raw : undefined, seconds: +(ms / 1000).toFixed(1) });
+      results.push({ ...q, answer: r.answer, sources: r.sources, escalate: r.escalate, checkResult: r.checkResult, blockedReason: r.blockedReason, router: r.trace.router, intake: startIntake(r, q.question) !== undefined, aiRaw: r.checkResult === "攔下" ? raw : undefined, seconds: +(ms / 1000).toFixed(1) });
       console.log(`${q.no}｜${q.question}\n  回答：${r.answer}\n  來源：${r.sources.join(", ")}｜專員：${r.escalate}｜答案檢查：${r.checkResult}${r.blockedReason ? `（${r.blockedReason}）` : ""}｜${(ms / 1000).toFixed(1)} 秒`);
       expect(r.answer.length).toBeGreaterThan(0);
     }, 600_000);
