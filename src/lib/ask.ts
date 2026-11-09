@@ -453,7 +453,7 @@ function greetingAnswer(vehicle: Vehicle, question: string): Answer | undefined 
   // 舉例用可延後的項目：「還能用多久」問必須更換的項目不合適。
   const example = (vehicle.items.find((i) => judge(i).conclusion === "可延後") ?? vehicle.items[0]).name;
   return {
-    answer: `你好，我是這張維修決策卡的 AI 助理。今天檢查的項目都可以問我，例如「${example}還能用多久？」。卡片以外的問題，我會請專員來幫你。`,
+    answer: `你好，我是這張維修決策卡的 AI 助理。今天檢查的項目都可以問我，例如「${example}還能用多久？」。卡片以外的問題，可以請專員來幫你。`,
     sources: [],
     escalate: false,
   };
@@ -463,10 +463,10 @@ function greetingAnswer(vehicle: Vehicle, question: string): Answer | undefined 
 const CAR_TOPIC = /冷氣|空調|引擎|變速箱|雨刷|車燈|大燈|方向燈|方向盤|水箱|冷卻水|機油|車窗|音響|導航|鑰匙|遙控器|喇叭|後視鏡|座椅|安全帶|天窗|車門|油耗/;
 // 決賽版不改提示詞（AI 仍照規則 1 回固定句），只在程式層把固定句換成像人的說法；轉專員照舊。
 function outsideCardAnswer(vehicle: Vehicle, question: string): string {
-  if (vehicle.items.some((i) => mentions(i, question))) return "這個問題卡片上沒有寫到，我不想亂猜。我請專員過來跟你說明。";
+  if (vehicle.items.some((i) => mentions(i, question))) return "這個問題卡片上沒有寫到，我不想亂猜。可以按下面的按鈕，請專員來說明。";
   if (SYMPTOM.test(question)) return SYMPTOM_ANSWER;
   const topic = question.match(CAR_TOPIC)?.[0];
-  if (topic) return `${topic}不在今天的檢查項目裡，我手上沒有它的資料，不想亂猜。我請專員過來，幫你看要不要安排技師檢查。`;
+  if (topic) return `${topic}不在今天的檢查項目裡，我手上沒有它的資料，不想亂猜。可以按下面的按鈕請專員來，看要不要安排技師檢查。`;
   return "這題我答不了，我只能回答這台車今天的檢查結果，例如電瓶還能用多久。如果是車子的問題，可以按下面請專員來說明。";
 }
 
