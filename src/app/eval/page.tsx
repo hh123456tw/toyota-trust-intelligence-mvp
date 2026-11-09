@@ -12,8 +12,8 @@ export const metadata: Metadata = { title: "真實 AI 實測紀錄｜Trust Intel
 
 // 建置時讀 repo 裡的原始紀錄，頁面是靜態的；紀錄不見就建置失敗，不顯示假數字。頁面上的數字一律從紀錄算。
 const load = (file: string) => parseEvalLog(readFileSync(join(process.cwd(), "docs/eval/raw", file), "utf-8"));
-const FINAL = "2026-11-09_unseen_fix3_run";
-const FINAL_NAME = "11/9 未見過題目修正";
+const FINAL = "2026-11-09_round2_fix3_run";
+const FINAL_NAME = "11/9 決賽凍結版";
 
 const AFTER = [1, 2, 3].map((n) => ({ file: `${FINAL}${n}.log`, label: `第 ${n} 次`, ...load(`${FINAL}${n}.log`) }));
 
@@ -36,6 +36,9 @@ const ROUNDS = [
   { name: "11/8 誤攔修正", prefix: "2026-11-08_final_run" },
   { name: "11/9 未見過題目修正（第一版）", prefix: "2026-11-09_unseen_fix_run" },
   { name: "11/9 補否定誤攔", prefix: "2026-11-09_unseen_fix2_run" },
+  { name: "11/9 未見過題目修正", prefix: "2026-11-09_unseen_fix3_run" },
+  { name: "11/9 第二輪修正", prefix: "2026-11-09_round2_fix_run" },
+  { name: "11/9 第二輪誤攔修正", prefix: "2026-11-09_round2_fix2_run" },
   { name: FINAL_NAME, prefix: FINAL },
 ].map((r) => {
   const runs = [1, 2, 3].map((n) => load(`${r.prefix}${n}.log`));
@@ -318,6 +321,9 @@ export default function EvalPage() {
           <li>11/9 未見過題目修正（第一版）：依「其他 AI 出的 20 題」第一輪找到的問題修正：卡片金額的合計不再被當成卡片外的金額；回答說要請專員或技師時一定顯示轉專員；提示詞要求第一句先回答車主問的事；款式價格標「2 條合計」。第 2 次第 5 題 AI 說「電瓶今天不用一定要換」是對的，卻被誤攔；第 25 題車主想省錢，AI 主動推最貴的長效款，被攔下（檢查是對的）。</li>
           <li>11/9 補否定誤攔：補上第 5 題的誤攔（「不用一定要換」是否定），重跑 3 次全過。</li>
           <li>11/9 未見過題目修正：部署後在正式站重問 U13「我今天只換煞車和電瓶，合計多少」，AI 照車主的話說「你今天只換煞車和電瓶」，被「定期追蹤卻建議今天換」的規則誤攔。改成車主自己說今天要換的項目不套這條；車主只是在問、或 AI 順便推別的項目，照樣攔。重跑 3 次全過。</li>
+          <li>11/9 第二輪修正：依第二輪未見過題目修正（症狀不判斷原因、離題直接拒絕、車主想換可延後項目時說今天也可以換、款式價格寫出每條和條數）。重跑 3 次 84/87：第 11 題冷氣 3 次被誤攔、第 25 題 1 次被誤攔、第 31 題 1 次沒講 2.5 mm。</li>
+          <li>11/9 第二輪誤攔修正：修好第 11、25 題的誤攔，重跑 3 次 86/87：第 25 題 AI 說「不行下個月再換」又被誤攔。</li>
+          <li>11/9 決賽凍結版：補「不行」也是否定，重跑 3 次 85/87：第 10 題 2 次多說了「價格是固定標準」（題目規定不解釋價格怎麼決定）。之後程式凍結，不再為了這份考卷修改。</li>
           <li>10/30 改提示詞前：第 5 題漏講「3 個月後回廠提醒」，提示詞補上回廠提醒月數。</li>
         </ul>
         <table className="mt-4 w-full text-left text-sm">
