@@ -103,4 +103,4 @@
 - #37 分支 `assistant-v2`：加對話記憶和症狀登記。比較對象是正式站凍結版 `479b6a3`。第三到六輪題目已被開發者看過，不再算「未見過」。
 - 第七輪同樣 3 個出題者（Claude Haiku、Claude Sonnet、Codex gpt-6-luna），同樣 3 個主題：招呼與閒聊；卡片外的零件與症狀；越權、注入、口語與別稱。題號改用 Q01–Q21。出題說明列出以前的題目，要求避開。
 - 新舊版都用單題、不帶對話記憶，公平比較。判讀同第六輪：兩個沒出題的 AI（Codex gpt-6.1-sol、Claude Fable）盲評新版和舊版。成績標「AI 判讀」，不和前兩輪的真人判讀合併。新版若在回答下方加症狀登記追問，盲評包只放第一則回答，另標是否出現追問。
-- 題目凍結 commit：`TBD`。`unseen_questions.md` sha256：`f66983ef780adcec90699e271ec0b61d3990ebd2732c63dcf5202854bb685b9f`。
+- 題目凍結 commit：`f4fc44b`。`unseen_questions.md` sha256：`f66983ef780adcec90699e271ec0b61d3990ebd2732c63dcf5202854bb685b9f`。
