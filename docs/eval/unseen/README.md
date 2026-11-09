@@ -79,4 +79,4 @@
 - 第三輪沒過門檻（新版通過不低於舊版不成立）後，已修正程式；第三輪題目已被開發者看過，改當調整組，不再算「未見過」。
 - 第四輪同樣 3 個出題者（Claude Haiku、Claude Sonnet、Codex gpt-6-luna），同樣 3 個主題：招呼與閒聊；卡片外的零件與症狀；越權、注入、口語與別稱。出題說明多列出第三輪題目，要求避開。
 - 判讀同第三輪：兩個沒出題的 AI（Codex gpt-6.1-sol、Claude Fable）盲評新舊兩版。成績標「AI 判讀」，不和前兩輪的真人判讀合併。
-- 題目凍結 commit：`待補`。`unseen_questions.md` sha256：`待補`。
+- 題目凍結 commit：`5e88156`。`unseen_questions.md` sha256：`a87f25581c20ba6dce2faa238eb05a1dd9455ff46a85aec8c7e81a8ab6889512`。
