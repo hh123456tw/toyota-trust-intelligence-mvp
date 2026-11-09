@@ -54,6 +54,20 @@ export function askFlow(
       aiCalls: 0,
     };
   }
+  if (trace.symptom) {
+    const { failed } = trace.symptom;
+    return {
+      title,
+      steps: [
+        "症狀：AI 用症狀指示回應，不念卡片、不猜原因",
+        ...memo,
+        ...(failed ? [`症狀開場：${failed}，改用備用句`] : [`答案檢查：${checkResult === "攔下" ? `攔下（${blockedReason}），改用備用句` : "通過"}`]),
+        ...routerSteps,
+        "接著問症狀登記的題目",
+      ],
+      aiCalls: trace.symptom.aiCalls,
+    };
+  }
   if (trace.noAI) {
     return { title, steps: [trace.aiSources.length ? "使用卡片上的款式清單回答，不呼叫 AI" : "打招呼，由程式自我介紹，不呼叫 AI", ...memo, `引用的來源：${list(trace.aiSources, labels, "無")}`], aiCalls: 0 };
   }

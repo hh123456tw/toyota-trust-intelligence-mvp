@@ -874,7 +874,7 @@ function IntakeBlock({ start, active, onFlow }: { start: Intake; active: boolean
   }
   return (
     <div className="mt-3 border-t border-line pt-3">
-      <p className="leading-relaxed">{INTAKE_INTRO}</p>
+      {intake.intro && <p className="leading-relaxed">{INTAKE_INTRO}</p>}
       {intake.answers.map((a, i) => (
         <p key={i} className="mt-1.5 text-sm text-muted">
           {intake.set.questions[i].text}　<span className="font-semibold text-ink">{a}</span>

@@ -34,7 +34,8 @@ describe("打招呼、問你是誰：程式直接自我介紹，不呼叫 AI", (
 
 describe("卡片外的車子問題：AI 回沒有資料時，程式換成像人的說法", () => {
   it("冷氣不冷 → 點名冷氣，說不在今天的檢查項目，請專員", async () => {
-    const r = await ask(wang, "我冷氣不冷", fakeAI());
+    // 主回答路徑（症狀開場關掉時）：「冷氣不冷」現在走症狀開場，見 askSymptom.test.ts。
+    const r = await ask(wang, "我冷氣不冷", fakeAI(), { scripted: false });
     expect(r.answer).toMatch(/冷氣/);
     expect(r.answer).toMatch(/不在今天的檢查項目/);
     expect(r.answer).not.toMatch(/這張卡上沒有這項資料/);

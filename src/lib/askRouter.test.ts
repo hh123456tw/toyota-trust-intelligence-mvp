@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ANGRY_ANSWER, ask as realAsk, CRISIS_ANSWER, RESPONSE_SCHEMA, routerEnabled } from "./ask";
 
 // 這支測分類器本身，所以明確打開分類器，不看執行環境的 ROUTER_ENABLED。
-const ask: typeof realAsk = (v, q, ai) => realAsk(v, q, ai, { router: true });
+// 也關掉程式組句和症狀開場（#37）：「冷氣不冷」「冒煙」現在走症狀開場（見 askSymptom.test.ts），這裡測主回答加範本那條路。
+const ask: typeof realAsk = (v, q, ai) => realAsk(v, q, ai, { router: true, scripted: false });
 import { askFlow } from "./flow";
 import { findVehicle } from "./vehicles";
 
@@ -371,7 +372,7 @@ describe("危險徵兆：一律不換範本，轉介專員（#36 審查）", () 
   });
 
   it("反例：分類器關閉時，主回答路徑照舊看否定（「沒有冒煙」不算症狀）", async () => {
-    const r = await realAsk(wang, "引擎沒有冒煙，冷氣不冷", async () => JSON.stringify(NO_DATA), { router: false });
+    const r = await realAsk(wang, "引擎沒有冒煙，冷氣不冷", async () => JSON.stringify(NO_DATA), { router: false, scripted: false });
     expect(r.answer).not.toMatch(/不能判斷原因/);
     expect(r.answer).toMatch(/不在今天的檢查項目/);
   });

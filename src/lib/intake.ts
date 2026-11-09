@@ -63,7 +63,8 @@ const MATCH: Record<Exclude<IntakeSet["id"], "general">, RegExp> = {
 };
 // 否定說法「沒有異音」「不會亮燈」「我不是問冷氣」先拿掉，避免被選成那個題組。
 // 「沒冷氣」「沒有冷氣」是冷氣壞了，不算否定。
-const NEGATED = /(?:沒有|沒|不會|不再)(?:任何|什麼)?(?:異音|怪聲|異響|聲音|亮燈|燈亮)|(?:不是|並不是)在?(?:問|說|講)?(?:冷氣|空調|異音|怪聲|異響|聲音|燈)/g;
+// 「停紅燈」「等紅燈」是交通號誌，不是儀表燈，也不算紅燈警示（#37 真 AI 小測）。
+const NEGATED = /(?:沒有|沒|不會|不再)(?:任何|什麼)?(?:異音|怪聲|異響|聲音|亮燈|燈亮)|(?:不是|並不是)在?(?:問|說|講)?(?:冷氣|空調|異音|怪聲|異響|聲音|燈)|[停等]紅燈/g;
 
 export function pickSet(question: string): IntakeSet {
   const text = question.replace(NEGATED, "");
@@ -78,8 +79,9 @@ const ANGRY_ANSWER = "聽起來你不太滿意，我請專員來跟你當面說�
 const DESCRIBED = "你描述的狀況";
 
 // answers：已回答的選項文字。stopped：車主按［先不用］。urgent：原問題有安全訊號。
-export type Intake = { topic: string; set: IntakeSet; answers: string[]; stopped: boolean; urgent: boolean };
-type Reply = { answer: string; trace?: { crisis?: boolean; router?: { category?: string; topic?: string; used: boolean } } };
+// intro：要不要先說 INTAKE_INTRO。症狀開場的 AI 回應已經說了要先問幾個問題，不再重複。
+export type Intake = { topic: string; set: IntakeSet; answers: string[]; stopped: boolean; urgent: boolean; intro: boolean };
+type Reply = { answer: string; trace?: { crisis?: boolean; symptom?: object; router?: { category?: string; topic?: string; used: boolean } } };
 
 const OUTSIDE_CAR: RouterCategory = "卡片外的車子問題";
 const SYMPTOM_CATEGORY: RouterCategory = "症狀";
@@ -93,8 +95,8 @@ export function startIntake(reply: Reply, question: string): Intake | undefined 
   if (!trace || trace.crisis || reply.answer === ANGRY_ANSWER) return undefined;
   const router = trace.router;
   const outside = router?.used && router.category === OUTSIDE_CAR && router.topic;
-  if (!outside && reply.answer !== SYMPTOM_ANSWER && router?.category !== SYMPTOM_CATEGORY) return undefined;
-  return { topic: outside || DESCRIBED, set: pickSet(question), answers: [], stopped: false, urgent: SAFETY_SIGNAL.test(question) };
+  if (!outside && !trace.symptom && reply.answer !== SYMPTOM_ANSWER && router?.category !== SYMPTOM_CATEGORY) return undefined;
+  return { topic: outside || DESCRIBED, set: pickSet(question), answers: [], stopped: false, urgent: SAFETY_SIGNAL.test(question.replace(/[停等]紅燈/g, "")), intro: !trace.symptom };
 }
 
 export const SKIP = "先不用";

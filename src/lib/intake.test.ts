@@ -41,6 +41,17 @@ describe("pickSet：依問題文字選題組", () => {
     expect(id).toBe(q.startsWith("冷氣不冷") ? "ac" : "general");
   });
 
+  // 真 AI 小測（#37 症狀開場）：「停紅燈引擎會抖」被問「是什麼顏色的燈？」。停紅燈、等紅燈是交通號誌。
+  it.each(["最近停紅燈引擎會抖一下，這樣正常嗎", "等紅燈的時候車子會震動"])("反例「%s」：交通號誌不是儀表燈，也不算紅燈警示", (q) => {
+    expect(pickSet(q).id).toBe("general");
+    expect(startIntake(reply(SYMPTOM_ANSWER), q)?.urgent).toBe(false);
+  });
+
+  it("儀表亮紅燈照樣選亮燈題組、加安全提醒", () => {
+    expect(pickSet("儀表板亮紅燈").id).toBe("light");
+    expect(startIntake(reply(SYMPTOM_ANSWER), "儀表板亮紅燈")?.urgent).toBe(true);
+  });
+
   it("同時提到亮燈和冷氣：先問亮燈（和行車安全較有關）", () => {
     expect(pickSet("冷氣不冷，儀表還亮警示燈").id).toBe("light");
   });
