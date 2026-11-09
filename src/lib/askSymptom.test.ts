@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { ask, STOP_LINE, SYMPTOM_FALLBACK, SYMPTOM_PROMPT } from "./ask";
 import { askFlow } from "./flow";
-import { startIntake } from "./intake";
+import { currentQuestion, startIntake } from "./intake";
 import { findVehicle } from "./vehicles";
 
 const wang = findVehicle("wang")!;
@@ -94,6 +94,66 @@ describe("症狀開場的檢查：不合格就換成備用句", () => {
     expect(r.checkResult).toBe("通過");
     // 煞車軟是危險症狀：程式在前面補「先不要把車開走」（askUrgent.test.ts）。AI 已經說了就不補。
     expect(r.answer).toBe(/先不要把車開走/.test(answer) || !/軟軟/.test(q) ? answer : STOP_LINE + answer);
+  });
+});
+
+// #38 正式站實測：「煞車有怪聲」只回症狀開場，沒講今天煞車量到 2 mm、必須更換。
+// 症狀提到卡片項目時，那幾項的卡片事實一起給 AI；回答可以講它們的數值和結論，但要和卡片一致，不能說是它造成的。
+describe("症狀提到卡片項目：給 AI 那幾項的卡片事實", () => {
+  const BRAKE_OK = "聽到煞車有怪聲一定很不踏實。今天量到前煞車來令片 2 mm，低於安全門檻 3 mm，結論是必須更換；這和怪聲有沒有關係，要請技師實際確認。";
+
+  it("煞車有怪聲：AI 收到煞車的名稱、量測、門檻、結論和技師備註，沒收到其他項目", async () => {
+    const ai = fakeAI(BRAKE_OK);
+    await ask(wang, "煞車有怪聲", ai.callAI);
+    const user = ai.calls[0].user;
+    expect(user).toContain("前煞車來令片");
+    expect(user).toContain("2 mm");
+    expect(user).toContain("安全門檻 3 mm");
+    expect(user).toContain("必須更換");
+    expect(user).toContain("左右兩側皆約 2 mm");
+    expect(user).not.toContain("電瓶");
+    expect(user).not.toContain("輪胎");
+    expect(SYMPTOM_PROMPT).toContain("不要說是它造成的");
+  });
+
+  it("煞車有怪聲：回答照卡片講 2 mm 和必須更換 → 通過，後面接症狀登記", async () => {
+    const r = await ask(wang, "煞車有怪聲", fakeAI(BRAKE_OK).callAI);
+    expect(r.blockedReason).toBeUndefined();
+    expect(r.checkResult).toBe("通過");
+    expect(r.answer).toBe(BRAKE_OK);
+    expect(startIntake(r, "煞車有怪聲")).toMatchObject({ intro: false, answers: [] });
+    expect(currentQuestion(startIntake(r, "煞車有怪聲")!)?.text).toBe("聲音大概在哪裡？");
+  });
+
+  it.each([
+    ["寫錯數值（量到 3 mm）", "今天量到前煞車來令片 3 mm，必須更換，和怪聲有沒有關係要請技師確認。", /數值/],
+    ["寫錯數值（2.5 mm）", "前煞車來令片今天量到 2.5 mm，必須更換，要請技師確認。", /數值|量測值/],
+    ["寫錯結論（可延後）", "前煞車來令片今天量到 2 mm，可延後，要請技師確認和怪聲有沒有關係。", /結論|延後/],
+    ["說是來令片造成的", "前煞車來令片今天量到 2 mm，必須更換，怪聲是來令片造成的。", /判斷了原因/],
+    ["說和來令片有關", "前煞車來令片今天量到 2 mm，必須更換，怪聲應該和來令片太薄有關。", /判斷了原因/],
+    ["念了沒問的電瓶", "前煞車來令片 2 mm，必須更換；電瓶 60%。要請技師確認。", /電瓶/],
+  ])("%s → 攔下，改用備用句", async (_, answer, reason) => {
+    const r = await ask(wang, "煞車有怪聲", fakeAI(answer).callAI);
+    expect(r.answer).toBe(SYMPTOM_FALLBACK);
+    expect(r.checkResult).toBe("攔下");
+    expect(r.blockedReason).toMatch(reason);
+    expect(startIntake(r, "煞車有怪聲")).toBeDefined();
+  });
+
+  it("輪胎有點抖：可延後的輪胎，照卡片講 2.5 mm、可延後 → 通過", async () => {
+    const answer = "輪胎有點抖一定讓你不安。今天輪胎胎紋量到 2.5 mm，結論是可延後；這和抖動有沒有關係要請技師實際確認。";
+    const ai = fakeAI(answer);
+    const r = await ask(wang, "輪胎有點抖", ai.callAI);
+    expect(r.blockedReason).toBeUndefined();
+    expect(ai.calls[0].user).toContain("2.5 mm");
+    expect(r.checkResult).toBe("通過");
+  });
+
+  it("反例：沒提卡片項目的症狀（冷氣不冷）不給卡片資料，念數字照舊攔", async () => {
+    const ai = fakeAI("冷氣不冷很難受。前煞車來令片 2 mm，我請技師確認。");
+    const r = await ask(wang, "我冷氣不冷", ai.callAI);
+    expect(ai.calls[0].user).not.toMatch(/前煞車來令片|mm|必須更換/);
+    expect(r.checkResult).toBe("攔下");
   });
 });
 
