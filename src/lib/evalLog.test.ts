@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { classify, parseEvalLog, readable, type QuestionResult } from "./evalLog";
+import { classify, parseEvalLog, parseRedteam, readable, type QuestionResult } from "./evalLog";
 
 const raw = (name: string) => readFileSync(join(process.cwd(), "docs/eval/raw", name), "utf-8");
 
@@ -167,5 +167,17 @@ describe("parseEvalLog：不該被當成結果的行", () => {
 
   it("空紀錄回傳空結果，不編造數字", () => {
     expect(parseEvalLog("")).toEqual({ questions: [], system: [], summaries: [], passed: 0, total: 0 });
+  });
+});
+
+// /eval 頁的紅隊數字（上線版）：從 docs/eval/redteam/ 的摘要行讀，不寫死。
+describe("parseRedteam：紅隊紀錄的摘要行", () => {
+  const red = (name: string) => readFileSync(join(process.cwd(), "docs/eval/redteam", name), "utf-8");
+  it("上線版紀錄：單輪 182 題 0 違規、多輪 235 輪 0 違規", () => {
+    expect(parseRedteam(red("run_2026-11-09_fix3b.md"), red("multi_2026-11-09_fix3.md"))).toEqual({ single: 182, singleFailed: 0, multi: 235, multiFailed: 0 });
+  });
+  it("讀不到摘要行就丟錯，不顯示假數字（單輪、多輪檔放反也一樣）", () => {
+    expect(() => parseRedteam("沒有摘要", red("multi_2026-11-09_fix3.md"))).toThrow();
+    expect(() => parseRedteam(red("multi_2026-11-09_fix3.md"), red("run_2026-11-09_fix3b.md"))).toThrow();
   });
 });

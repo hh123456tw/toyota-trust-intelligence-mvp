@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { classify, parseEvalLog, readable, type QuestionResult, type Verdict } from "@/lib/evalLog";
+import { classify, parseEvalLog, parseRedteam, readable, type QuestionResult, type Verdict } from "@/lib/evalLog";
 import { preferenceSummaryLine } from "@/lib/preferences";
 import { findVehicle } from "@/lib/vehicles";
 import { checkCase } from "../../../scripts/questions";
@@ -17,13 +17,22 @@ const FINAL_NAME = "11/10 上線版（像真人助理）";
 
 const AFTER = [1, 2, 3].map((n) => ({ file: `${FINAL}${n}.log`, label: `第 ${n} 次`, ...load(`${FINAL}${n}.log`) }));
 
+// 紅隊：上線版的單輪、多輪紀錄（scripts/redteam.eval.ts、redteam_multi.eval.ts）。檔名日期是 UTC。
+const REDTEAM_DIR = "docs/eval/redteam";
+const REDTEAM_SINGLE = "run_2026-11-09_fix3b.md";
+const REDTEAM_MULTI = "multi_2026-11-09_fix3.md";
+const red = parseRedteam(
+  readFileSync(join(process.cwd(), REDTEAM_DIR, REDTEAM_SINGLE), "utf-8"),
+  readFileSync(join(process.cwd(), REDTEAM_DIR, REDTEAM_MULTI), "utf-8"),
+);
+
 // 歷次執行：10/30 免費版發現第 5 題的問題、改了提示詞（簡報講稿用到這次）；11/7 加入車主偏好後第一輪的第 1 次。
 const RUNS = [
-  { file: "2026-10-30_run0_before-prompt-fix.log", label: "10/30 改提示詞前" },
-  { file: "2026-11-07_pref_before-fix_run1.log", label: "11/7 修正前" },
+  { file: "2026-10-30_run0_before-prompt-fix.log", label: "10/30 改提示詞前（舊版）" },
+  { file: "2026-11-07_pref_before-fix_run1.log", label: "11/7 修正前（舊版）" },
 ]
   .map((r) => ({ ...r, ...load(r.file) }))
-  .concat(AFTER);
+  .concat(AFTER.map((r) => ({ ...r, label: `上線版${r.label}` })));
 
 // 加入車主偏好後的每一輪（每輪 3 次）。
 const ROUNDS = [
@@ -108,7 +117,7 @@ const TAG_STYLE: Record<Verdict["tag"], string> = {
   待人工判讀: "bg-paper text-muted border border-line",
 };
 
-// 改進循環與輪次紀錄：數字來自 docs/eval/unseen/判讀結果.md、round2/判讀結果.md 和上方的回歸測試紀錄。
+// 舊版的改進循環與沒看過題目的輪次：數字來自 docs/eval/unseen/判讀結果.md、round2/判讀結果.md。
 const LOOP = [
   { title: "找問題", text: "其他 AI 只看車主畫面出新題。題目先凍結，真實 Gemini 跑一次，2 位組員獨立判讀。" },
   { title: "修正", text: "找出原因，修程式或提示詞。每個修正都補「該攔／不該攔」的反例測試。" },
@@ -127,13 +136,6 @@ const CYCLES = [
     result: "15 / 20",
     found: "誘導題全部守住。沒過 5 題：預寫清單攔走別的問題；卡片沒有的症狀，AI 自己判斷原因；車主想換卻沒說可以換。",
     fixed: "列入下一輪：修完先用新題目和人工判讀驗證，才會上線。不在決賽前改，避免修這邊、壞那邊。",
-  },
-  {
-    round: "回歸測試：自己的 29 題 × 3",
-    // 回歸測試的分數從紀錄算（下方 AFTER），不寫死。
-    result: null,
-    found: "上線版（像真人助理）用真實 Gemini 連跑 3 次。11/9 試過依第二輪修改的版本（82/87 → 86/87 → 85/87），沒有採用。",
-    fixed: "上線後找到的已知問題列入下一版改進（GitHub issue #38）。",
   },
 ];
 
@@ -196,62 +198,22 @@ export default function EvalPage() {
         <Icon name="shield" className="size-4" />
         TRUST INTELLIGENCE｜真實 AI 實測紀錄
       </p>
-      <h1 className="mt-2 text-2xl font-bold">AI 回答品質：找問題、修正、驗證</h1>
+      <h1 className="mt-2 text-2xl font-bold">AI 回答品質：紅隊攻擊、回歸測試</h1>
       <p className="mt-2 text-sm text-muted">
-        維修結論由規則決定，AI 改不了。AI 的回答品質用下面這個循環改進，已經跑過兩輪。29 題每一輪的 AI 原文公開在這頁；沒看過題目的逐題判讀存在專案紀錄。
+        維修結論由規則決定，AI 改不了。上線版先用紅隊題目攻擊，看 AI 會不會被套話；再用自己的 {aiPerRun} 題連跑 3 次做回歸測試。29 題每一次的 AI 原文公開在這頁，紅隊的逐題原文存在專案紀錄。
       </p>
 
-      <h2 className="mt-8 text-lg font-bold">改進循環</h2>
-      <ol className="mt-3 grid gap-3 sm:grid-cols-4">
-        {LOOP.map((s, i) => (
-          <li key={s.title} className="rounded-2xl border border-line bg-white p-4">
-            <p className="text-xs font-semibold text-brand">第 {i + 1} 步</p>
-            <p className="mt-1 font-bold">{s.title}</p>
-            <p className="mt-1 text-sm text-muted">{s.text}</p>
-          </li>
-        ))}
-      </ol>
-
-      <h2 className="mt-8 text-lg font-bold">已經跑過的輪次</h2>
-      {/* 窄螢幕用卡片，表格要左右滑才看得到「修正」欄。 */}
-      <ul className="mt-3 space-y-3 sm:hidden">
-        {CYCLES.map((c) => (
-          <li key={c.round} className="rounded-2xl border border-line bg-white p-4 text-sm">
-            <p className="flex items-baseline justify-between gap-2 font-semibold">
-              <span>{c.round}</span>
-              <span className="whitespace-nowrap text-brand">{c.result ?? `${aiPassed} / ${aiPerRun * AFTER.length}`}</span>
-            </p>
-            <p className="mt-2 text-xs font-semibold text-muted">找到的問題</p>
-            <p>{c.found}</p>
-            <p className="mt-2 text-xs font-semibold text-muted">修正</p>
-            <p>{c.fixed}</p>
-          </li>
-        ))}
-      </ul>
-      <div className="mt-3 hidden overflow-x-auto sm:block">
-        <table className="w-full min-w-[34rem] text-left text-sm">
-          <thead className="text-xs text-muted">
-            <tr className="border-b border-line">
-              <th className="py-2 pr-3 font-semibold">輪次</th>
-              <th className="py-2 pr-3 font-semibold">結果</th>
-              <th className="py-2 pr-3 font-semibold">找到的問題</th>
-              <th className="py-2 font-semibold">修正</th>
-            </tr>
-          </thead>
-          <tbody>
-            {CYCLES.map((c) => (
-              <tr key={c.round} className="border-b border-line align-top">
-                <td className="py-2 pr-3 font-semibold">{c.round}</td>
-                <td className="py-2 pr-3 font-semibold whitespace-nowrap text-brand">{c.result ?? `${aiPassed} / ${aiPerRun * AFTER.length}`}</td>
-                <td className="py-2 pr-3">{c.found}</td>
-                <td className="py-2">{c.fixed}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <p className="mt-2 text-xs text-muted">
-        限制：題目由其他 AI 模型出，不是真的車主；每輪只跑一次；第二輪找到的問題還沒修。逐題原文與判讀在 repo 的 docs/eval/unseen/。
+      <h2 className="mt-8 text-lg font-bold">紅隊攻擊</h2>
+      <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+        <Stat
+          label="紅隊攻擊"
+          value={`${red.single + red.multi} 次`}
+          note={`${red.single} 題單輪＋${red.multi} 輪多輪套話`}
+        />
+        <Stat label="違規" value={`${red.singleFailed + red.multiFailed}`} note={`單輪 ${red.singleFailed}、多輪 ${red.multiFailed}`} />
+      </dl>
+      <p className="mt-2 text-sm text-muted">
+        攻擊題型：要 AI 改結論、議價打折、保證安全、多輪慢慢套話、要看提示詞等。用真實 Gemini 每題跑一次，程式自動檢查不變條件。逐題原文在 repo 的 {REDTEAM_DIR}/（{REDTEAM_SINGLE}、{REDTEAM_MULTI}）。
       </p>
 
       <h2 className="mt-10 text-lg font-bold">回歸測試：自己的 {aiPerRun} 題，上線版連跑 3 次</h2>
@@ -376,6 +338,61 @@ export default function EvalPage() {
         </ul>
       </Fold>
 
+      <Fold title="歷史：沒看過的題目（舊版，2 位組員判讀）">
+        <h3 className="text-sm font-bold">改進循環</h3>
+        <ol className="mt-3 grid gap-3 sm:grid-cols-4">
+          {LOOP.map((s, i) => (
+            <li key={s.title} className="rounded-2xl border border-line bg-white p-4">
+              <p className="text-xs font-semibold text-brand">第 {i + 1} 步</p>
+              <p className="mt-1 font-bold">{s.title}</p>
+              <p className="mt-1 text-sm text-muted">{s.text}</p>
+            </li>
+          ))}
+        </ol>
+
+        <h3 className="mt-6 text-sm font-bold">已經跑過的輪次</h3>
+        {/* 窄螢幕用卡片，表格要左右滑才看得到「修正」欄。 */}
+        <ul className="mt-3 space-y-3 sm:hidden">
+          {CYCLES.map((c) => (
+            <li key={c.round} className="rounded-2xl border border-line bg-white p-4 text-sm">
+              <p className="flex items-baseline justify-between gap-2 font-semibold">
+                <span>{c.round}</span>
+                <span className="whitespace-nowrap text-brand">{c.result}</span>
+              </p>
+              <p className="mt-2 text-xs font-semibold text-muted">找到的問題</p>
+              <p>{c.found}</p>
+              <p className="mt-2 text-xs font-semibold text-muted">修正</p>
+              <p>{c.fixed}</p>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-3 hidden overflow-x-auto sm:block">
+          <table className="w-full min-w-[34rem] text-left text-sm">
+            <thead className="text-xs text-muted">
+              <tr className="border-b border-line">
+                <th className="py-2 pr-3 font-semibold">輪次</th>
+                <th className="py-2 pr-3 font-semibold">結果</th>
+                <th className="py-2 pr-3 font-semibold">找到的問題</th>
+                <th className="py-2 font-semibold">修正</th>
+              </tr>
+            </thead>
+            <tbody>
+              {CYCLES.map((c) => (
+                <tr key={c.round} className="border-b border-line align-top">
+                  <td className="py-2 pr-3 font-semibold">{c.round}</td>
+                  <td className="py-2 pr-3 font-semibold whitespace-nowrap text-brand">{c.result}</td>
+                  <td className="py-2 pr-3">{c.found}</td>
+                  <td className="py-2">{c.fixed}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-2 text-xs text-muted">
+          限制：題目由其他 AI 模型出，不是真的車主；每輪只跑一次；第二輪找到的問題還沒修。逐題原文與判讀在 repo 的 docs/eval/unseen/。
+        </p>
+      </Fold>
+
       <Fold title="歷史輪次">
         <table className="w-full text-left text-sm">
           <thead className="text-xs text-muted">
@@ -420,7 +437,7 @@ export default function EvalPage() {
         <table className="mt-4 w-full text-left text-sm">
           <thead className="text-xs text-muted">
             <tr className="border-b border-line">
-              <th className="py-2 pr-3 font-semibold">單次執行</th>
+              <th className="py-2 pr-3 font-semibold">單次執行（題數依當時題庫；上線版每次 {questionCount} 題＝{aiPerRun} 題經過 AI＋{questionCount - aiPerRun} 題系統測試）</th>
               <th className="py-2 pr-3 font-semibold">題目</th>
               <th className="py-2 font-semibold">摘要</th>
             </tr>
