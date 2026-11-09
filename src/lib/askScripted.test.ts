@@ -41,7 +41,7 @@ const run = async (car: Vehicle, question: string, answer: string, history: stri
 };
 
 const BRAKE =
-  "前煞車來令片量測 2 mm，低於安全門檻 3 mm，結論是必須更換，不能延後。示意費用 NT$3,000，實際以服務廠報價為準。為了行車安全，建議今天處理；有疑問可以按下面的按鈕請專員說明。";
+  "前煞車來令片量測 2 mm，低於安全門檻 3 mm，結論是必須更換，不能延後。來令片太薄時，煞車距離會變長，也可能磨傷煞車碟盤。示意費用 NT$3,000，實際以服務廠報價為準。為了行車安全，建議今天處理；有疑問可以按下面的按鈕請專員說明。";
 const SHAKE = "我沒辦法從卡片資料判斷抖動的原因，亂猜可能讓你誤會。可以按下面的按鈕，請技師實際檢查。";
 
 describe("A. 必須更換＋延後或安全意圖：程式組句，不呼叫主回答 AI", () => {
@@ -67,7 +67,7 @@ describe("A. 必須更換＋延後或安全意圖：程式組句，不呼叫主�
     const { r, mainCalls } = await run(lin, "輪胎可以撐到下次保養嗎", ATTACKS[0]);
     expect(mainCalls).toBe(0);
     expect(r.answer).toBe(
-      "輪胎胎紋量測 1.4 mm，低於安全門檻 1.6 mm，結論是必須更換，不能延後。示意費用 NT$5,600 起（依款式；最低款每條 NT$2,800 × 2 條），實際以服務廠報價為準。為了行車安全，建議今天處理；有疑問可以按下面的按鈕請專員說明。",
+      "輪胎胎紋量測 1.4 mm，低於安全門檻 1.6 mm，結論是必須更換，不能延後。胎紋太淺時，雨天容易打滑，煞車距離也會變長。示意費用 NT$5,600 起（依款式；最低款每條 NT$2,800 × 2 條），實際以服務廠報價為準。為了行車安全，建議今天處理；有疑問可以按下面的按鈕請專員說明。",
     );
   });
 
@@ -75,8 +75,22 @@ describe("A. 必須更換＋延後或安全意圖：程式組句，不呼叫主�
     const edited: Vehicle = { ...lin, items: lin.items.map((i) => (i.id === "brake-pad" ? { ...i, measurement: { value: 2.5, unit: "mm" } } : i)) };
     const { r } = await run(edited, "輪胎和煞車都可以延後嗎", ATTACKS[0]);
     expect(r.answer).toContain("輪胎胎紋量測 1.4 mm，低於安全門檻 1.6 mm，結論是必須更換，不能延後。");
-    expect(r.answer).toContain("前煞車來令片量測 2.5 mm，低於安全門檻 3 mm，結論是必須更換，不能延後。示意費用 NT$3,000");
+    expect(r.answer).toContain("前煞車來令片量測 2.5 mm，低於安全門檻 3 mm，結論是必須更換，不能延後。來令片太薄時");
     expect(r.answer.match(/為了行車安全/g)).toHaveLength(1);
+  });
+
+  it("問不換的風險：帶入卡片的 mustReplaceRisk", async () => {
+    const { r, mainCalls } = await run(wang, "不換煞車片會有什麼風險？", ATTACKS[0]);
+    expect(mainCalls).toBe(0);
+    expect(r.answer).toContain("來令片太薄時，煞車距離會變長，也可能磨傷煞車碟盤。");
+  });
+
+  it("反例：卡片沒寫 mustReplaceRisk 就不加風險句，不編造", async () => {
+    const bare: Vehicle = { ...wang, items: wang.items.map((i) => (i.id === "brake-pad" ? { ...i, mustReplaceRisk: undefined } : i)) };
+    const { r } = await run(bare, "不換煞車片會有什麼風險？", ATTACKS[0]);
+    expect(r.answer).toBe(
+      "前煞車來令片量測 2 mm，低於安全門檻 3 mm，結論是必須更換，不能延後。示意費用 NT$3,000，實際以服務廠報價為準。為了行車安全，建議今天處理；有疑問可以按下面的按鈕請專員說明。",
+    );
   });
 
   it("流程面板：顯示「高風險題：程式組句，不經 AI」，AI 呼叫 0 次", async () => {
@@ -116,7 +130,7 @@ describe("B. 症狀語境問原因：程式組句", () => {
     }
   });
 
-  it.each(["那是不是輪胎呢？", "會不會是輪胎？", "是輪胎的問題嗎", "跟輪胎有關嗎"])("點名卡片項目：抖動後問「%s」", async (q) => {
+  it.each(["那是不是輪胎呢？", "會不會是輪胎？", "是輪胎的問題嗎", "跟輪胎有關嗎", "輪胎造成的嗎"])("點名卡片項目：抖動後問「%s」", async (q) => {
     const { r, mainCalls } = await run(wang, q, ATTACKS[8], ["方向盤會抖"]);
     expect(mainCalls).toBe(0);
     expect(r.answer).toMatch(/^輪胎胎紋量測 2\.5 mm，低於建議值 3 mm，但還沒到安全門檻 1\.6 mm，結論是可延後，3 個月後會提醒你回廠。這是輪胎胎紋本身的狀態，不能判斷跟抖動有沒有關係/);
@@ -130,6 +144,7 @@ describe("反例：照舊走 AI", () => {
     ["正常的煞車問安全", lin, "煞車開長途安全嗎", [], "黃技師量到前煞車來令片約 7 mm，狀況正常，今天不用處理。"],
     ["沒有症狀語境問是不是", wang, "是不是輪胎的問題？", [], "輪胎胎紋 2.5 mm，可延後，3 個月後會提醒你回廠。"],
     ["症狀語境但問價錢", wang, "電瓶要多少錢？", ["方向盤會抖"], "電瓶示意費用 NT$3,500，實際以服務廠報價為準。"],
+    ["症狀語境，只出現「問題」兩字", wang, "電瓶有問題嗎？", ["方向盤會抖"], "電瓶 60%，可延後，3 個月後會提醒你回廠。"],
   ] as [string, Vehicle, string, string[], string][])("%s：%s", async (_, car, q, history, answer) => {
     const { r, mainCalls } = await run(car, q, answer, history);
     expect(mainCalls).toBe(1);

@@ -613,7 +613,9 @@ function guessesSymptomCause(vehicle: Vehicle, question: string, reply: AIReply,
 function itemLine(item: InspectionItem): string {
   const v = judge(item);
   const reason = `${item.name}${v.reason.replace(/。$/, "")}`;
-  if (v.conclusion === "必須更換") return `${reason}，結論是必須更換，不能延後。示意費用 ${priceLabel(item, true)}，實際以服務廠報價為準。`;
+  // 卡片有寫不換的風險就帶上（「不換煞車片會有什麼風險？」要回答到），沒有就不加。
+  if (v.conclusion === "必須更換")
+    return `${reason}，結論是必須更換，不能延後。${item.mustReplaceRisk ?? ""}示意費用 ${priceLabel(item, true)}，實際以服務廠報價為準。`;
   if (v.conclusion === "可延後") return `${reason}，結論是可延後，${v.reminderMonths} 個月後會提醒你回廠。`;
   return `${reason}，結論是${LABEL[v.conclusion]}。`;
 }
@@ -626,10 +628,11 @@ function symptomName(question: string, history: string[]): string {
   }
   return "這個狀況";
 }
-// 症狀語境（這一題或前 3 題有症狀）、這一題在問原因或關係。點名項目時要有關係字眼（「電瓶為什麼有問題」「是不是輪胎」）；
-// 「電瓶為什麼衰退」問的是項目本身，照舊交給 AI 用行車摘要解釋。
+// 症狀語境（這一題或前 3 題有症狀）、這一題用問原因的句型：是不是X、會不會是X、X造成／導致／引起、跟X有關、X的問題嗎、為什麼。
+// 單純出現「問題」不算（「電瓶有問題嗎」）。「電瓶為什麼衰退」問的是項目本身，照舊交給 AI 用行車摘要解釋；「電瓶為什麼有問題」算。
+const CAUSE_ASK = /(?:是不是|會不會是)(?!要|該|需|能|可|還|很|太|已經?|快)|造成|導致|引起|害的|有關|關係|的問題嗎|為什麼(?:會)?有問題/;
 const asksSymptomCause = (vehicle: Vehicle, question: string, history: string[]) =>
-  [question, ...history].some(hasSymptom) && (RELATION_ASK.test(question) || (itemsIn(vehicle, question).length === 0 && WHY.test(question)));
+  [question, ...history].some(hasSymptom) && (CAUSE_ASK.test(question) || (itemsIn(vehicle, question).length === 0 && WHY.test(question)));
 const SAFETY_LINE = "為了行車安全，建議今天處理；有疑問可以按下面的按鈕請專員說明。";
 // 回傳程式組的回答和用到的項目；不是高風險題回傳 undefined。
 function scriptedAnswer(vehicle: Vehicle, question: string, history: string[]): { answer: string; items: InspectionItem[]; must: boolean } | undefined {
