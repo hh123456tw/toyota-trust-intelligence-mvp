@@ -64,7 +64,7 @@ const MATCH: Record<Exclude<IntakeSet["id"], "general">, RegExp> = {
 // 否定說法「沒有異音」「不會亮燈」「我不是問冷氣」先拿掉，避免被選成那個題組。
 // 「沒冷氣」「沒有冷氣」是冷氣壞了，不算否定。
 // 「停紅燈」「等紅燈」是交通號誌，不是儀表燈，也不算紅燈警示（#37 真 AI 小測）。
-const NEGATED = /(?:沒有|沒|不會|不再)(?:任何|什麼)?(?:異音|怪聲|異響|聲音|亮燈|燈亮)|(?:不是|並不是)在?(?:問|說|講)?(?:冷氣|空調|異音|怪聲|異響|聲音|燈)|[停等]紅燈/g;
+const NEGATED = /(?:沒有|沒|不會|不再)(?:任何|什麼)?(?:異音|怪聲|異響|聲音|亮燈|燈亮)|(?:不是|並不是)在?(?:問|說|講)?(?:冷氣|空調|異音|怪聲|異響|聲音|燈)|[停等]紅燈|紅燈(?=停|的時候|時)/g;
 
 export function pickSet(question: string): IntakeSet {
   const text = question.replace(NEGATED, "");
@@ -75,7 +75,7 @@ export function pickSet(question: string): IntakeSet {
 export const INTAKE_INTRO = "我先幫你把狀況記下來，技師看了會比較快。";
 // 和 ask.ts 的 SYMPTOM_ANSWER、ANGRY_ANSWER 同字；intake.test.ts 拿 ask.ts 的值測，改了會紅。
 const SYMPTOM_ANSWER = "你描述的狀況，這張卡上沒有相關的檢查資料，不能判斷原因。可以按下面的按鈕，請專員安排技師檢查。";
-const ANGRY_ANSWER = "聽起來你不太滿意，我請專員來跟你當面說明。可以按下面的按鈕。";
+const ANGRY_ANSWER = "讓你不開心了，真的很抱歉。我請專員過來當面跟你說清楚，按下面的按鈕就可以。";
 const DESCRIBED = "你描述的狀況";
 
 // answers：已回答的選項文字。stopped：車主按［先不用］。urgent：原問題有安全訊號。
@@ -96,7 +96,7 @@ export function startIntake(reply: Reply, question: string): Intake | undefined 
   const router = trace.router;
   const outside = router?.used && router.category === OUTSIDE_CAR && router.topic;
   if (!outside && !trace.symptom && reply.answer !== SYMPTOM_ANSWER && router?.category !== SYMPTOM_CATEGORY) return undefined;
-  return { topic: outside || DESCRIBED, set: pickSet(question), answers: [], stopped: false, urgent: SAFETY_SIGNAL.test(question.replace(/[停等]紅燈/g, "")), intro: !trace.symptom };
+  return { topic: outside || DESCRIBED, set: pickSet(question), answers: [], stopped: false, urgent: SAFETY_SIGNAL.test(question.replace(/[停等]紅燈|紅燈(?=停|的時候|時)/g, "")), intro: !trace.symptom };
 }
 
 export const SKIP = "先不用";

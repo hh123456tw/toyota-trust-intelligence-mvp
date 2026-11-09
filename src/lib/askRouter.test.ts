@@ -39,22 +39,24 @@ const AC_REPLY = "冷氣不在今天的檢查範圍，卡片上沒有它的資�
 const WEATHER_REPLY = "這題我回答不了喔。我是這張維修決策卡的 AI 助理，可以回答這台車今天的檢查結果，例如「電瓶還能用多久？」。";
 const CHAT_REPLY = WEATHER_REPLY;
 
-describe("主回答提示詞和 schema 鎖定（v37，cbfe4da）", () => {
+// #37 好用度：使用者同意改主回答口吻（先回答問的事、只講相關項目、2–3 句，加規則 11、12），所以更新 SYSTEM_PROMPT 的雜湊。
+describe("主回答提示詞和 schema 鎖定（v37，cbfe4da；#37 口語化）", () => {
   it("SYSTEM_PROMPT 和 RESPONSE_SCHEMA 的 sha256 不變", async () => {
     const ai = fakeAI(NO_DATA, route("閒聊", ""));
     await ask(wang, "今天天氣如何", ai);
     const main = ai.calls.find((c) => c.system.startsWith(MAIN_HEAD))!;
     const sha = (s: string) => createHash("sha256").update(s).digest("hex");
-    expect(sha(main.system)).toBe("89ed8084463edb2ac9c3ffdedc41365d62cb81c58be97c74cb1669f53a8e6371");
+    expect(sha(main.system)).toBe("7a2c6b11adbd65ace0114204a32987cc485299ec366c2ebc07eadf717cc5877e");
     expect(sha(JSON.stringify(RESPONSE_SCHEMA))).toBe("681e5e9818083c091e49fa2f35edde3ab484b8858125928edf750eba388c1668");
   });
 });
 
 describe("分類器和主回答平行呼叫", () => {
-  it("一題呼叫 AI 兩次：主回答一次、分類器一次，分類器只拿到項目名稱", async () => {
+  // #37：採用範本時再呼叫一次 AI 短指示（假 AI 回分類器格式，所以用範本當備用句），共 3 次。
+  it("主回答一次、分類器一次（採用範本時再加 AI 短指示一次），分類器只拿到項目名稱", async () => {
     const ai = fakeAI(NO_DATA, route("卡片外的車子問題", "冷氣"));
     await ask(wang, "我冷氣不冷", ai);
-    expect(ai.calls).toHaveLength(2);
+    expect(ai.calls).toHaveLength(3);
     const router = ai.calls.find((c) => !c.system.startsWith(MAIN_HEAD))!;
     expect(router.user).toMatch(/我冷氣不冷/);
     expect(router.user).not.toMatch(/\d/);
@@ -82,7 +84,7 @@ describe("範本制：分類器只回類別和主題詞，句子由程式組", (
     expect(r.escalate).toBe(true);
     expect(r.sources).toEqual([]);
     expect(r.checkResult).toBe("通過");
-    expect(r.trace.router).toEqual({ category: "卡片外的車子問題", topic: "冷氣", used: true });
+    expect(r.trace.router).toEqual({ category: "卡片外的車子問題", topic: "冷氣", used: true, ai: false, fallback: "AI 失敗或回應無法解析" });
   });
 
   it("閒聊 + 主回答離題拒絕 → 閒聊範本（不放主題詞），不轉介專員", async () => {
@@ -274,9 +276,9 @@ describe("流程紀錄", () => {
   it("採用範本：寫分類器類別、採用範本、答案檢查標明是主回答的結果", async () => {
     const r = await ask(wang, "我冷氣不冷", fakeAI(NO_DATA, route("卡片外的車子問題", "冷氣")));
     const f = askFlow("我冷氣不冷", 200, r, {});
-    expect(f.aiCalls).toBe(2);
+    expect(f.aiCalls).toBe(3);
     expect(f.steps).toContain("分類器：卡片外的車子問題");
-    expect(f.steps).toContain("範本：採用（程式組句，不是 AI 自由文字）");
+    expect(f.steps).toContain("範本：採用（程式組句，不是 AI 自由文字）｜AI 短指示回應沒用上：AI 失敗或回應無法解析");
     expect(f.steps).toContain("答案檢查（主回答）：通過");
     expect(f.steps).not.toContain("答案檢查：通過");
   });

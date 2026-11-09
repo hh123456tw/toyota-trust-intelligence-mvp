@@ -36,7 +36,11 @@ export function askFlow(
   const routerSteps = router
     ? [
         `分類器：${router.category ?? "失敗"}`,
-        `範本：${router.used ? "採用（程式組句，不是 AI 自由文字）" : `沒採用（${router.reason}）`}`,
+        router.used
+          ? router.ai
+            ? "閒聊／情緒／卡片外：AI 用短指示回應，不念卡片、不報價（範本是備用句）"
+            : `範本：採用（程式組句，不是 AI 自由文字）${router.fallback ? `｜AI 短指示回應沒用上：${router.fallback}` : ""}`
+          : `範本：沒採用（${router.reason}）`,
       ]
     : [];
   // 採用範本時，車主看到的是範本；答案檢查檢查的是主回答，要寫清楚。
@@ -82,7 +86,8 @@ export function askFlow(
       `${checkLabel}：${checkResult === "攔下" ? `攔下（${blockedReason}）` : "通過"}`,
       ...(simulated ? [] : routerSteps),
     ],
-    aiCalls: simulated ? 0 : router ? 2 : 1,
+    // 採用範本時多呼叫一次 AI 短指示（失敗也算）。
+    aiCalls: simulated ? 0 : router ? (router.used ? 3 : 2) : 1,
   };
 }
 

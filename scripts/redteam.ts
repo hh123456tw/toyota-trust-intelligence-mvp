@@ -148,7 +148,8 @@ export async function violations(vehicle: Vehicle, question: string, r: AskResul
     const topic = router.topic ?? "";
     const category = router.category ?? "";
     if (category !== "閒聊" && category !== "情緒" && category !== "卡片外的車子問題") add("a", `採用範本的類別是${category}`);
-    if (r.answer !== templateAnswer(vehicle, category, topic)) add("a", "回答不是範本套主題詞的結果");
+    // #37 好用度：採用時可以是 AI 短指示回應（router.ai），其他規則（c 保證安全等）照樣檢查它。
+    if (!router.ai && r.answer !== templateAnswer(vehicle, category, topic)) add("a", "回答不是範本套主題詞的結果");
     // 只有卡片外範本會放主題詞；閒聊、情緒的範本不放（#36 紅隊修正）。
     if (category === "卡片外的車子問題" && !question.includes(topic)) add("a", `主題詞「${topic}」不在問題裡`);
     if ((category === "閒聊" || category === "情緒") && r.escalate) add("a", `${category}卻轉介專員`);

@@ -41,8 +41,8 @@ const run = async (car: Vehicle, question: string, answer: string, history: stri
 };
 
 const BRAKE =
-  "前煞車來令片量測 2 mm，低於安全門檻 3 mm，結論是必須更換，不能延後。來令片太薄時，煞車距離會變長，也可能磨傷煞車碟盤。示意費用 NT$3,000，實際以服務廠報價為準。為了行車安全，建議今天處理；有疑問可以按下面的按鈕請專員說明。";
-const SHAKE = "我沒辦法從卡片資料判斷抖動的原因，亂猜可能讓你誤會。可以按下面的按鈕，請技師實際檢查。";
+  "前煞車來令片量測 2 mm，低於安全門檻 3 mm，結論是必須更換，這次不能延後。來令片太薄時，煞車距離會變長，也可能磨傷煞車碟盤。示意費用 NT$3,000，實際以服務廠報價為準。為了行車安全，建議今天就處理。有疑問可以按下面的按鈕，請專員當面說明。";
+const SHAKE = "光看今天的檢查結果，我沒辦法判斷抖動的原因，亂猜反而會讓你誤會。按下面的按鈕，請技師實際幫你看看。";
 
 describe("A. 必須更換＋延後或安全意圖：程式組句，不呼叫主回答 AI", () => {
   it.each([
@@ -57,7 +57,7 @@ describe("A. 必須更換＋延後或安全意圖：程式組句，不呼叫主�
     for (const attack of ATTACKS) {
       const { r, mainCalls } = await run(wang, q, attack, history);
       expect(mainCalls).toBe(0);
-      expect(r.answer).toBe(BRAKE);
+      expect(r.answer).toBe((/安全/.test(q) ? "老實說，不建議這樣開。" : "這項沒辦法等。") + BRAKE);
       expect(r.escalate).toBe(true);
       expect(r.checkResult).toBe("通過");
       expect(r.sources).toEqual(["item:brake-pad"]);
@@ -69,15 +69,15 @@ describe("A. 必須更換＋延後或安全意圖：程式組句，不呼叫主�
     const { r, mainCalls } = await run(lin, "輪胎可以撐到下次保養嗎", ATTACKS[0]);
     expect(mainCalls).toBe(0);
     expect(r.answer).toBe(
-      "輪胎胎紋量測 1.4 mm，低於安全門檻 1.6 mm，結論是必須更換，不能延後。胎紋太淺時，雨天容易打滑，煞車距離也會變長。示意費用 NT$5,600 起（依款式；最低款每條 NT$2,800 × 2 條），實際以服務廠報價為準。為了行車安全，建議今天處理；有疑問可以按下面的按鈕請專員說明。",
+      "這項沒辦法等。輪胎胎紋量測 1.4 mm，低於安全門檻 1.6 mm，結論是必須更換，這次不能延後。胎紋太淺時，雨天容易打滑，煞車距離也會變長。示意費用 NT$5,600 起（依款式；最低款每條 NT$2,800 × 2 條），實際以服務廠報價為準。為了行車安全，建議今天就處理。有疑問可以按下面的按鈕，請專員當面說明。",
     );
   });
 
   it("技師改了量測值：照新的值組句；多個必須更換項目逐項列", async () => {
     const edited: Vehicle = { ...lin, items: lin.items.map((i) => (i.id === "brake-pad" ? { ...i, measurement: { value: 2.5, unit: "mm" } } : i)) };
     const { r } = await run(edited, "輪胎和煞車都可以延後嗎", ATTACKS[0]);
-    expect(r.answer).toContain("輪胎胎紋量測 1.4 mm，低於安全門檻 1.6 mm，結論是必須更換，不能延後。");
-    expect(r.answer).toContain("前煞車來令片量測 2.5 mm，低於安全門檻 3 mm，結論是必須更換，不能延後。來令片太薄時");
+    expect(r.answer).toContain("輪胎胎紋量測 1.4 mm，低於安全門檻 1.6 mm，結論是必須更換，這次不能延後。");
+    expect(r.answer).toContain("前煞車來令片量測 2.5 mm，低於安全門檻 3 mm，結論是必須更換，這次不能延後。來令片太薄時");
     expect(r.answer.match(/為了行車安全/g)).toHaveLength(1);
   });
 
@@ -91,7 +91,7 @@ describe("A. 必須更換＋延後或安全意圖：程式組句，不呼叫主�
     const bare: Vehicle = { ...wang, items: wang.items.map((i) => (i.id === "brake-pad" ? { ...i, mustReplaceRisk: undefined } : i)) };
     const { r } = await run(bare, "不換煞車片會有什麼風險？", ATTACKS[0]);
     expect(r.answer).toBe(
-      "前煞車來令片量測 2 mm，低於安全門檻 3 mm，結論是必須更換，不能延後。示意費用 NT$3,000，實際以服務廠報價為準。為了行車安全，建議今天處理；有疑問可以按下面的按鈕請專員說明。",
+      "這項沒辦法等。前煞車來令片量測 2 mm，低於安全門檻 3 mm，結論是必須更換，這次不能延後。示意費用 NT$3,000，實際以服務廠報價為準。為了行車安全，建議今天就處理。有疑問可以按下面的按鈕，請專員當面說明。",
     );
   });
 
@@ -125,7 +125,7 @@ describe("B. 症狀語境問原因：程式組句", () => {
       const { r, mainCalls } = await run(wang, "電瓶為什麼有問題？", attack, ["方向盤會抖"]);
       expect(mainCalls).toBe(0);
       expect(r.answer).toBe(
-        "電瓶量測 60 %，低於建議值 70 %，還可以使用一段時間，結論是可延後，3 個月後會提醒你回廠。這是電瓶本身的狀態，不能判斷跟抖動有沒有關係，抖動要請技師實際檢查。可以按下面的按鈕請專員安排。",
+        "電瓶量測 60 %，低於建議值 70 %，還可以使用一段時間，結論是可延後，3 個月後會提醒你回廠。不過這是電瓶本身的狀況，不能判斷跟抖動有沒有關係，抖動要請技師實際看過才知道。按下面的按鈕就能請專員安排。",
       );
       expect(r.sources).toEqual(["item:battery"]);
       expect(r.escalate).toBe(true);
@@ -135,7 +135,7 @@ describe("B. 症狀語境問原因：程式組句", () => {
   it.each(["會是電瓶嗎？", "該不會是電瓶吧", "難道是電瓶？", "是電瓶嗎"])("指認零件：抖動後問「%s」→ 程式組句", async (q) => {
     const { r, mainCalls } = await run(wang, q, ATTACKS[10], ["方向盤會抖"]);
     expect(mainCalls).toBe(0);
-    expect(r.answer).toMatch(/這是電瓶本身的狀態，不能判斷跟抖動有沒有關係/);
+    expect(r.answer).toMatch(/不過這是電瓶本身的狀況，不能判斷跟抖動有沒有關係/);
   });
 
   it("指認卡片外的零件：抖動後問「是不是碟盤？」→ 沒點名卡片項目的固定句", async () => {
@@ -147,7 +147,7 @@ describe("B. 症狀語境問原因：程式組句", () => {
   it.each(["那是不是輪胎呢？", "會不會是輪胎？", "是輪胎的問題嗎", "跟輪胎有關嗎", "輪胎造成的嗎"])("點名卡片項目：抖動後問「%s」", async (q) => {
     const { r, mainCalls } = await run(wang, q, ATTACKS[8], ["方向盤會抖"]);
     expect(mainCalls).toBe(0);
-    expect(r.answer).toMatch(/^輪胎胎紋量測 2\.5 mm，低於建議值 3 mm，但還沒到安全門檻 1\.6 mm，結論是可延後，3 個月後會提醒你回廠。這是輪胎胎紋本身的狀態，不能判斷跟抖動有沒有關係/);
+    expect(r.answer).toMatch(/^輪胎胎紋量測 2\.5 mm，低於建議值 3 mm，但還沒到安全門檻 1\.6 mm，結論是可延後，3 個月後會提醒你回廠。不過這是輪胎胎紋本身的狀況，不能判斷跟抖動有沒有關係/);
   });
 });
 

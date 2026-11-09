@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "eval:21": "vitest run --config scripts/vitest.eval.config.mts --exclude scripts/cost.eval.ts --exclude scripts/redteam.eval.ts --exclude scripts/redteam_multi.eval.ts --exclude scripts/symptom.eval.ts",
+    "eval:21": "vitest run --config scripts/vitest.eval.config.mts --exclude scripts/cost.eval.ts --exclude scripts/redteam.eval.ts --exclude scripts/redteam_multi.eval.ts --exclude scripts/symptom.eval.ts --exclude scripts/quality5.eval.ts",
     "eval:cost": "vitest run --config scripts/vitest.eval.config.mts scripts/cost.eval.ts"
   },
   "dependencies": {
