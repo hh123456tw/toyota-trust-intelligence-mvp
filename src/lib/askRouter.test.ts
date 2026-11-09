@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ask as realAsk, RESPONSE_SCHEMA, ROUTER_ENABLED } from "./ask";
 
 // 這支測分類器本身，所以明確打開分類器（正式站目前關閉，見 ROUTER_ENABLED）。
@@ -20,24 +20,27 @@ const BATTERY = {
 
 // 假 AI：主回答的提示詞開頭固定（v37），其他提示詞當成分類器。
 const MAIN_HEAD = "你是和泰汽車服務廠的維修說明助理";
-function fakeAI(main: object, router: object | string | Error) {
+function fakeAI(main: object, router: object | string | Error | Promise<string>) {
   const calls: { system: string; user: string }[] = [];
   const call = async (system: string, user: string) => {
     calls.push({ system, user });
     if (system.startsWith(MAIN_HEAD)) return JSON.stringify(main);
     if (router instanceof Error) throw router;
+    if (router instanceof Promise) return router;
     return typeof router === "string" ? router : JSON.stringify(router);
   };
   return Object.assign(call, { calls });
 }
-const route = (category: string, reply: string) => ({ category, reply });
+const route = (category: string, topic: string) => ({ category, topic });
 
-const AC_REPLY = "冷氣今天沒有檢查，我不能判斷。可以按下面的按鈕請專員來看看。";
-const CHAT_REPLY = "辛苦了，先在客休室休息一下。有這台車今天檢查結果的問題，都可以問我。";
+// 範本：程式組句。期望值照範本手寫，不從程式算。
+const AC_REPLY = "冷氣今天沒有檢查，我不能判斷原因。可以按下面的按鈕，請專員來看。";
+const WEATHER_REPLY = "天氣我不清楚喔。我可以回答這台車今天的檢查結果，例如電瓶還能用多久。";
+const CHAT_REPLY = "這題我不清楚喔。我可以回答這台車今天的檢查結果，例如電瓶還能用多久。";
 
 describe("主回答提示詞和 schema 鎖定（v37，cbfe4da）", () => {
   it("SYSTEM_PROMPT 和 RESPONSE_SCHEMA 的 sha256 不變", async () => {
-    const ai = fakeAI(NO_DATA, route("閒聊", CHAT_REPLY));
+    const ai = fakeAI(NO_DATA, route("閒聊", ""));
     await ask(wang, "今天天氣如何", ai);
     const main = ai.calls.find((c) => c.system.startsWith(MAIN_HEAD))!;
     const sha = (s: string) => createHash("sha256").update(s).digest("hex");
@@ -48,7 +51,7 @@ describe("主回答提示詞和 schema 鎖定（v37，cbfe4da）", () => {
 
 describe("分類器和主回答平行呼叫", () => {
   it("一題呼叫 AI 兩次：主回答一次、分類器一次，分類器只拿到項目名稱", async () => {
-    const ai = fakeAI(NO_DATA, route("卡片外的車子問題", AC_REPLY));
+    const ai = fakeAI(NO_DATA, route("卡片外的車子問題", "冷氣"));
     await ask(wang, "我冷氣不冷", ai);
     expect(ai.calls).toHaveLength(2);
     const router = ai.calls.find((c) => !c.system.startsWith(MAIN_HEAD))!;
@@ -64,48 +67,61 @@ describe("分類器和主回答平行呼叫", () => {
       started++;
       if (started === 2) release();
       await gate;
-      return JSON.stringify(system.startsWith(MAIN_HEAD) ? NO_DATA : route("閒聊", CHAT_REPLY));
+      return JSON.stringify(system.startsWith(MAIN_HEAD) ? NO_DATA : route("閒聊", ""));
     };
     await ask(wang, "今天天氣如何", ai);
     expect(started).toBe(2);
   });
 });
 
-describe("換用候選回答：條件全部成立才換", () => {
-  it("卡片外的車子問題 + 主回答沒有資料 → 用候選回答，轉介專員", async () => {
-    const r = await ask(wang, "我冷氣不冷", fakeAI(NO_DATA, route("卡片外的車子問題", AC_REPLY)));
+describe("範本制：分類器只回類別和主題詞，句子由程式組", () => {
+  it("卡片外的車子問題 + 主回答沒有資料 → 卡片外範本，轉介專員，範本提到按鈕", async () => {
+    const r = await ask(wang, "我冷氣不冷", fakeAI(NO_DATA, route("卡片外的車子問題", "冷氣")));
     expect(r.answer).toBe(AC_REPLY);
     expect(r.escalate).toBe(true);
+    expect(r.sources).toEqual([]);
     expect(r.checkResult).toBe("通過");
-    expect(r.trace.router).toEqual({ category: "卡片外的車子問題", used: true });
+    expect(r.trace.router).toEqual({ category: "卡片外的車子問題", topic: "冷氣", used: true });
   });
 
-  it("閒聊 + 主回答離題拒絕 → 用候選回答，不轉介專員", async () => {
-    const r = await ask(wang, "我今天好累喔", fakeAI(OFF_TOPIC, route("閒聊", CHAT_REPLY)));
+  it("閒聊 + 主回答離題拒絕 → 閒聊範本套主題詞，不轉介專員", async () => {
+    const r = await ask(wang, "今天天氣如何", fakeAI(OFF_TOPIC, route("閒聊", "天氣")));
+    expect(r.answer).toBe(WEATHER_REPLY);
+    expect(r.escalate).toBe(false);
+  });
+
+  it("閒聊、主題詞空白 → 「這題我不清楚喔」範本", async () => {
+    const r = await ask(wang, "我今天好累喔", fakeAI(OFF_TOPIC, route("閒聊", "")));
     expect(r.answer).toBe(CHAT_REPLY);
     expect(r.escalate).toBe(false);
   });
 
+  it("分類器多回了自由文字（「放心繼續開」）→ 不採用那段文字，只用範本", async () => {
+    const r = await ask(wang, "我冷氣不冷", fakeAI(NO_DATA, { category: "卡片外的車子問題", topic: "冷氣", reply: "冷氣補冷媒就好，放心繼續開" }));
+    expect(r.answer).toBe(AC_REPLY);
+    expect(r.answer).not.toMatch(/放心|冷媒/);
+  });
+
   it("反例：卡片內的問題被分類器判卡片外 → 仍用主回答（v37 固定句）", async () => {
-    const r = await ask(wang, "電瓶的保固是多久？", fakeAI(NO_DATA, route("卡片外的車子問題", "電瓶的保固我不能判斷，可以按下面的按鈕請專員來。")));
-    expect(r.answer).not.toMatch(/保固我不能判斷/);
-    expect(r.trace.router).toEqual({ category: "卡片外的車子問題", used: false, reason: "問題提到卡片上的檢查項目" });
+    const r = await ask(wang, "電瓶的保固是多久？", fakeAI(NO_DATA, route("卡片外的車子問題", "保固")));
+    expect(r.answer).not.toMatch(/保固今天沒有檢查/);
+    expect(r.trace.router).toEqual({ category: "卡片外的車子問題", topic: "保固", used: false, reason: "問題提到卡片上的檢查項目" });
   });
 
   it("反例：主回答有實際內容 → 不換", async () => {
-    const r = await ask(wang, "我冷氣不冷，電瓶呢", fakeAI(BATTERY, route("卡片外的車子問題", AC_REPLY)));
+    const r = await ask(wang, "我冷氣不冷，電瓶呢", fakeAI(BATTERY, route("卡片外的車子問題", "冷氣")));
     expect(r.answer).toBe(BATTERY.answer);
   });
 
   it("反例：主回答有實際內容、問題沒提到項目 → 不換，理由是主回答有實際內容", async () => {
-    const r = await ask(wang, "今天要付多少", fakeAI(BATTERY, route("閒聊", CHAT_REPLY)));
+    const r = await ask(wang, "今天要付多少", fakeAI(BATTERY, route("閒聊", "")));
     expect(r.answer).toBe(BATTERY.answer);
-    expect(r.trace.router).toEqual({ category: "閒聊", used: false, reason: "主回答有實際內容" });
+    expect(r.trace.router).toEqual({ category: "閒聊", topic: "", used: false, reason: "主回答有實際內容" });
   });
 
   it("反例：分類器判症狀、越權要求、卡片內 → 不換", async () => {
     for (const category of ["症狀", "越權要求", "卡片內"]) {
-      const r = await ask(wang, "我冷氣不冷", fakeAI(NO_DATA, route(category, AC_REPLY)));
+      const r = await ask(wang, "我冷氣不冷", fakeAI(NO_DATA, route(category, "冷氣")));
       expect(r.answer).not.toBe(AC_REPLY);
       expect(r.trace.router?.used).toBe(false);
     }
@@ -113,45 +129,63 @@ describe("換用候選回答：條件全部成立才換", () => {
 
   it("反例：主回答被攔下 → 不換", async () => {
     const bad = { answer: "這張卡上沒有這項資料，費用 NT$99,999", sources: [], escalate: false, itemConclusions: [] };
-    const r = await ask(wang, "我冷氣不冷", fakeAI(bad, route("卡片外的車子問題", AC_REPLY)));
+    const r = await ask(wang, "我冷氣不冷", fakeAI(bad, route("卡片外的車子問題", "冷氣")));
     expect(r.checkResult).toBe("攔下");
     expect(r.answer).not.toBe(AC_REPLY);
     expect(r.trace.router?.reason).toBe("主回答被攔下");
   });
 
   it("反例：問題描述症狀 → 不換，用 v37 症狀固定句", async () => {
-    const r = await ask(wang, "開車時有怪聲", fakeAI(NO_DATA, route("卡片外的車子問題", "怪聲今天沒有檢查，可以按下面的按鈕請專員來。")));
+    const r = await ask(wang, "開車時有怪聲", fakeAI(NO_DATA, route("卡片外的車子問題", "怪聲")));
     expect(r.answer).toMatch(/不能判斷原因/);
+    expect(r.trace.router?.used).toBe(false);
   });
 
+  it("反例：問題要轉介專員（議價）→ 不換", async () => {
+    const r = await ask(wang, "冷氣可以算便宜一點嗎", fakeAI(NO_DATA, route("卡片外的車子問題", "冷氣")));
+    expect(r.trace.router?.reason).toBe("問題要轉介專員");
+  });
+});
+
+describe("主題詞規則：不合格就不換，用主回答", () => {
   it.each([
-    ["數字", "冷氣今天沒有檢查，大概 3 天可以修好。"],
-    ["國字數字", "冷氣今天沒有檢查，大概三天後可以安排。"],
-    ["價格", "冷氣檢查要新台幣五百元，可以請專員來。"],
-    ["原因", "冷氣不冷可能是冷媒不足，可以按下面的按鈕請專員來。"],
-    ["原因（造成）", "這通常是濾網髒了造成的，可以請專員來。"],
-    ["時間承諾", "冷氣今天沒有檢查，專員馬上過來幫你看。"],
-    ["說已通知", "冷氣今天沒有檢查，我已經通知專員了。"],
-    ["重複", "冷氣今天沒有檢查，冷氣今天沒有檢查，可以請專員來。"],
-    ["提到卡片項目", "冷氣和電瓶今天都沒有檢查，可以請專員來。"],
-    ["空白", "  "],
-  ])("反例：候選回答有%s → 不換", async (_, reply) => {
-    const r = await ask(wang, "我冷氣不冷", fakeAI(NO_DATA, route("卡片外的車子問題", reply)));
-    expect(r.answer).not.toBe(reply);
+    ["不在問題裡", "我冷氣不冷", "暖氣", "不在問題裡"],
+    ["近似字、不是逐字（冷氣機）", "我冷氣不冷", "冷氣機", "不在問題裡"],
+    ["太長（9 個字）", "車上的導航地圖資料更新軟體怎麼用", "導航地圖資料更新軟", "太長"],
+    ["有阿拉伯數字", "3號車道在哪", "3號車道", "有數字"],
+    ["有全形數字", "３號車道在哪", "３號車道", "有數字"],
+    ["有國字數字", "三點的車子好了嗎", "三點", "有數字"],
+    ["有標點", "我的A/C不冷", "A/C", "有標點或符號"],
+    ["有空白", "我的 car play 不能用", "car play", "有標點或符號"],
+    ["含卡片上的檢查項目（遙控器電池裡的電池）", "遙控器電池沒電了怎麼辦", "電池", "含卡片上的檢查項目"],
+    ["含安全保證字眼", "冷氣壞了可以放心開嗎", "放心開", "含安全保證或原因字眼"],
+    ["含原因字眼", "冷氣不冷是因為冷媒嗎", "因為冷媒", "含安全保證或原因字眼"],
+  ])("反例：主題詞%s → 不換", async (_, question, topic, why) => {
+    const r = await ask(wang, question, fakeAI(NO_DATA, route("卡片外的車子問題", topic)));
     expect(r.trace.router?.used).toBe(false);
-    expect(r.trace.router?.reason).toMatch(/^候選回答沒通過檢查/);
+    expect(r.trace.router?.reason).toBe(`主題詞不合格：${why}`);
+    expect(r.answer).not.toContain(`${topic}今天沒有檢查`);
     expect(r.escalate).toBe(true);
   });
 
-  it("反例：閒聊的候選回答提到專員 → 不換（閒聊不顯示按鈕）", async () => {
-    const r = await ask(wang, "我今天好累喔", fakeAI(OFF_TOPIC, route("閒聊", "辛苦了，有需要可以請專員來陪你聊。")));
-    expect(r.answer).toBe(OFF_TOPIC.answer);
+  it("反例：卡片外的車子問題，主題詞空白 → 不換", async () => {
+    const r = await ask(wang, "我冷氣不冷", fakeAI(NO_DATA, route("卡片外的車子問題", "")));
+    expect(r.trace.router?.reason).toBe("主題詞不合格：空白");
   });
 
-  it("負面情境：「時間」「原因」的近似字不誤擋（今天沒有檢查、不能判斷原因）", async () => {
-    const ok = "冷氣今天沒有檢查，我不能判斷原因。可以按下面的按鈕請專員來。";
-    const r = await ask(wang, "我冷氣不冷", fakeAI(NO_DATA, route("卡片外的車子問題", ok)));
-    expect(r.answer).toBe(ok);
+  it.each([
+    ["剛好 8 個字", "車上的導航地圖資料更新怎麼用", "導航地圖資料更新"],
+    ["英文字母", "我的AC不冷", "AC"],
+    ["安全帶不是安全保證", "安全帶卡住拉不出來", "安全帶"],
+  ])("正例：主題詞%s → 採用範本", async (_, question, topic) => {
+    const r = await ask(wang, question, fakeAI(NO_DATA, route("卡片外的車子問題", topic)));
+    expect(r.trace.router?.used).toBe(true);
+    expect(r.answer).toBe(`${topic}今天沒有檢查，我不能判斷原因。可以按下面的按鈕，請專員來看。`);
+  });
+
+  it("主題詞前後的空白先去掉再比對", async () => {
+    const r = await ask(wang, "我冷氣不冷", fakeAI(NO_DATA, route("卡片外的車子問題", " 冷氣 ")));
+    expect(r.answer).toBe(AC_REPLY);
   });
 });
 
@@ -159,8 +193,8 @@ describe("分類器失敗：當作沒有候選回答，用主回答", () => {
   it.each([
     ["呼叫丟錯", new Error("Gemini 503")],
     ["不是 JSON", "not json"],
-    ["類別不在清單", JSON.stringify({ category: "其他", reply: AC_REPLY })],
-    ["缺少 reply", JSON.stringify({ category: "閒聊" })],
+    ["未知範本代號（類別不在清單）", JSON.stringify({ category: "其他", topic: "冷氣" })],
+    ["缺少 topic", JSON.stringify({ category: "閒聊" })],
   ])("%s → v37 的回答，整題不失敗", async (_, router) => {
     const r = await ask(wang, "我冷氣不冷", fakeAI(NO_DATA, router));
     expect(r.answer).toMatch(/冷氣不在今天的檢查項目/);
@@ -168,24 +202,52 @@ describe("分類器失敗：當作沒有候選回答，用主回答", () => {
   });
 
   it("主回答失敗 → 照 v37 丟錯（分類器成功也一樣）", async () => {
-    const ai = async (system: string) => (system.startsWith(MAIN_HEAD) ? "not json" : JSON.stringify(route("閒聊", CHAT_REPLY)));
+    const ai = async (system: string) => (system.startsWith(MAIN_HEAD) ? "not json" : JSON.stringify(route("閒聊", "")));
+    await expect(ask(wang, "今天天氣如何", ai)).rejects.toThrow();
+  });
+});
+
+describe("分類器時間上限（4 秒）", () => {
+  afterEach(() => vi.useRealTimers());
+  const never = () => new Promise<string>(() => {});
+
+  it("分類器一直沒回 → 4 秒後用主回答，理由是逾時", async () => {
+    vi.useFakeTimers();
+    let done = false;
+    const p = ask(wang, "我冷氣不冷", fakeAI(NO_DATA, never())).finally(() => (done = true));
+    await vi.advanceTimersByTimeAsync(3_999);
+    expect(done).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    const r = await p;
+    expect(r.answer).toMatch(/冷氣不在今天的檢查項目/);
+    expect(r.trace.router).toEqual({ used: false, reason: "分類器逾時" });
+  });
+
+  it("主回答失敗時不等分類器，馬上丟錯", async () => {
+    vi.useFakeTimers();
+    const ai = async (system: string) => (system.startsWith(MAIN_HEAD) ? "not json" : never());
     await expect(ask(wang, "今天天氣如何", ai)).rejects.toThrow();
   });
 });
 
 describe("流程紀錄", () => {
-  it("顯示分類器類別、採用候選回答、AI 呼叫 2 次", async () => {
-    const r = await ask(wang, "我冷氣不冷", fakeAI(NO_DATA, route("卡片外的車子問題", AC_REPLY)));
+  it("採用範本：寫分類器類別、回答方式是範本、答案檢查標明是主回答的結果", async () => {
+    const r = await ask(wang, "我冷氣不冷", fakeAI(NO_DATA, route("卡片外的車子問題", "冷氣")));
     const f = askFlow("我冷氣不冷", 200, r, {});
     expect(f.aiCalls).toBe(2);
     expect(f.steps).toContain("分類器：卡片外的車子問題");
     expect(f.steps).toContain("候選回答：採用");
+    expect(f.steps).toContain("回答方式：範本（程式組句，不是 AI 自由文字）");
+    expect(f.steps).toContain("答案檢查（主回答）：通過");
+    expect(f.steps).not.toContain("答案檢查：通過");
   });
 
-  it("沒採用時寫原因", async () => {
-    const r = await ask(wang, "今天要付多少", fakeAI(BATTERY, route("閒聊", CHAT_REPLY)));
+  it("沒採用時寫原因，答案檢查照舊", async () => {
+    const r = await ask(wang, "今天要付多少", fakeAI(BATTERY, route("閒聊", "")));
     const f = askFlow("今天要付多少", 200, r, {});
     expect(f.steps).toContain("候選回答：沒採用（主回答有實際內容）");
+    expect(f.steps).toContain("答案檢查：通過");
+    expect(f.steps.some((s) => s.startsWith("回答方式"))).toBe(false);
   });
 
   it("分類器失敗也寫出來", async () => {

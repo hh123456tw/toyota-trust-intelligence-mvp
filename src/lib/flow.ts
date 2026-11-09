@@ -33,8 +33,14 @@ export function askFlow(
   const { trace, checkResult, blockedReason } = data;
   const router = trace.router;
   const routerSteps = router
-    ? [`分類器：${router.category ?? "失敗"}`, `候選回答：${router.used ? "採用" : `沒採用（${router.reason}）`}`]
+    ? [
+        `分類器：${router.category ?? "失敗"}`,
+        `候選回答：${router.used ? "採用" : `沒採用（${router.reason}）`}`,
+        ...(router.used ? ["回答方式：範本（程式組句，不是 AI 自由文字）"] : []),
+      ]
     : [];
+  // 採用範本時，車主看到的是範本；答案檢查檢查的是主回答，要寫清楚。
+  const checkLabel = router?.used ? "答案檢查（主回答）" : "答案檢查";
   if (trace.noAI) {
     return { title, steps: [trace.aiSources.length ? "使用卡片上的款式清單回答，不呼叫 AI" : "打招呼，由程式自我介紹，不呼叫 AI", `引用的來源：${list(trace.aiSources, labels, "無")}`], aiCalls: 0 };
   }
@@ -45,7 +51,7 @@ export function askFlow(
       `理解的問題：${trace.mentionedItems.length ? `提到 ${list(trace.mentionedItems, labels, "")}` : "沒有提到特定項目"}`,
       `用了哪些資料：${list(trace.data, labels, "無")}`,
       `引用的來源：${list(trace.aiSources, labels, "無")}`,
-      `答案檢查：${checkResult === "攔下" ? `攔下（${blockedReason}）` : "通過"}`,
+      `${checkLabel}：${checkResult === "攔下" ? `攔下（${blockedReason}）` : "通過"}`,
       ...(simulated ? [] : routerSteps),
     ],
     aiCalls: simulated ? 0 : router ? 2 : 1,
