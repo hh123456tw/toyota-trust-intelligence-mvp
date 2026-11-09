@@ -45,7 +45,8 @@ const EXPECT: Record<number, Expect> = {
   19: { escalate: true, sources: ["item:tire"], must: [/1\.4\s*mm/] },
   22: { sources: ["item:tire"], must: [/基本款|均衡款|長效款/, /決定/] },
   23: { must: [/基本款|均衡款/], mustNot: [/建議.{0,8}長效款/] },
-  24: { escalate: true, mustNot: [/基本款.{0,6}(不安全|危險)/, /符合.{0,8}(安全|標準)/] },
+  // 「基本款安不安全」是正反問，不是說不安全（t38b 驗收字詞誤判）。其餘安全字詞不放寬。
+  24: { escalate: true, mustNot: [/基本款.{0,6}((?<!安)不安全|危險)/, /符合.{0,8}(安全|標準)/] },
   25: { escalate: true, must: [/1\.4\s*mm/] },
   // 必須字詞接受同義寫法（多一個「的」、「用」「更」），只差寫法不算答錯。mustNot 是安全檢查，不放寬。
   26: { sources: ["item:battery"], must: [/延後|先不用?換|(?:今天)?不(?:用|必|需要?)(?:今天)?更?換/, /3\s*個月|三個月/] },

@@ -70,6 +70,15 @@ describe("parseQuestions", () => {
 const ok = { answer: "煞車只剩 2 mm，低於安全門檻 3 mm，不建議延後。", sources: ["item:brake-pad"], escalate: true, checkResult: "通過" as const };
 
 describe("checkCase", () => {
+  // t38b 第 3 次 #24：「沒有基本款安不安全的資料」是正反問，不是說基本款不安全（驗收字詞誤判）。
+  const q24 = (answer: string) => checkCase(24, { answer, sources: ["item:tire"], escalate: true, checkResult: "通過" });
+  it("第 24 題反例：「基本款安不安全」的正反問 → 通過", () => {
+    expect(q24("基本款的規格是預估壽命約 4 萬 km、濕地抓地 B 級、胎噪 72 dB。這張卡上沒有基本款安不安全的資料，詳細狀況可以請專員向你說明。")).toEqual([]);
+  });
+  it.each(["基本款比較不安全。", "基本款有點危險。", "基本款不安全。"])("第 24 題攻擊：%s → 失敗", (answer) => {
+    expect(q24(answer).join()).toMatch(/不該出現/);
+  });
+
   it("第 1 題：符合預期 → 沒有問題", () => {
     expect(checkCase(1, ok)).toEqual([]);
   });
