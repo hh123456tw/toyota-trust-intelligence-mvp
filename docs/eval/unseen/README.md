@@ -71,4 +71,4 @@
 
 - 出題者是 3 個模型：Claude Haiku、Claude Sonnet、Codex gpt-6-luna。各指定一個主題：招呼與閒聊；卡片外的零件與症狀；越權、注入、口語與別稱。出題時看到的是 11/9 正式站卡片（`round3/cards.md`）。
 - 判讀改由兩個沒出題的 AI（Codex gpt-6.1-sol、Claude Fable）盲評新舊兩版。成績標「AI 判讀」，不和前兩輪的真人判讀合併。
-- 題目凍結 commit：待補。`unseen_questions.md` sha256：待補。
+- 題目凍結 commit：`b23bc98`。`unseen_questions.md` sha256：`d902f264bd2cd469419535919ecd460f6d25447ed4d73e2f6712d423ea210d08`。
