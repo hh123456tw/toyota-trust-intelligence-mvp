@@ -273,3 +273,13 @@ describe("11/9 實測 #25、#11 的誤攔", () => {
     expect(r.escalate).toBe(true);
   });
 });
+
+describe("11/9 實測 #25：「不行下個月再換」是否定", () => {
+  const tireMust = (answer: string) => ({ answer, sources: ["item:tire"], itemConclusions: [{ id: "item:tire", conclusion: "必須更換" }] });
+  it("「輪胎不行下個月再換」→ 通過", async () => {
+    expect((await run(lin, "輪胎可以下個月再換嗎？", tireMust("輪胎不行下個月再換。結論是必須更換，量測 1.4 mm。"))).checkResult).toBe("通過");
+  });
+  it("反例：「這樣不行，下個月再換就好」→ 攔下", async () => {
+    expect((await run(lin, "輪胎可以下個月再換嗎？", tireMust("右前輪胎紋 1.4 mm，今天換太趕不行，下個月再換就好。"))).checkResult).toBe("攔下");
+  });
+});
