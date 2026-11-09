@@ -12,8 +12,8 @@ export const metadata: Metadata = { title: "真實 AI 實測紀錄｜Trust Intel
 
 // 建置時讀 repo 裡的原始紀錄，頁面是靜態的；紀錄不見就建置失敗，不顯示假數字。頁面上的數字一律從紀錄算。
 const load = (file: string) => parseEvalLog(readFileSync(join(process.cwd(), "docs/eval/raw", file), "utf-8"));
-const FINAL = "2026-11-09_freeze_run";
-const FINAL_NAME = "11/9 決賽凍結版";
+const FINAL = "2026-11-10_assistant_final_run";
+const FINAL_NAME = "11/10 決賽版（對話記憶＋症狀登記）";
 
 const AFTER = [1, 2, 3].map((n) => ({ file: `${FINAL}${n}.log`, label: `第 ${n} 次`, ...load(`${FINAL}${n}.log`) }));
 
