@@ -157,7 +157,7 @@ export default function InspectionSummary(props: {
             <button
               onClick={() => {
                 setConfirmed(true);
-                onFlow(staffConfirmFlow(props.line));
+                onFlow(staffConfirmFlow());
               }}
               className="min-h-11 w-full rounded-xl bg-ink text-sm font-semibold text-white transition-opacity active:opacity-80"
             >

@@ -212,7 +212,22 @@ export default function EvalPage() {
       </ol>
 
       <h2 className="mt-8 text-lg font-bold">已經跑過的輪次</h2>
-      <div className="mt-3 overflow-x-auto">
+      {/* 窄螢幕用卡片，表格要左右滑才看得到「修正」欄。 */}
+      <ul className="mt-3 space-y-3 sm:hidden">
+        {CYCLES.map((c) => (
+          <li key={c.round} className="rounded-2xl border border-line bg-white p-4 text-sm">
+            <p className="flex items-baseline justify-between gap-2 font-semibold">
+              <span>{c.round}</span>
+              <span className="whitespace-nowrap text-brand">{c.result ?? `${aiPassed} / ${aiPerRun * AFTER.length}`}</span>
+            </p>
+            <p className="mt-2 text-xs font-semibold text-muted">找到的問題</p>
+            <p>{c.found}</p>
+            <p className="mt-2 text-xs font-semibold text-muted">修正</p>
+            <p>{c.fixed}</p>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-3 hidden overflow-x-auto sm:block">
         <table className="w-full min-w-[34rem] text-left text-sm">
           <thead className="text-xs text-muted">
             <tr className="border-b border-line">
@@ -286,7 +301,7 @@ export default function EvalPage() {
       </p>
 
       <h2 className="mt-10 text-lg font-bold">細節</h2>
-      <Fold title={`每一題的 AI 原文（${questionCount} 題）`}>
+      <Fold title={`每一題的 AI 原文（${questionCount} 題：${aiPerRun} 題經過 AI、${questionCount - aiPerRun} 題系統測試）`}>
         <p className="text-xs text-muted">右邊的圓點依序是第 1、2、3 次。綠色通過，紅色失敗。</p>
         <ul className="mt-3 space-y-2">
           {ids.map((n) => {
@@ -429,7 +444,7 @@ export default function EvalPage() {
 
       <h2 className="mt-10 text-lg font-bold">限制</h2>
       <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted">
-        <li>只測了展示用的兩台車和 {questionCount} 題，不代表所有問法；正式導入前要用真實車主提問擴充題庫。</li>
+        <li>只測了展示用的兩台車和 {questionCount} 題（{aiPerRun} 題經過 AI、{questionCount - aiPerRun} 題系統測試），不代表所有問法；正式導入前要用真實車主提問擴充題庫。</li>
         <li>模型 gemini-3.5-flash-lite（付費版，和正式站相同）。所有車輛資料都是展示用假資料。</li>
       </ul>
 

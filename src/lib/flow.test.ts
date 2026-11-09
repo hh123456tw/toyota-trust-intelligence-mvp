@@ -147,7 +147,10 @@ describe("handoverFlow、staffConfirmFlow（#14 #18）", () => {
   });
 
   it("專員確認：AI 呼叫 0 次", () => {
-    expect(staffConfirmFlow("X").aiCalls).toBe(0);
+    expect(staffConfirmFlow().aiCalls).toBe(0);
+    expect(staffConfirmFlow().title).toBe("專員確認檢查結果摘要");
+    // 反例：不再顯示規則那句建議說法
+    expect(staffConfirmFlow().steps.join("")).not.toContain("說法（規則產生）");
   });
 });
 

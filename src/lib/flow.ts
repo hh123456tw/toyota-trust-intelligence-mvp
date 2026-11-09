@@ -91,6 +91,7 @@ export function handoverFlow(h: Handover): FlowEntry {
 }
 
 // 專員按「確認並使用」：建議說法由規則產生，專員確認後才對車主說明。
-export function staffConfirmFlow(line: string): FlowEntry {
-  return { title: "專員確認建議說法", steps: [`說法（規則產生）：${line}`, "專員確認後使用"], aiCalls: 0 };
+// 畫面已不顯示規則那句建議說法（上面清單已列結論），紀錄只寫專員確認了摘要。
+export function staffConfirmFlow(): FlowEntry {
+  return { title: "專員確認檢查結果摘要", steps: ["專員看過結論清單和 AI 摘要，確認後向車主說明"], aiCalls: 0 };
 }
