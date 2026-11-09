@@ -34,9 +34,9 @@ function fakeAI(main: object, router: object | string | Error | Promise<string>)
 const route = (category: string, topic: string) => ({ category, topic });
 
 // 範本：程式組句。期望值照範本手寫，不從程式算。
-const AC_REPLY = "冷氣今天沒有檢查，我不能判斷原因。可以按下面的按鈕，請專員來看。";
-const WEATHER_REPLY = "天氣我不清楚喔。我可以回答這台車今天的檢查結果，例如電瓶還能用多久。";
-const CHAT_REPLY = "這題我不清楚喔。我可以回答這台車今天的檢查結果，例如電瓶還能用多久。";
+const AC_REPLY = "冷氣不在今天的檢查範圍，卡片上沒有它的資料，我不想亂猜。可以按下面的按鈕，請專員來幫你確認。";
+const WEATHER_REPLY = "這題我回答不了喔。我是這張維修決策卡的 AI 助理，可以回答這台車今天的檢查結果，例如「電瓶還能用多久？」。";
+const CHAT_REPLY = WEATHER_REPLY;
 
 describe("主回答提示詞和 schema 鎖定（v37，cbfe4da）", () => {
   it("SYSTEM_PROMPT 和 RESPONSE_SCHEMA 的 sha256 不變", async () => {
@@ -180,7 +180,7 @@ describe("主題詞規則：不合格就不換，用主回答", () => {
   ])("正例：主題詞%s → 採用範本", async (_, question, topic) => {
     const r = await ask(wang, question, fakeAI(NO_DATA, route("卡片外的車子問題", topic)));
     expect(r.trace.router?.used).toBe(true);
-    expect(r.answer).toBe(`${topic}今天沒有檢查，我不能判斷原因。可以按下面的按鈕，請專員來看。`);
+    expect(r.answer).toBe(`${topic}不在今天的檢查範圍，卡片上沒有它的資料，我不想亂猜。可以按下面的按鈕，請專員來幫你確認。`);
   });
 
   it("主題詞前後的空白先去掉再比對", async () => {
@@ -276,5 +276,29 @@ describe("分類器開關", () => {
     );
     expect(r.trace.router).toBeUndefined();
     expect(askFlow("我冷氣不冷", 200, r, {}).aiCalls).toBe(1);
+  });
+});
+
+describe("紅隊修正（#36）", () => {
+  it("情緒 → 同理的範本，不轉介專員、不照抄主題詞", async () => {
+    const r = await ask(wang, "我爸走了，今天很想哭", fakeAI(OFF_TOPIC, route("情緒", "爸")));
+    expect(r.answer).toMatch(/^聽起來你今天不太好受/);
+    expect(r.answer).not.toMatch(/爸/);
+    expect(r.escalate).toBe(false);
+  });
+  it("閒聊不照抄主題詞（紅隊：「男朋友我不清楚喔」）", async () => {
+    const r = await ask(wang, "你有沒有男朋友啊哈哈", fakeAI(OFF_TOPIC, route("閒聊", "男朋友")));
+    expect(r.answer).not.toMatch(/男朋友/);
+    expect(r.answer).toMatch(/AI 助理/);
+  });
+  it("林小姐沒有可延後的項目 → 舉例用目前不用換的項目，不用必須更換的輪胎", async () => {
+    const lin = findVehicle("lin")!;
+    const r = await ask(lin, "今天天氣好熱", fakeAI(OFF_TOPIC, route("閒聊", "天氣")));
+    expect(r.answer).not.toMatch(/輪胎/);
+    expect(r.answer).toMatch(/還能用多久/);
+  });
+  it("反例：卡片外的車子問題、主題詞空白 → 不換", async () => {
+    const r = await ask(wang, "我車子別的地方要不要看", fakeAI(NO_DATA, route("卡片外的車子問題", "")));
+    expect(r.trace.router?.used).toBe(false);
   });
 });
