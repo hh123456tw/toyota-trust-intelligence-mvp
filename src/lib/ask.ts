@@ -450,8 +450,10 @@ const GREETING =
 function greetingAnswer(vehicle: Vehicle, question: string): Answer | undefined {
   const q = question.replace(/[\s，,。.！!？?～~、…]/g, "");
   if (!q || !GREETING.test(q)) return undefined;
+  // 舉例用可延後的項目：「還能用多久」問必須更換的項目不合適。
+  const example = (vehicle.items.find((i) => judge(i).conclusion === "可延後") ?? vehicle.items[0]).name;
   return {
-    answer: `你好，我是這張維修決策卡的 AI 助理。今天檢查的項目都可以問我，例如「${vehicle.items[0].name}還能用多久？」。卡片以外的問題，我會請專員來幫你。`,
+    answer: `你好，我是這張維修決策卡的 AI 助理。今天檢查的項目都可以問我，例如「${example}還能用多久？」。卡片以外的問題，我會請專員來幫你。`,
     sources: [],
     escalate: false,
   };
