@@ -4,7 +4,7 @@ import { presetsFor, sourceLabel, validSources } from "./answers";
 import { DEALER_FACTS, dealerSource, type DealerFact } from "./dealer";
 import { EXCERPTS } from "./manual";
 import { judge, type Conclusion, type Verdict } from "./rules";
-import { trendText, vehicles, visibleOptions, type InspectionItem, type ProductOption, type Vehicle } from "./vehicles";
+import { baseOption, trendText, vehicles, visibleOptions, type InspectionItem, type ProductOption, type Vehicle } from "./vehicles";
 
 // 決策卡上的一個檢查項目。
 export type CardItem = {
@@ -18,6 +18,8 @@ export type CardItem = {
   trend?: string;
   // 示意費用：只有必須更換、可延後的項目有。
   price?: number;
+  // 費用的算式（「每條 NT$2,800 × 4 條」），有款式的項目才有。
+  priceNote?: string;
   // 只有必須更換的項目有：不換的風險、可選的產品。
   risk?: string;
   // 必須更換、可延後的項目才有：要換的時候一次換多少。
@@ -56,6 +58,7 @@ export function cardItems(items: InspectionItem[]): CardItem[] {
         cca: item.cca,
         trend: trendText(item),
         price: verdict.conclusion === "正常" ? undefined : item.price,
+        priceNote: verdict.conclusion === "正常" ? undefined : baseOption(item)?.priceNote,
         risk: verdict.conclusion === "必須更換" ? item.mustReplaceRisk : undefined,
         replaceScope: verdict.conclusion === "正常" ? undefined : item.replaceScope,
         options: visibleOptions(item, verdict.conclusion),

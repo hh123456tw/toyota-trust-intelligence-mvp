@@ -1,6 +1,7 @@
 // 未見過題目第一輪找到的問題（docs/eval/unseen/判讀結果.md）：U13 誤攔、U05／U14 說要找人卻沒轉專員、款式價格沒標合計。
 import { describe, expect, it } from "vitest";
 import { cardContext } from "./answers";
+import { cardItems } from "./card";
 import { ask, optionAnswer } from "./ask";
 import { findVehicle } from "./vehicles";
 
@@ -169,6 +170,10 @@ describe("款式價格寫出每條價格和條數", () => {
 
   it("王先生輪胎（可延後、不列款式）的費用也寫出每條和條數（第二輪 V02）", async () => {
     expect(cardContext(wang).檢查項目.find((i) => i.來源代號 === "item:tire")!.示意費用).toBe("NT$11,200（每條 NT$2,800 × 4 條）");
+    // 卡片畫面也顯示算式；反例：沒有款式的電瓶不加
+    const items = cardItems(wang.items);
+    expect(items.find((i) => i.id === "tire")!.priceNote).toBe("每條 NT$2,800 × 4 條");
+    expect(items.find((i) => i.id === "battery")!.priceNote).toBeUndefined();
     expect(cardContext(lin).檢查項目.find((i) => i.來源代號 === "item:tire")!.示意費用).toBe("NT$5,600 起（依款式；最低款每條 NT$2,800 × 2 條）");
     const tire = (answer: string) => ({ answer, sources: ["item:tire"], itemConclusions: [{ id: "item:tire", conclusion: "可延後" }] });
     expect((await run(wang, "輪胎一條多少？", tire("輪胎可延後，3 個月後會提醒你回廠。示意費用每條 NT$2,800，4 條 NT$11,200。"))).checkResult).toBe("通過");

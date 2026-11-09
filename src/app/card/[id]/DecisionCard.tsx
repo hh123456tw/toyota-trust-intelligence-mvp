@@ -10,7 +10,7 @@ import { currentMeasurements } from "@/lib/card";
 import { choiceKey, handover, needsOptionPick, pruneChoices, type Choice } from "@/lib/handover";
 import { preferenceNote, type OwnerPreferences } from "@/lib/preferences";
 import { LABEL, type Conclusion } from "@/lib/rules";
-import { baseOption, formatPrice, RULE_VERSION } from "@/lib/vehicles";
+import { formatPrice, RULE_VERSION } from "@/lib/vehicles";
 import { askHeaders } from "@/lib/visitor";
 import Icon, { ITEM_ICON, type IconName } from "../../Icon";
 import DealerFacts from "./DealerFacts";
@@ -319,7 +319,7 @@ function ItemCard({
                     : `${formatPrice(item.options[0].price)} 起`
                   : formatPrice(item.price)}
               </span>
-              <span className="ml-1 text-xs text-muted">{(pickedOption ?? baseOption(item))?.priceNote}</span>
+              <span className="ml-1 text-xs text-muted">{pickedOption?.priceNote ?? item.priceNote}</span>
               <span className="text-muted">（零件＋工資，實際以服務廠報價為準）</span>
             </Row>
           )}
