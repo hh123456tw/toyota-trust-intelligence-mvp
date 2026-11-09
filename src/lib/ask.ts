@@ -138,9 +138,14 @@ const BARGAIN = /便宜一?[點些]|算便宜|少算|打個?[一二三四五六�
 // 顧客不滿：只認明確的抱怨字眼。「不滿 30 歲」「防騙宣導」「我沒有不滿意」都不算。
 const COMPLAINT = /(?<!沒有|沒|不是|並不|不會)(?:不相信|不信任|推銷|騙(?:我|人|錢)|被騙|亂收|坑(?:人|錢|我)|生氣|不滿意|很不滿(?!\s*\d)|對.{0,15}不滿(?!\s*\d)|客訴|投訴|找主管|態度(?:很|太|超|有夠)?(?:差|爛)|太扯|爛透)/;
 
+// 抱怨上次檢查和拿外面價格比（Fable 正式站實測：「是不是沒檢查好？外面 1800 你們 3000 太貴」照答、沒轉介）。
+// 「這次沒檢查冷氣嗎」「會不會太貴」「上次說電瓶幾 %」是在問，不算。
+const PAST_CHECK = /沒檢查好|沒(?:有)?(?:仔細|好好)檢查|檢查不(?:確實|仔細|清楚)|上次(?:不是|明明)說/;
+const COMPARE_PRICE = /(?:外面(?!下雨|天氣|很熱|很冷|溫度|氣溫)|坊間|輪胎行|其他店)[^\d]{0,6}\d|(?<!會不會|是不是|會)太貴/;
+
 // 一個子句一個子句比對，規則不會跨標點（「改天再看，結論在哪」不算要改結論）。
 export function needsHuman(question: string): boolean {
-  return question.split(/[，。！？、；,.!?;]+/).some((c) => BARGAIN.test(c) || COMPLAINT.test(c));
+  return question.split(/[，。！？、；,.!?;]+/).some((c) => BARGAIN.test(c) || COMPLAINT.test(c) || PAST_CHECK.test(c) || COMPARE_PRICE.test(c));
 }
 
 function parseReply(text: string): AIReply {
@@ -438,8 +443,10 @@ function check(vehicle: Vehicle, reply: AIReply, chosenToday: Set<string> = new 
 
 // 車主描述卡片沒有檢查的症狀時，AI 不能判斷原因。第二輪 V11：「方向盤會抖，跟胎紋有關嗎」AI 答「這跟胎紋有關喔」；抖動也可能是平衡或定位。
 const SYMPTOM = /抖|震動|異音|怪聲|拉偏|偏向一邊|漏油|漏水|異味|燒焦|警示燈|故障燈|發不動|難發動|發車(?:有點)?慢|頓挫/;
-const CAUSE_CLAIM = /(?:跟|和|與)[^。，！？]{0,12}有關|是因為|造成的|導致|引起/;
-export const SYMPTOM_ANSWER = "你描述的狀況，這張卡上沒有相關的檢查資料，不能判斷原因。我會請技師幫你檢查確認。";
+// 「可能是碟盤變形」「應該是X」「X 變形了」也是在判斷原因（Fable 正式站實測）。「沒有關係」不算。
+const CAUSE_CLAIM = /(?:跟|和|與)[^。，！？]{0,12}有關|是因為|造成的|導致|引起|(?<!沒有?)的關係|可能是|應該是|大概是|變形|翹了/;
+// 不說「我會請技師」：要車主按按鈕才會通知專員，原句聽起來像已經在安排。
+export const SYMPTOM_ANSWER = "你描述的狀況，這張卡上沒有相關的檢查資料，不能判斷原因。可以按下面的按鈕，請專員安排技師檢查。";
 function guessesSymptomCause(question: string, answer: string): string | undefined {
   if (!SYMPTOM.test(question)) return undefined;
   const claim = answer.split(/[。！？!?\n]/).find((s) => CAUSE_CLAIM.test(s) && !/不能|無法|沒有|請技師/.test(s));
