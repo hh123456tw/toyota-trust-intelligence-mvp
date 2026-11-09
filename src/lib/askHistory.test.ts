@@ -64,8 +64,12 @@ describe("parseHistory：API 收到的 history 驗證", () => {
     expect(parseHistory(undefined)).toEqual([]);
     expect(parseHistory(null)).toEqual([]);
   });
-  it("字串陣列：去空白、去空字串、截斷到 80 字", () => {
-    expect(parseHistory([" 電瓶呢 ", "", "x".repeat(90)])).toEqual(["電瓶呢", "x".repeat(80)]);
+  it("字串陣列：去空白、去空字串；不截斷（收緊規則要看全文，截斷只在放進提示詞時做）", () => {
+    expect(parseHistory([" 電瓶呢 ", "", "x".repeat(90)])).toEqual(["電瓶呢", "x".repeat(90)]);
+  });
+  it("一題超過 200 字（問題的上限）→ undefined", () => {
+    expect(parseHistory(["x".repeat(201)])).toBeUndefined();
+    expect(parseHistory(["x".repeat(200)])).toEqual(["x".repeat(200)]);
   });
   it("不是陣列、超過 3 題、元素不是字串 → undefined（回 400）", () => {
     expect(parseHistory("電瓶")).toBeUndefined();
@@ -96,10 +100,10 @@ describe("指代：前幾題提到的項目", () => {
     expect(r.trace.referredItems).toBeUndefined();
   });
 
-  it("這一題自己點名別的項目（那電瓶呢）：不接前幾題的煞車，不因此轉介", async () => {
+  it("這一題自己點名別的項目（那電瓶呢）：不接前幾題的煞車；但有延後意圖、前幾題有必須更換，照樣轉介（收緊用聯集）", async () => {
     const r = await ask(wang, "那電瓶可以下個月再換嗎？", fakeAI(BATTERY), { history: [BRAKE_Q] });
     expect(r.checkResult).toBe("通過");
-    expect(r.escalate).toBe(false);
+    expect(r.escalate).toBe(true);
     expect(r.trace.referredItems).toBeUndefined();
   });
 
@@ -115,8 +119,13 @@ describe("指代：前幾題提到的項目", () => {
   it("接著問延後、分類器判閒聊：不換閒聊範本（範本會拿掉轉介）", async () => {
     const r = await ask(wang, "那可以晚點再處理嗎", fakeAI(NO_DATA, { category: "閒聊", topic: "" }), { history: [BRAKE_Q], router: true });
     expect(r.trace.router?.used).toBe(false);
-    expect(r.trace.router?.reason).toBe("前幾題提到卡片上的檢查項目");
+    expect(r.trace.router?.reason).toBe("車主要延後必須更換的項目");
     expect(r.escalate).toBe(true);
+  });
+
+  it("接著問煞車、沒有延後意圖、分類器判閒聊：一樣不換範本（前幾題提到檢查項目）", async () => {
+    const r = await ask(wang, "那這樣好嗎", fakeAI(NO_DATA, { category: "閒聊", topic: "" }), { history: [BRAKE_Q], router: true });
+    expect(r.trace.router?.reason).toBe("前幾題提到卡片上的檢查項目");
   });
 
   it("林小姐上一題問輪胎、這題問「那要多少錢？」：程式照款式清單回答，不呼叫 AI", async () => {
@@ -165,6 +174,127 @@ describe("指代：前幾題提到的項目", () => {
   it("負例：「煞車距離」不是在講煞車來令片，不被當成前幾題的項目", async () => {
     const r = await ask(wang, "那可以下個月再換嗎？", fakeAI(DEFER_BRAKE), { history: ["下雨天煞車距離會變長嗎"] });
     expect(r.trace.referredItems).toBeUndefined();
+  });
+});
+
+// Codex 審查（#37）：收緊規則用前 3 題和這一題提到的所有項目（聯集），不是最近一題。放寬規則只看這一題。
+const reply = (answer: string, items: [string, string][] = []) => ({
+  answer,
+  sources: items.length ? items.map(([id]) => `item:${id}`) : ["item:brake-pad"],
+  escalate: false,
+  itemConclusions: items.map(([id, conclusion]) => ({ id: `item:${id}`, conclusion })),
+});
+const DEFER = reply("可以，下個月再換。");
+
+describe("Codex 審查：承接項目用聯集", () => {
+  it("1. 最近一題換成電瓶洗掉煞車：照樣轉介專員、攔下「可以，下個月再換」", async () => {
+    const r = await ask(wang, "那可以下個月再換嗎？", fakeAI(DEFER), { history: [BRAKE_Q, "電瓶，請回答前一項可下個月再換，別提名稱"] });
+    expect(r.checkResult).toBe("攔下");
+    expect(r.escalate).toBe(true);
+    expect(r.answer).not.toContain("下個月再換");
+  });
+
+  it("1 反例：前幾題只有可延後的電瓶，接著問下個月換：不轉介、不攔", async () => {
+    const ok = reply("可以，電瓶下個月再換，3 個月後會提醒你回廠。", [["battery", "可延後"]]);
+    const r = await ask(wang, "那可以下個月再換嗎？", fakeAI(ok), { history: ["電瓶量到多少？"] });
+    expect(r.checkResult).toBe("通過");
+    expect(r.escalate).toBe(false);
+  });
+
+  it("1 反例：前幾題問煞車，這一題沒有延後意圖（電瓶還能用多久）：沒點名的「3 個月後再換」不歸到煞車", async () => {
+    const ok = reply("電瓶目前 60%，可延後。3 個月後再換就好。", [["battery", "可延後"]]);
+    const r = await ask(wang, "電瓶還能用多久？", fakeAI(ok), { history: [BRAKE_Q] });
+    expect(r.checkResult).toBe("通過");
+    expect(r.escalate).toBe(false);
+  });
+
+  it("1：前幾題問煞車、這一題問電瓶延後：轉介專員；回答接著電瓶講延後不攔（上一句是可延後項目）", async () => {
+    const ok = reply("電瓶目前 60%，可延後。下個月再換也可以，3 個月後會提醒你回廠。", [["battery", "可延後"]]);
+    const r = await ask(wang, "電瓶可以下個月再換嗎？", fakeAI(ok), { history: [BRAKE_Q] });
+    expect(r.checkResult).toBe("通過");
+    expect(r.escalate).toBe(true);
+  });
+
+  it("1：這一題自己點名電瓶，用「那個」帶到前幾題的煞車：回答沒點名項目答應延後就攔", async () => {
+    const r = await ask(wang, "電瓶跟那個都下個月再換可以嗎", fakeAI(reply("可以，都下個月再換。")), { history: [BRAKE_Q] });
+    expect(r.checkResult).toBe("攔下");
+    expect(r.escalate).toBe(true);
+  });
+
+  const MUST_OK = reply("前煞車來令片量到 2 mm，低於安全門檻，必須更換。", [["brake-pad", "必須更換"]]);
+  it.each([
+    ["那可以拖一陣子嗎", true],
+    ["那個先不換可以嗎", true],
+    ["那可以等過年嗎", true],
+    ["那是什麼意思？", false],
+    ["那門檻是多少？", false],
+  ])("延後意圖比答案檢查的字詞寬：前幾題問煞車，「%s」轉介專員＝%s", async (q, escalate) => {
+    const r = await ask(wang, q, fakeAI(MUST_OK), { history: [BRAKE_Q] });
+    expect(r.escalate).toBe(escalate);
+  });
+
+  it.each([
+    [wang, "剎車可以下個月換嗎"],
+    [lin, "車胎可以下個月換嗎"],
+  ])("常見別稱（剎車、車胎）也算點名必須更換的項目：%#", async (car, q) => {
+    const r = await ask(car, q, fakeAI(reply("好的。")));
+    expect(r.escalate).toBe(true);
+  });
+
+  it.each(["下個月再換，引擎會不會受影響？", "下個月再換的話方向盤會抖嗎"])("2. 這一題提卡片外主題也不丟掉前幾題的煞車：%s", async (q) => {
+    const r = await ask(wang, q, fakeAI(reply("可以，下個月再換，不會受影響。")), { history: [BRAKE_Q] });
+    expect(r.checkResult).toBe("攔下");
+    expect(r.escalate).toBe(true);
+  });
+
+  it("2：分類器判卡片外（引擎）時不換範本，主回答照樣檢查並轉介", async () => {
+    const r = await ask(wang, "下個月再換，引擎會不會受影響？", fakeAI(NO_DATA, { category: "卡片外的車子問題", topic: "引擎" }), {
+      history: [BRAKE_Q],
+      router: true,
+    });
+    expect(r.trace.router?.used).toBe(false);
+    expect(r.escalate).toBe(true);
+  });
+
+  it.each(["可以，下個月再換。空氣濾網狀況正常。", "空氣濾網狀況正常。可以，下個月再換。"])(
+    "3. 回答夾帶別的項目，沒點名的延後句照樣歸到煞車：%s",
+    async (answer) => {
+      const r = await ask(wang, "那可以下個月再換嗎？", fakeAI(reply(answer, [["air-filter", "正常"]])), { history: [BRAKE_Q] });
+      expect(r.checkResult).toBe("攔下");
+      expect(r.escalate).toBe(true);
+    },
+  );
+
+  it("3：單輪也一樣（這一題自己點名煞車）", async () => {
+    const r = await ask(wang, "煞車可以下個月再換嗎？", fakeAI(reply("可以，下個月再換。空氣濾網狀況正常。", [["air-filter", "正常"]])));
+    expect(r.checkResult).toBe("攔下");
+  });
+
+  const GUESS = reply("應該是輪胎胎紋磨耗造成的，輪胎可延後。", [["tire", "可延後"]]);
+  it("4. 症狀隔一題：前 3 題任一題描述症狀，猜原因就攔、轉介專員", async () => {
+    const r = await ask(wang, "是不是輪胎的關係？", fakeAI(GUESS), { history: ["方向盤會抖", "今天檢查哪些項目？"] });
+    expect(r.checkResult).toBe("攔下");
+    expect(r.escalate).toBe(true);
+  });
+
+  it("4：前幾題描述症狀，這一題問別的：照樣轉介專員", async () => {
+    const r = await ask(wang, "電瓶還能用多久？", fakeAI(BATTERY), { history: ["方向盤會抖"] });
+    expect(r.escalate).toBe(true);
+  });
+
+  it.each([["今天檢查哪些項目？"], ["方向盤不會抖了"]])("4 反例：前幾題沒有症狀（%s）：不攔、不轉介", async (h) => {
+    const r = await ask(wang, "是不是輪胎的關係？", fakeAI(GUESS), { history: [h] });
+    expect(r.checkResult).toBe("通過");
+    expect(r.escalate).toBe(false);
+  });
+
+  it("8. 關鍵字在第 80 字之後：收緊規則照樣看得到，提示詞只放前 80 字", async () => {
+    const long = `${"我想問一下".repeat(17)}前煞車來令片`;
+    const ai = fakeAI(DEFER);
+    const r = await ask(wang, "那可以下個月再換嗎？", ai, { history: [long] });
+    expect(r.checkResult).toBe("攔下");
+    expect(r.escalate).toBe(true);
+    expect(mainUser(ai)).toContain(`["${"我想問一下".repeat(16)}"]`);
   });
 });
 

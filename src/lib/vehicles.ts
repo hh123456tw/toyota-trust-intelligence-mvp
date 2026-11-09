@@ -153,7 +153,7 @@ export const vehicles: Vehicle[] = [
     items: [
       {
         id: "brake-pad",
-        keywords: ["煞車", "來令片"],
+        keywords: ["煞車", "來令片", "剎車"],
         name: "前煞車來令片",
         safetyRelated: true,
         rule: brakeRule,
@@ -207,7 +207,7 @@ export const vehicles: Vehicle[] = [
       },
       {
         id: "tire",
-        keywords: ["輪胎", "胎紋"],
+        keywords: ["輪胎", "胎紋", "車胎"],
         name: "輪胎胎紋",
         safetyRelated: true,
         rule: tireRule,
@@ -251,7 +251,7 @@ export const vehicles: Vehicle[] = [
     items: [
       {
         id: "tire",
-        keywords: ["輪胎", "胎紋"],
+        keywords: ["輪胎", "胎紋", "車胎"],
         name: "輪胎胎紋",
         safetyRelated: true,
         rule: tireRule,
@@ -267,7 +267,7 @@ export const vehicles: Vehicle[] = [
       },
       {
         id: "brake-pad",
-        keywords: ["煞車", "來令片"],
+        keywords: ["煞車", "來令片", "剎車"],
         name: "前煞車來令片",
         safetyRelated: true,
         rule: brakeRule,
