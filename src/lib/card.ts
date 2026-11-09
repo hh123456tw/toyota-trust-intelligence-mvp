@@ -135,7 +135,7 @@ export const SHORT_TRIP_ADVICE_MIN_RATIO = 50;
 // 行車摘要的建議句：由規則產生，不經 AI。
 export function drivingAdvice(vehicle: Vehicle): string | undefined {
   if (vehicle.drivingSummary.shortTripRatio < SHORT_TRIP_ADVICE_MIN_RATIO) return undefined;
-  return "短程行駛多，發電機來不及把電瓶充飽。建議每週安排一次較長距離行駛。";
+  return "短程行駛多，可能讓電瓶較難充飽（可能原因之一，需技師確認）。建議每週安排一次較長距離行駛。";
 }
 
 // 決策卡需要的全部資料；卡片頁和技師頁共用。
