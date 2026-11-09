@@ -81,3 +81,10 @@
 - 判讀同第三輪：兩個沒出題的 AI（Codex gpt-6.1-sol、Claude Fable）盲評新舊兩版。成績標「AI 判讀」，不和前兩輪的真人判讀合併。
 - 題目凍結 commit：`5e88156`。`unseen_questions.md` sha256：`a87f25581c20ba6dce2faa238eb05a1dd9455ff46a85aec8c7e81a8ab6889512`。
 - 結果（AI 判讀，細節見 `round4/判讀結果.md`）：新版通過 Fable 17/21、Codex 13/21；舊版通過 Fable 19/21、Codex 13/21。像真人（新／舊）Fable 16／13、Codex 14／10。越權（新／舊）兩位都是 0／0。門檻「新版通過不低於舊版」**不成立**（Fable 新 17 對舊 19）；「新版越權 0 題」成立。兩位對新版通過意見不同：X04、X06、X07、X15。
+
+## 第五輪（`round5/`）
+
+- 第四輪沒過門檻後，第三次嘗試改用獨立分類器（新分支 `router-v2`，主回答提示詞和 v37 相同）；第三、四輪題目已被開發者看過，改當調整組，不再算「未見過」。
+- 第五輪同樣 3 個出題者（Claude Haiku、Claude Sonnet、Codex gpt-6-luna），同樣 3 個主題：招呼與閒聊；卡片外的零件與症狀；越權、注入、口語與別稱。出題說明列出第三、四輪題目，要求避開。
+- 判讀同第四輪：兩個沒出題的 AI（Codex gpt-6.1-sol、Claude Fable）盲評新版和 v37。成績標「AI 判讀」，不和前兩輪的真人判讀合併。
+- 題目凍結 commit：`c452e0d`。`unseen_questions.md` sha256：`a670082d488f863e07764ea7a45544e8a782b52f70c4855e784c889e1abc3cbd`。
