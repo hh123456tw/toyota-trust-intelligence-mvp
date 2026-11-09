@@ -444,8 +444,34 @@ export function optionAnswer(vehicle: Vehicle, question: string): (Answer & { it
   return undefined;
 }
 
+// 只有打招呼或問「你是誰」：整句（去掉標點空白）都是這些字才算，夾帶其他問題照常交給 AI。
+const GREETING =
+  /^(?:(?:你好|您好|哈囉|哈嘍|嗨|hi|hello|hey|安安|早安|午安|晚安)+(?:啊|呀|喔)?)?(?:請問)?(?:你是誰|妳是誰|你是什麼|你是做什麼的|你會什麼|你能做什麼|你可以做什麼|你可以幫我什麼)?$/i;
+function greetingAnswer(vehicle: Vehicle, question: string): Answer | undefined {
+  const q = question.replace(/[\s，,。.！!？?～~、…]/g, "");
+  if (!q || !GREETING.test(q)) return undefined;
+  return {
+    answer: `你好，我是這張維修決策卡的 AI 助理。今天檢查的項目都可以問我，例如「${vehicle.items[0].name}還能用多久？」。卡片以外的問題，我會請專員來幫你。`,
+    sources: [],
+    escalate: false,
+  };
+}
+
+// 卡片外的車子主題：AI 回「沒有這項資料」時，用來點名車主問的東西，聽起來像人在回答。
+const CAR_TOPIC = /冷氣|空調|引擎|變速箱|雨刷|車燈|大燈|方向燈|方向盤|水箱|冷卻水|機油|車窗|音響|導航|鑰匙|遙控器|喇叭|後視鏡|座椅|安全帶|天窗|車門|油耗/;
+// 決賽版不改提示詞（AI 仍照規則 1 回固定句），只在程式層把固定句換成像人的說法；轉專員照舊。
+function outsideCardAnswer(vehicle: Vehicle, question: string): string {
+  if (vehicle.items.some((i) => mentions(i, question))) return "這個問題卡片上沒有寫到，我不想亂猜。我請專員過來跟你說明。";
+  if (SYMPTOM.test(question)) return SYMPTOM_ANSWER;
+  const topic = question.match(CAR_TOPIC)?.[0];
+  if (topic) return `${topic}不在今天的檢查項目裡，我手上沒有它的資料，不想亂猜。我請專員過來，幫你看要不要安排技師檢查。`;
+  return "這題我答不了，我只能回答這台車今天的檢查結果，例如電瓶還能用多久。如果是車子的問題，可以按下面請專員來說明。";
+}
+
 // AI 呼叫丟錯或回應無法解析時直接丟錯，由呼叫端回傳錯誤，不產生假回答。
 export async function ask(vehicle: Vehicle, question: string, callAI: CallAI): Promise<AskResult> {
+  const greeting = greetingAnswer(vehicle, question);
+  if (greeting) return { ...greeting, checkResult: "通過", trace: { mentionedItems: [], data: [], aiSources: [], noAI: true } };
   const listed = optionAnswer(vehicle, question);
   if (listed) {
     const { itemId, ...shown } = listed;
@@ -475,6 +501,11 @@ export async function ask(vehicle: Vehicle, question: string, callAI: CallAI): P
   // AI 回「沒有這項資料，可以請專員說明」，或說了會請專員、技師處理時，卡片也要顯示轉專員，車主才找得到人。
   if (touchesMustReplace(vehicle, question) || needsHuman(question) || SYMPTOM.test(question) || shown.answer.includes(NO_DATA) || PROMISES_HUMAN.test(shown.answer))
     shown.escalate = true;
+  // 離題拒絕句（OFF_TOPIC）本來就不轉專員，照原樣。
+  if (!blockedReason && reply.answer.includes(NO_DATA)) {
+    shown.answer = outsideCardAnswer(vehicle, question);
+    shown.escalate = true;
+  }
 
   return blockedReason ? { ...shown, checkResult: "攔下", blockedReason, trace } : { ...shown, checkResult: "通過", trace };
 }
