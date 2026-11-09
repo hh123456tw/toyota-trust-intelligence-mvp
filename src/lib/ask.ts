@@ -7,14 +7,16 @@ import { judge, type Conclusion } from "./rules";
 import { baseOption, findVehicle, formatPrice, priceLabel, visibleOptions, type InspectionItem, type Vehicle } from "./vehicles";
 
 // AI 呼叫函式：收系統提示詞和使用者內容，回傳 AI 的原始 JSON 文字。
-export type CallAI = (system: string, user: string) => Promise<string>;
+// signal：只有分類器的呼叫會帶，逾時或主回答失敗時取消。不支援取消的呼叫端可以忽略它。
+export type CallAI = (system: string, user: string, signal?: AbortSignal) => Promise<string>;
 
 export type AskResult = Answer & {
   // 答案檢查的結果。和規則引擎的 Verdict（項目結論）是兩回事。
   checkResult: "通過" | "攔下";
   blockedReason?: string;
   // 給流程面板：問題提到哪些項目、給 AI 的資料（來源代號）、AI 原本引用哪些來源。不含被攔下的原回答。
-  trace: { mentionedItems: string[]; data: string[]; aiSources: string[]; noAI?: boolean; router?: RouterTrace };
+  // crisis：危機訊息，回固定的求助句。
+  trace: { mentionedItems: string[]; data: string[]; aiSources: string[]; noAI?: boolean; crisis?: boolean; router?: RouterTrace };
 };
 
 // 分類器的結果：類別和主題詞（分類器失敗時沒有）、有沒有採用範本、沒採用的原因。
@@ -442,13 +444,19 @@ function check(vehicle: Vehicle, reply: AIReply, chosenToday: Set<string> = new 
 }
 
 // 車主描述卡片沒有檢查的症狀時，AI 不能判斷原因。第二輪 V11：「方向盤會抖，跟胎紋有關嗎」AI 答「這跟胎紋有關喔」；抖動也可能是平衡或定位。
-const SYMPTOM = /抖|震動|異音|怪聲|拉偏|偏向一邊|漏油|漏水|異味|燒焦|警示燈|故障燈|發不動|難發動|發車(?:有點)?慢|頓挫/;
+// 危險徵兆（#36 審查）：「水溫過高快冒煙了」被分類器判情緒，換成同理句還拿掉轉介。這些字一律算症狀，不換範本、轉介專員。
+// 「天氣過熱」「水溫正常是多少」「方向盤重新包皮」不算。「冒煙的燒肉店」照樣算：客休室裡講冒煙多半是車子，寧可多叫一次專員。
+const DANGER = "冒.{0,2}煙|(?<!天氣|氣溫|天)過熱|水溫[^，。？?]{0,4}(?:高|飆|爬|升)|起火|著火|煞不住|煞車(?:沒力|失靈|變軟|很軟)|方向盤(?:很|變得?|超|好|有點)?重(?![新量要複])";
+const SYMPTOM = new RegExp(`抖|震動|異音|怪聲|拉偏|偏向一邊|漏油|漏水|異味|燒焦|警示燈|故障燈|發不動|難發動|發車(?:有點)?慢|頓挫|${DANGER}`);
+// 否定句「沒有冒煙」「不會抖了」不是在描述症狀，先移除再比對。
+const NOT_SYMPTOM = new RegExp(`(?:沒有|沒|不會|不再)(?:任何|什麼)?(?:${SYMPTOM.source})`, "g");
+const hasSymptom = (question: string) => SYMPTOM.test(question.replace(NOT_SYMPTOM, ""));
 // 「可能是碟盤變形」「應該是X」「X 變形了」也是在判斷原因（Fable 正式站實測）。「沒有關係」不算。
 const CAUSE_CLAIM = /(?:跟|和|與)[^。，！？]{0,12}有關|是因為|造成的|導致|引起|(?<!沒有?)的關係|可能是|應該是|大概是|變形|翹了/;
 // 不說「我會請技師」：要車主按按鈕才會通知專員，原句聽起來像已經在安排。
 export const SYMPTOM_ANSWER = "你描述的狀況，這張卡上沒有相關的檢查資料，不能判斷原因。可以按下面的按鈕，請專員安排技師檢查。";
 function guessesSymptomCause(question: string, answer: string): string | undefined {
-  if (!SYMPTOM.test(question)) return undefined;
+  if (!hasSymptom(question)) return undefined;
   const claim = answer.split(/[。！？!?\n]/).find((s) => CAUSE_CLAIM.test(s) && !/不能|無法|沒有|請技師/.test(s));
   return claim ? `卡片沒有這個症狀的檢查，回答卻判斷了原因：${claim.trim()}` : undefined;
 }
@@ -517,7 +525,7 @@ const CAR_TOPIC = /冷氣|空調|引擎|變速箱|雨刷|車燈|大燈|方向燈
 // 決賽版不改提示詞（AI 仍照規則 1 回固定句），只在程式層把固定句換成像人的說法；轉專員照舊。
 function outsideCardAnswer(vehicle: Vehicle, question: string): string {
   if (vehicle.items.some((i) => mentions(i, question))) return "這個問題卡片上沒有寫到，我不想亂猜。可以按下面的按鈕，請專員來說明。";
-  if (SYMPTOM.test(question)) return SYMPTOM_ANSWER;
+  if (hasSymptom(question)) return SYMPTOM_ANSWER;
   const topic = question.match(CAR_TOPIC)?.[0];
   if (topic) return `${topic}不在今天的檢查項目裡，我手上沒有它的資料，不想亂猜。可以按下面的按鈕請專員來，看要不要安排技師檢查。`;
   return "這題我答不了，我只能回答這台車今天的檢查結果，例如電瓶還能用多久。如果是車子的問題，可以按下面請專員來說明。";
@@ -558,10 +566,11 @@ type RouterReply = { category: (typeof ROUTER_CATEGORIES)[number]; topic: string
 export const ROUTER_TIMEOUT_MS = 4_000;
 
 // 失敗、逾時、格式不對都回傳原因字串：分類器只是加分項，不能讓整題失敗。
-async function route(vehicle: Vehicle, question: string, callAI: CallAI): Promise<RouterReply | string> {
+// 逾時就 abort，真的取消 AI 呼叫，不讓它在背後繼續跑、繼續計費。
+async function route(vehicle: Vehicle, question: string, callAI: CallAI, ctrl: AbortController): Promise<RouterReply | string> {
   const items = vehicle.items.map((i) => i.name).join("、");
   const failed = "分類器失敗或回應無法解析";
-  const call = callAI(ROUTER_PROMPT, `卡片上的檢查項目：${items}\n\n車主的問題：${question}`)
+  const call = callAI(ROUTER_PROMPT, `卡片上的檢查項目：${items}\n\n車主的問題：${question}`, ctrl.signal)
     .then((text): RouterReply | string => {
       const r = JSON.parse(text);
       const ok = (ROUTER_CATEGORIES as readonly unknown[]).includes(r?.category) && typeof r?.topic === "string";
@@ -569,7 +578,13 @@ async function route(vehicle: Vehicle, question: string, callAI: CallAI): Promis
     })
     .catch(() => failed);
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<string>((resolve) => (timer = setTimeout(() => resolve("分類器逾時"), ROUTER_TIMEOUT_MS)));
+  const timeout = new Promise<string>(
+    (resolve) =>
+      (timer = setTimeout(() => {
+        ctrl.abort();
+        resolve("分類器逾時");
+      }, ROUTER_TIMEOUT_MS)),
+  );
   return Promise.race([call, timeout]).finally(() => clearTimeout(timer));
 }
 
@@ -591,8 +606,11 @@ export function templateAnswer(vehicle: Vehicle, category: string, topic: string
 const TOPIC_MAX = 8;
 // 國字數字也算數字（「三點」「兩天」）：主題詞不需要數字。
 const TOPIC_DIGIT = /[\p{N}零〇一二兩三四五六七八九十百千萬億]/u;
-// 安全保證和原因字眼：放進範本會變成「放心開今天沒有檢查」這種句子。「安全帶」是零件名稱，不算。
-const TOPIC_UNSAFE = new RegExp(`放心|沒問題|沒關係|沒事|不用擔心|不必擔心|別擔心|繼續開|照常開|可以開|安全(?!帶)|${CAUSE_CLAIM.source}|因為|原因|可能是|應該是`);
+// 保證、承諾和原因字眼：放進範本會變成「放心開不在今天的檢查範圍」這種句子。「安全帶」是零件名稱，不算。
+// 安全保證和答案檢查、紅隊檢查器共用 ASSURANCE。
+const TOPIC_UNSAFE = new RegExp(`${ASSURANCE.source}|繼續開|免費|還能開|還可以開|保證|安全(?!帶)|${CAUSE_CLAIM.source}|因為|原因`);
+// 辱罵字詞：範本照抄會變成「白痴不在今天的檢查範圍」。「靠枕」「垃圾桶」是車上的東西，不算。
+const TOPIC_INSULT = /白痴|白癡|智障|幹(?![嘛麼部線道活練勁])|靠北|靠杯|靠腰|靠夭|媽的|他媽|去死|垃圾(?![桶袋])|廢物|北七|笨蛋|王八|混蛋|機掰|雞掰/;
 function topicProblem(vehicle: Vehicle, category: string, question: string, topic: string): string | undefined {
   if (category !== OUTSIDE_CAR) return undefined; // 閒聊、情緒的範本不放主題詞
   if (!topic) return "空白";
@@ -602,29 +620,42 @@ function topicProblem(vehicle: Vehicle, category: string, question: string, topi
   // 只收文字（中文、英文字母）：標點、符號、空白都不收。
   if (!/^\p{L}+$/u.test(topic)) return "有標點或符號";
   if (vehicle.items.some((i) => topic.includes(i.name) || hasKeyword(topic, i.keywords))) return "含卡片上的檢查項目";
-  if (TOPIC_UNSAFE.test(topic)) return "含安全保證或原因字眼";
+  if (TOPIC_INSULT.test(topic)) return "含辱罵字詞";
+  if (TOPIC_UNSAFE.test(topic)) return "含保證或原因字眼";
   return undefined;
 }
 
-// 回傳沒採用的原因；undefined 代表採用。
-function rejectCandidate(vehicle: Vehicle, question: string, router: RouterReply, reply: AIReply, blocked: boolean): string | undefined {
+// 回傳不換範本的原因；undefined 代表換用範本。
+function rejectTemplate(vehicle: Vehicle, question: string, router: RouterReply, reply: AIReply, blocked: boolean): string | undefined {
   if (router.category !== OUTSIDE_CAR && router.category !== CHAT && router.category !== MOOD) return `分類器判${router.category}`;
   if (blocked) return "主回答被攔下";
   if (!reply.answer.includes(NO_DATA) && reply.answer.trim() !== OFF_TOPIC) return "主回答有實際內容";
   if (vehicle.items.some((i) => mentions(i, question))) return "問題提到卡片上的檢查項目";
   // 症狀、議價、抱怨：v37 有固定句和轉介專員，照舊。
-  if (SYMPTOM.test(question)) return "問題描述症狀";
+  if (hasSymptom(question)) return "問題描述症狀";
   if (needsHuman(question)) return "問題要轉介專員";
+  // 閒聊、情緒範本不轉介：主回答自己判要轉介專員時，換掉就會拿掉轉介（#36 審查）。卡片外範本本來就轉介。
+  if (reply.escalate && router.category !== OUTSIDE_CAR) return "主回答要轉介專員";
   const problem = topicProblem(vehicle, router.category, question, router.topic);
   return problem && `主題詞不合格：${problem}`;
 }
 
+// 分類器開關：範本制分類器（#36）通過紅隊和 87 題後打開（使用者決定，見 #36）。
+// 緊急時設環境變數 ROUTER_ENABLED 為 0、false 或 off（不分大小寫）就能關掉，不用改程式。
+export const routerEnabled = (value: string | undefined) => !/^(?:0|false|off)$/i.test(value?.trim() ?? "");
+export const ROUTER_ENABLED = routerEnabled(process.env.ROUTER_ENABLED);
+
 // AI 呼叫丟錯或回應無法解析時直接丟錯，由呼叫端回傳錯誤，不產生假回答。
-// 分類器開關：審查找到候選回答的檢查漏洞（#28），修好並重測前先關掉，行為回到 v37。
-// 範本制分類器（#36）通過紅隊和 87 題後打開（使用者決定，見 #36）。緊急時設環境變數 ROUTER_ENABLED=0 就能關掉，不用改程式。
-export const ROUTER_ENABLED = process.env.ROUTER_ENABLED !== "0";
+
+// 危機訊息（#36 審查）：不管分類器怎麼判，都回固定的求助句、轉介專員，不呼叫 AI。
+// 「累死了」「熱死了」「笑死」「怕死」是口語，不算。
+const CRISIS = /不想活|自殺|輕生|想死(?![你妳])|不想醒來|活著(?:好|很|真的?)?(?:累|沒意思|沒意義)|結束(?:自己的)?生命|了結自己/;
+export const CRISIS_ANSWER =
+  "聽到你這樣說，我很擔心你。你不是一個人：現在就可以撥 1925 安心專線（24 小時、免付費），會有專人陪你談。也請按下面的按鈕，或直接告訴身邊的現場人員，讓他們過來陪你。";
 
 export async function ask(vehicle: Vehicle, question: string, callAI: CallAI, opts: { router?: boolean } = {}): Promise<AskResult> {
+  if (CRISIS.test(question))
+    return { answer: CRISIS_ANSWER, sources: [], escalate: true, checkResult: "通過", trace: { mentionedItems: [], data: [], aiSources: [], noAI: true, crisis: true } };
   const greeting = greetingAnswer(vehicle, question);
   if (greeting) return { ...greeting, checkResult: "通過", trace: { mentionedItems: [], data: [], aiSources: [], noAI: true } };
   const listed = optionAnswer(vehicle, question);
@@ -636,9 +667,17 @@ export async function ask(vehicle: Vehicle, question: string, callAI: CallAI, op
   const excerpts = findExcerpts(question, vehicle.model).map((e) => ({ 來源代號: `doc:${e.id}`, 文件: e.doc, 頁碼: e.page, 內文: e.text }));
   const docs = excerpts.length ? `\n\n原廠文件片段：\n${JSON.stringify(excerpts, null, 2)}` : "";
   const user = `卡片資料：\n${JSON.stringify(cardContext(vehicle), null, 2)}${docs}\n\n車主的問題：${question}`;
-  // 分類器和主回答同時送出；分類器自己吞掉錯誤和逾時，主回答失敗照 v37 馬上丟錯（Promise.all 不等分類器）。
-  // 主回答在 Promise.all 裡就解析：格式錯誤也馬上丟錯，不等分類器。
-  const [reply, router] = await Promise.all([callAI(SYSTEM_PROMPT, user).then(parseReply), (opts.router ?? ROUTER_ENABLED) ? route(vehicle, question, callAI) : undefined]);
+  // 分類器和主回答同時送出；分類器自己吞掉錯誤和逾時。主回答失敗（含格式錯誤）照 v37 馬上丟錯，不等分類器，並取消分類器。
+  const ctrl = new AbortController();
+  const routing = (opts.router ?? ROUTER_ENABLED) ? route(vehicle, question, callAI, ctrl) : undefined;
+  let reply: AIReply;
+  try {
+    reply = parseReply(await callAI(SYSTEM_PROMPT, user));
+  } catch (err) {
+    ctrl.abort();
+    throw err;
+  }
+  const router = await routing;
   const trace: AskResult["trace"] = {
     mentionedItems: vehicle.items.filter((i) => mentions(i, question)).map((i) => `item:${i.id}`),
     data: [...contextSources(vehicle), ...excerpts.map((e) => e.來源代號)],
@@ -656,7 +695,7 @@ export async function ask(vehicle: Vehicle, question: string, callAI: CallAI, op
       : fallback(vehicle, question)
     : { answer: reply.answer, sources: reply.sources, escalate: reply.escalate };
   // AI 回「沒有這項資料，可以請專員說明」，或說了會請專員、技師處理時，卡片也要顯示轉專員，車主才找得到人。
-  if (touchesMustReplace(vehicle, question) || needsHuman(question) || SYMPTOM.test(question) || shown.answer.includes(NO_DATA) || PROMISES_HUMAN.test(shown.answer))
+  if (touchesMustReplace(vehicle, question) || needsHuman(question) || hasSymptom(question) || shown.answer.includes(NO_DATA) || PROMISES_HUMAN.test(shown.answer))
     shown.escalate = true;
   // 離題拒絕句（OFF_TOPIC）本來就不轉專員，照原樣。
   if (!blockedReason && reply.answer.includes(NO_DATA)) {
@@ -668,7 +707,7 @@ export async function ask(vehicle: Vehicle, question: string, callAI: CallAI, op
   // 分類器關閉時 router 是 undefined，不寫 trace.router，流程面板才不會顯示「分類器失敗」和 AI 呼叫 2 次。
   if (typeof router === "string") trace.router = { used: false, reason: router };
   else if (router) {
-    const rejected = rejectCandidate(vehicle, question, router, reply, blockedReason !== undefined);
+    const rejected = rejectTemplate(vehicle, question, router, reply, blockedReason !== undefined);
     trace.router = { category: router.category, topic: router.topic, used: !rejected, ...(rejected ? { reason: rejected } : {}) };
     const templated = rejected ? undefined : templateAnswer(vehicle, router.category, router.topic);
     if (templated) Object.assign(shown, { answer: templated, sources: [], escalate: router.category === OUTSIDE_CAR });

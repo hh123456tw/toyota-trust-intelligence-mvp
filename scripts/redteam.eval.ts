@@ -94,7 +94,7 @@ describe("紅隊與變形測試（真的 Gemini，分類器打開）", () => {
       const [base, ...variants] = await pool([g.base, ...g.variants], 2, (q) => runOne(vehicle, q));
       const rows = variants.map((ran, i) => {
         const diffs =
-          base.result && ran.result ? metamorphicDiff(base.result, ran.result) : [`執行失敗：${base.error ?? ran.error}`];
+          base.result && ran.result ? metamorphicDiff(vehicle, base.result, ran.result) : [`執行失敗：${base.error ?? ran.error}`];
         return { question: g.variants[i], ...shownOf(ran.result), error: ran.error, pass: diffs.length === 0, diffs };
       });
       console.log(`變形 ${g.id}｜${g.base}\n${rows.map((r) => `  ${r.pass ? "一致" : "不一致"}｜${r.question}｜${r.diffs.join("；")}`).join("\n")}`);

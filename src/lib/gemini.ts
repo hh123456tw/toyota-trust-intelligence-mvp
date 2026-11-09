@@ -7,7 +7,8 @@ const MODEL = process.env.GEMINI_MODEL ?? "gemini-3.5-flash-lite";
 const RETRY_STATUS = new Set([429, 503]);
 const RETRY_DELAYS_MS = [500, 1_500];
 
-async function request(apiKey: string, system: string, user: string): Promise<Response> {
+async function request(apiKey: string, system: string, user: string, signal?: AbortSignal): Promise<Response> {
+  const timeout = AbortSignal.timeout(15_000);
   return fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
@@ -19,24 +20,27 @@ async function request(apiKey: string, system: string, user: string): Promise<Re
         responseSchema: schemaFor(system),
       },
     }),
-    signal: AbortSignal.timeout(15_000),
+    signal: signal ? AbortSignal.any([timeout, signal]) : timeout,
   });
 }
 
 export type GeminiUsage = { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number; totalTokenCount?: number };
 
 // onUsage：成本實測腳本用來讀 token 數；正式路由不傳，回答行為不變。
+// signal：呼叫端不要結果時取消（分類器逾時、主回答失敗）。不傳就和原本一樣。
 export async function callGemini(
   apiKey: string,
   system: string,
   user: string,
   onUsage?: (usage: GeminiUsage) => void,
+  signal?: AbortSignal,
 ): Promise<string> {
-  let res = await request(apiKey, system, user);
+  let res = await request(apiKey, system, user, signal);
   for (const delay of RETRY_DELAYS_MS) {
     if (!RETRY_STATUS.has(res.status)) break;
     await new Promise((r) => setTimeout(r, delay));
-    res = await request(apiKey, system, user);
+    signal?.throwIfAborted();
+    res = await request(apiKey, system, user, signal);
   }
   if (!res.ok) throw new Error(`Gemini ${res.status}: ${await res.text()}`);
 

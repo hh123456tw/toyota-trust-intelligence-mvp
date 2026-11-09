@@ -61,6 +61,35 @@ describe("callGemini 重試", () => {
     expect(await schemaOf("s")).toEqual(RESPONSE_SCHEMA);
   });
 
+  it("傳入的 AbortSignal 會傳給 fetch：呼叫端 abort，fetch 的 signal 也 abort", async () => {
+    const f = stubFetch(ok());
+    const ctrl = new AbortController();
+    await callGemini("k", "s", "u", undefined, ctrl.signal);
+    const signal = (f.mock.calls[0] as unknown as [string, { signal: AbortSignal }])[1].signal;
+    expect(signal.aborted).toBe(false);
+    ctrl.abort();
+    expect(signal.aborted).toBe(true);
+  });
+
+  it("反例：沒傳 signal 時照舊有逾時 signal，不會被取消", async () => {
+    const f = stubFetch(ok());
+    await callGemini("k", "s", "u");
+    const signal = (f.mock.calls[0] as unknown as [string, { signal: AbortSignal }])[1].signal;
+    expect(signal).toBeInstanceOf(AbortSignal);
+    expect(signal.aborted).toBe(false);
+  });
+
+  it("等重試時被取消 → 不再送第二次", async () => {
+    const ctrl = new AbortController();
+    const f = vi.fn(async () => {
+      ctrl.abort();
+      return fail(503);
+    });
+    vi.stubGlobal("fetch", f);
+    await expect(callGemini("k", "s", "u", undefined, ctrl.signal)).rejects.toThrow();
+    expect(f).toHaveBeenCalledTimes(1);
+  });
+
   it("反例：400、401、402 不重試", async () => {
     for (const status of [400, 401, 402]) {
       const f = stubFetch(fail(status));
