@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { RESPONSE_SCHEMA, ROUTER_PROMPT, ROUTER_SCHEMA } from "./ask";
 import { callGemini } from "./gemini";
 
 const ok = () =>
@@ -48,6 +49,16 @@ describe("callGemini 重試", () => {
     const got: object[] = [];
     await expect(callGemini("k", "s", "u", (u) => got.push(u))).resolves.toBe("回答");
     expect(got).toEqual([usage]);
+  });
+
+  it("分類器提示詞用分類器的 schema；其他提示詞（反例）照舊用主回答 schema", async () => {
+    const schemaOf = async (system: string) => {
+      const f = stubFetch(ok());
+      await callGemini("k", system, "u");
+      return JSON.parse((f.mock.calls[0] as unknown as [string, { body: string }])[1].body).generationConfig.responseSchema;
+    };
+    expect(await schemaOf(ROUTER_PROMPT)).toEqual(ROUTER_SCHEMA);
+    expect(await schemaOf("s")).toEqual(RESPONSE_SCHEMA);
   });
 
   it("反例：400、401、402 不重試", async () => {

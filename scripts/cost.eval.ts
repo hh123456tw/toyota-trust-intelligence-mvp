@@ -35,8 +35,12 @@ describe("AI 每台車成本（真的 Gemini）", () => {
         ...QUESTIONS.map((q): [string, (ai: (s: string, u: string) => Promise<string>) => Promise<unknown>] => [q, (ai) => ask(vehicle, q, ai)]),
       ];
       for (const [call, run] of calls) {
-        let usage: GeminiUsage = {};
-        await run((system, user) => withRetry(() => callGemini(apiKey, system, user, (u) => (usage = u))));
+        // 追問會呼叫兩次（主回答＋分類器），token 數相加。
+        const usage: GeminiUsage = {};
+        const add = (u: GeminiUsage) => {
+          for (const k of ["promptTokenCount", "candidatesTokenCount", "thoughtsTokenCount", "totalTokenCount"] as const) usage[k] = (usage[k] ?? 0) + (u[k] ?? 0);
+        };
+        await run((system, user) => withRetry(() => callGemini(apiKey, system, user, add)));
         const input = usage.promptTokenCount ?? 0;
         const output = (usage.candidatesTokenCount ?? 0) + (usage.thoughtsTokenCount ?? 0);
         expect(input, `${call} 沒有回傳 token 數`).toBeGreaterThan(0);

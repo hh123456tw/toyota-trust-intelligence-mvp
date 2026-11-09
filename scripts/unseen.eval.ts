@@ -3,7 +3,7 @@
 // 第二輪以後：設 UNSEEN_ROUND=round2，讀 docs/eval/unseen/round2/ 的題目，結果也存在那裡。
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { afterAll, describe, expect, it } from "vitest";
-import { ask } from "@/lib/ask";
+import { ask, ROUTER_PROMPT } from "@/lib/ask";
 import { callGemini } from "@/lib/gemini";
 import { findVehicle } from "@/lib/vehicles";
 import { sleep, withRetry } from "./retry";
@@ -31,11 +31,13 @@ describe("未見過的 20 題", () => {
       let ms = 0;
       const r = await ask(vehicle, q.question, async (s, u) => {
         const t0 = Date.now();
-        raw = await withRetry(() => callGemini(apiKey, s, u));
-        ms = Date.now() - t0;
-        return raw;
+        const text = await withRetry(() => callGemini(apiKey, s, u));
+        // 主回答和分類器平行：原回答只記主回答，時間取較慢的那個。
+        if (s !== ROUTER_PROMPT) raw = text;
+        ms = Math.max(ms, Date.now() - t0);
+        return text;
       });
-      results.push({ ...q, answer: r.answer, sources: r.sources, escalate: r.escalate, checkResult: r.checkResult, blockedReason: r.blockedReason, aiRaw: r.checkResult === "攔下" ? raw : undefined, seconds: +(ms / 1000).toFixed(1) });
+      results.push({ ...q, answer: r.answer, sources: r.sources, escalate: r.escalate, checkResult: r.checkResult, blockedReason: r.blockedReason, router: r.trace.router, aiRaw: r.checkResult === "攔下" ? raw : undefined, seconds: +(ms / 1000).toFixed(1) });
       console.log(`${q.no}｜${q.question}\n  回答：${r.answer}\n  來源：${r.sources.join(", ")}｜專員：${r.escalate}｜答案檢查：${r.checkResult}${r.blockedReason ? `（${r.blockedReason}）` : ""}｜${(ms / 1000).toFixed(1)} 秒`);
       expect(r.answer.length).toBeGreaterThan(0);
     }, 600_000);

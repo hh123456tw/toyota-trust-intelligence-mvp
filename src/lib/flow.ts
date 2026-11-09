@@ -27,9 +27,14 @@ export function askFlow(
   const simulated = "simulated" in data && data.simulated === true;
   const title = simulated ? `模擬：AI 回答被竄改（${question}）` : `追問：${question}`;
   if (status !== 200 || "error" in data) {
-    return { title, steps: [`失敗：${"error" in data ? data.error : "未知錯誤"}`], aiCalls: status === 502 ? 1 : 0 };
+    // 502：主回答和分類器都送出了。
+    return { title, steps: [`失敗：${"error" in data ? data.error : "未知錯誤"}`], aiCalls: status === 502 ? 2 : 0 };
   }
   const { trace, checkResult, blockedReason } = data;
+  const router = trace.router;
+  const routerSteps = router
+    ? [`分類器：${router.category ?? "失敗"}`, `候選回答：${router.used ? "採用" : `沒採用（${router.reason}）`}`]
+    : [];
   if (trace.noAI) {
     return { title, steps: ["使用卡片上的款式清單回答，不呼叫 AI", `引用的來源：${list(trace.aiSources, labels, "無")}`], aiCalls: 0 };
   }
@@ -41,8 +46,9 @@ export function askFlow(
       `用了哪些資料：${list(trace.data, labels, "無")}`,
       `引用的來源：${list(trace.aiSources, labels, "無")}`,
       `答案檢查：${checkResult === "攔下" ? `攔下（${blockedReason}）` : "通過"}`,
+      ...(simulated ? [] : routerSteps),
     ],
-    aiCalls: simulated ? 0 : 1,
+    aiCalls: simulated ? 0 : router ? 2 : 1,
   };
 }
 

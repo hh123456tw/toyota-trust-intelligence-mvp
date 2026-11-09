@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { sourceLabel } from "./answers";
-import { ask, simulateTampered } from "./ask";
+import { ask, ROUTER_PROMPT, simulateTampered } from "./ask";
 import { withMeasurement } from "./card";
 import { findVehicle } from "./vehicles";
 
@@ -331,8 +331,8 @@ describe("ask：程式強制轉專員", () => {
 describe("ask：原廠文件片段", () => {
   it("問題挑到的片段放進提示詞；回答引用它 → 通過，來源標籤是「回廠服務流程手冊 p.X」", async () => {
     let prompt = "";
-    const r = await ask(wang, "結帳可以用 Point 折抵嗎？", async (_s, user) => {
-      prompt = user;
+    const r = await ask(wang, "結帳可以用 Point 折抵嗎？", async (s, user) => {
+      if (s !== ROUTER_PROMPT) prompt = user;
       return JSON.stringify(reply("可以，回廠保養可用和泰Point折抵。", { sources: ["doc:checkout"] }));
     });
     expect(prompt).toContain("doc:checkout");
@@ -344,8 +344,8 @@ describe("ask：原廠文件片段", () => {
 
   it("問電瓶多久檢查 → 車主手冊保養表放進提示詞；回答引用它 → 通過，來源標籤是「COROLLA CROSS 車主手冊 p.216」", async () => {
     let prompt = "";
-    const r = await ask(wang, "電瓶多久要檢查一次？", async (_s, user) => {
-      prompt = user;
+    const r = await ask(wang, "電瓶多久要檢查一次？", async (s, user) => {
+      if (s !== ROUTER_PROMPT) prompt = user;
       return JSON.stringify(reply("車主手冊的保養表寫每 10,000 公里或 12 個月檢查一次電瓶。", { sources: ["doc:owner-battery-interval"] }));
     });
     expect(prompt).toContain("doc:owner-battery-interval");
@@ -356,8 +356,8 @@ describe("ask：原廠文件片段", () => {
 
   it("不相關問題不放片段進提示詞", async () => {
     let prompt = "";
-    await ask(wang, "雨刷多久要換？", async (_s, user) => {
-      prompt = user;
+    await ask(wang, "雨刷多久要換？", async (s, user) => {
+      if (s !== ROUTER_PROMPT) prompt = user;
       return JSON.stringify(reply("雨刷狀況正常。", { sources: ["item:wiper"] }));
     });
     expect(prompt).not.toContain("doc:");
@@ -440,8 +440,8 @@ describe("ask：偏好名稱與可延後項目（#27 審查）", () => {
 describe("ask：車主手冊依車型（QA M1）", () => {
   it("林小姐（YARIS CROSS）問輪胎：給 AI 的資料沒有 COROLLA CROSS 手冊；AI 硬引用也不算合法來源", async () => {
     let user = "";
-    const r = await ask(lin, "我預算有限，輪胎選哪款？", async (_s, u) => {
-      user = u;
+    const r = await ask(lin, "我預算有限，輪胎選哪款？", async (s, u) => {
+      if (s !== ROUTER_PROMPT) user = u;
       return JSON.stringify(reply("輪胎可以參考胎紋磨耗指示。", { sources: ["item:tire", "doc:owner-tire-check"] }));
     });
     expect(r.trace.data.filter((d) => d.startsWith("doc:owner-"))).toEqual([]);
@@ -529,7 +529,7 @@ describe("ask：車主偏好（#23）", () => {
   function capture() {
     const seen = { system: "", user: "" };
     const call = async (system: string, user: string) => {
-      Object.assign(seen, { system, user });
+      if (system !== ROUTER_PROMPT) Object.assign(seen, { system, user });
       return JSON.stringify(battery("電瓶可延後，3 個月後會提醒你回廠。"));
     };
     return { seen, call };

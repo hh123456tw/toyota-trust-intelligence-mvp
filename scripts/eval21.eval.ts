@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { POST } from "@/app/api/ask/route";
 import { sourceLabel, presetsFor } from "@/lib/answers";
-import { ask } from "@/lib/ask";
+import { ask, ROUTER_PROMPT } from "@/lib/ask";
 import { callGemini } from "@/lib/gemini";
 import { limitFromEnv, PER_IP_WITHOUT_ID, PER_VISITOR } from "@/lib/rateLimit";
 import { applyPreferences } from "@/lib/preferences";
@@ -48,9 +48,11 @@ describe("21 題實測", () => {
       let ms = 0;
       const r = await ask(vehicle, q.question, async (s, u) => {
         const t0 = Date.now();
-        raw = await withRetry(() => callGemini(apiKey, s, u));
-        ms = Date.now() - t0; // AI 回應時間（含重試），不含上面的間隔
-        return raw;
+        const text = await withRetry(() => callGemini(apiKey, s, u));
+        // 主回答和分類器平行：原回答只記主回答，時間取較慢的那個。
+        if (s !== ROUTER_PROMPT) raw = text;
+        ms = Math.max(ms, Date.now() - t0); // AI 回應時間（含重試），不含上面的間隔
+        return text;
       });
       const problems = checkCase(q.no, r);
       console.log(

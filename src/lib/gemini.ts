@@ -1,5 +1,5 @@
 // 呼叫 Gemini，回傳 JSON 文字。API 路由和 21 題實測腳本共用。
-import { RESPONSE_SCHEMA } from "./ask";
+import { schemaFor } from "./ask";
 
 const MODEL = process.env.GEMINI_MODEL ?? "gemini-3.5-flash-lite";
 
@@ -16,7 +16,7 @@ async function request(apiKey: string, system: string, user: string): Promise<Re
       contents: [{ role: "user", parts: [{ text: user }] }],
       generationConfig: {
         responseMimeType: "application/json",
-        responseSchema: RESPONSE_SCHEMA,
+        responseSchema: schemaFor(system),
       },
     }),
     signal: AbortSignal.timeout(15_000),

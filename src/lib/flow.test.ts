@@ -65,10 +65,10 @@ describe("askFlow：追問的流程紀錄", () => {
     expect(e.aiCalls).toBe(0);
   });
 
-  it("AI 失敗（502）顯示失敗，AI 呼叫 1 次", () => {
+  it("AI 失敗（502）顯示失敗，AI 呼叫 2 次（主回答和分類器）", () => {
     const e = askFlow("煞車？", 502, { error: "AI 暫時無法回答" }, labels);
     expect(e.steps).toEqual(["失敗：AI 暫時無法回答"]);
-    expect(e.aiCalls).toBe(1);
+    expect(e.aiCalls).toBe(2);
   });
 
   it("連線失敗（status 0）也顯示失敗", () => {
