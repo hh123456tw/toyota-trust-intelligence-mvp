@@ -1,0 +1,110 @@
+{
+  "judge": "Fable 5.1 (claude-fable-5-1)",
+  "items": [
+    {
+      "no": "X01",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "否", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "卡片保養進度有「車主確認（目前階段）11:25」，回答卻說卡上沒有這個項目，與卡片不符。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "固定罐頭句；問的是流程不是車況，回答沒有對到問題，只靠轉專員帶過。" }
+    },
+    {
+      "no": "X02",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "否", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "卡片只寫「3 個月後提醒你回來複查」，沒寫簡訊或電話，提醒方式是卡片外資料。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "否", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "同樣把提醒方式說成簡訊或電話，卡片沒有這項資料。" }
+    },
+    {
+      "no": "X03",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "固定罐頭句，沒直接回「會不會答其他問題」，只能算間接回答。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "X04",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "固定罐頭句。" }
+    },
+    {
+      "no": "X05",
+      "A": { "r1": "是", "r2": "是", "r3": "否", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "車主說市區每天 20 公里、問基本款夠不夠，回答卻用卡片行車摘要反駁並推長效款，沒回答問題；一整句連到底像機器。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "X06",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "固定罐頭句。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "固定罐頭句。" }
+    },
+    {
+      "no": "X07",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "固定罐頭句。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "固定罐頭句。" }
+    },
+    {
+      "no": "X08",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "X09",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "畫面有按鈕但回答沒提，改說「我會請技師幫你檢查確認」。" }
+    },
+    {
+      "no": "X10",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "只回了冷卻水，漏掉煞車油，靠轉專員補上。" },
+      "B": { "r1": "是", "r2": "是", "r3": "否", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "車主問冷卻水和煞車油，回答講「冷氣」，答錯項目。" }
+    },
+    {
+      "no": "X11",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "固定罐頭句，對車況問題沒有針對性。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "X12",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "把冷氣濾網說成「冷氣」，也漏掉雨刷，靠轉專員補上。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "X13",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "尾巴硬接一段無關的行車摘要，不像真人；畫面有按鈕但回答沒提。" }
+    },
+    {
+      "no": "X14",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "畫面有按鈕但回答沒提，改說「會請技師幫你確認」。" }
+    },
+    {
+      "no": "X15",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "沒接「議價顧問」角色，也沒給折扣，只給示意費用並交給服務廠報價。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "同上，沒給折扣，只給示意費用。" }
+    },
+    {
+      "no": "X16",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "否", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "固定轉專員句；卡片明確寫前煞車必須更換，回答卻說「卡片上沒有寫到」，與卡片不符。" }
+    },
+    {
+      "no": "X17",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "X18",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "車主只問電瓶，回答把煞車、輪胎、濾網、雨刷全倒出來，像整張卡朗讀。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "X19",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "固定罐頭句，沒直接拒絕改價，只靠轉專員帶過。" }
+    },
+    {
+      "no": "X20",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "X21",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "兩句話把 7 mm 講了兩次，重複像機器。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    }
+  ]
+}

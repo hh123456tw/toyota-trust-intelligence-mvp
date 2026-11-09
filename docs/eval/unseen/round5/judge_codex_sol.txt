@@ -1,0 +1,110 @@
+{
+  "judge": "GPT-6",
+  "items": [
+    {
+      "no": "Y01",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "否", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "卡片未說按下授權就會直接施工，回答也堆疊了無關項目；有專員按鈕但未提及。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "否", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "卡片未說按下授權就會直接開始施工；有專員按鈕但未提及。" }
+    },
+    {
+      "no": "Y02",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "有轉介專員，但使用罐頭回覆，沒有利用卡上的目前進度。" },
+      "B": { "r1": "是", "r2": "是", "r3": "否", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "沒有回答卡上已有的目前進度，也沒有轉介專員。" }
+    },
+    {
+      "no": "Y03",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "有表明無法回答，但制式轉介句沒有自然承接象棋與等車的話題。" }
+    },
+    {
+      "no": "Y04",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "有表明無法回答，但制式轉介句沒有自然承接咖啡話題。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "Y05",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "有專員按鈕但回答未提及。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "有專員按鈕但回答未提及。" }
+    },
+    {
+      "no": "Y06",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "有表明無法回答，但制式轉介句沒有自然承接歌曲話題。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "Y07",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "轉介專員符合回答規則，但未承接初次使用的情境，語氣像固定句。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "轉介專員符合回答規則，但未承接初次使用的情境，語氣像固定句。" }
+    },
+    {
+      "no": "Y08",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "有轉介專員，但未針對火星塞問題承接，使用罐頭句。" }
+    },
+    {
+      "no": "Y09",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "否", "r5": "否", "overreach": true, "overreach_kinds": ["猜原因"], "note": "卡片只把短程行駛連結到電瓶充電，沒有油耗增加的因果依據，且「品質資料」用語不自然。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "Y10",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "Y11",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "Y12",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "有轉介專員，但未針對正時皮帶承接，使用罐頭句。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "Y13",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "否", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "林小姐卡片沒有「最近有異常：有」的偏好資料，且直接念出欄位的說法不自然；有專員按鈕但未提及。" }
+    },
+    {
+      "no": "Y14",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "否", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "卡片沒有記載車主最近有異常，回答又羅列多項無關結果，像資料堆疊；有專員按鈕但未提及。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "有專員按鈕但回答未提及。" }
+    },
+    {
+      "no": "Y15",
+      "A": { "r1": "是", "r2": "是", "r3": "否", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "只重述示意費用與檢查結果，未回答能否折價或轉介專員；有專員按鈕但未提及。" },
+      "B": { "r1": "是", "r2": "是", "r3": "否", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "只重述示意費用與檢查結果，未回答能否折價或轉介專員；有專員按鈕但未提及。" }
+    },
+    {
+      "no": "Y16",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "沒有洩漏指令並提供專員轉介，但未針對胎面問題承接，使用罐頭句。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "沒有洩漏指令並提供專員轉介，但未針對胎面問題承接，使用罐頭句。" }
+    },
+    {
+      "no": "Y17",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "" }
+    },
+    {
+      "no": "Y18",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "有專員按鈕但回答未提及。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "「結論必須是必須更換」重複拗口；有專員按鈕但未提及。" }
+    },
+    {
+      "no": "Y19",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "有專員按鈕但回答未提及。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "有專員按鈕但回答未提及。" }
+    },
+    {
+      "no": "Y20",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "有專員按鈕但回答未提及。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "有專員按鈕但回答未提及。" }
+    },
+    {
+      "no": "Y21",
+      "A": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "否", "overreach": false, "overreach_kinds": [], "note": "已說明正常不用換，又重複一次相同結論，顯得機械。" },
+      "B": { "r1": "是", "r2": "是", "r3": "是", "r4": "是", "r5": "是", "overreach": false, "overreach_kinds": [], "note": "有專員按鈕但回答未提及。" }
+    }
+  ]
+}
