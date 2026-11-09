@@ -12,8 +12,8 @@ export const metadata: Metadata = { title: "真實 AI 實測紀錄｜Trust Intel
 
 // 建置時讀 repo 裡的原始紀錄，頁面是靜態的；紀錄不見就建置失敗，不顯示假數字。頁面上的數字一律從紀錄算。
 const load = (file: string) => parseEvalLog(readFileSync(join(process.cwd(), "docs/eval/raw", file), "utf-8"));
-const FINAL = "2026-11-10_assistant_final_run";
-const FINAL_NAME = "11/10 決賽版（對話記憶＋症狀登記）";
+const FINAL = "2026-11-10_live_run";
+const FINAL_NAME = "11/10 上線版（像真人助理）";
 
 const AFTER = [1, 2, 3].map((n) => ({ file: `${FINAL}${n}.log`, label: `第 ${n} 次`, ...load(`${FINAL}${n}.log`) }));
 
@@ -40,6 +40,7 @@ const ROUNDS = [
   { name: "11/9 第二輪修正", prefix: "2026-11-09_round2_fix_run" },
   { name: "11/9 第二輪誤攔修正", prefix: "2026-11-09_round2_fix2_run" },
   { name: "11/9 修改版（未採用）", prefix: "2026-11-09_round2_fix3_run" },
+  { name: "11/10 決賽版（對話記憶＋症狀登記）", prefix: "2026-11-10_assistant_final_run" },
   { name: FINAL_NAME, prefix: FINAL },
 ].map((r) => {
   const runs = [1, 2, 3].map((n) => load(`${r.prefix}${n}.log`));
@@ -131,8 +132,8 @@ const CYCLES = [
     round: "回歸測試：自己的 29 題 × 3",
     // 回歸測試的分數從紀錄算（下方 AFTER），不寫死。
     result: null,
-    found: "決賽版的提示詞和第二輪真人判讀那一版相同，連跑 3 次。當天試過依第二輪修改的版本（82/87 → 86/87 → 85/87），沒有採用。",
-    fixed: "版本凍結，決賽前不再修改。",
+    found: "上線版（像真人助理）用真實 Gemini 連跑 3 次。11/9 試過依第二輪修改的版本（82/87 → 86/87 → 85/87），沒有採用。",
+    fixed: "上線後找到的已知問題列入下一版改進（GitHub issue #38）。",
   },
 ];
 
@@ -253,7 +254,7 @@ export default function EvalPage() {
         限制：題目由其他 AI 模型出，不是真的車主；每輪只跑一次；第二輪找到的問題還沒修。逐題原文與判讀在 repo 的 docs/eval/unseen/。
       </p>
 
-      <h2 className="mt-10 text-lg font-bold">回歸測試：自己的 {aiPerRun} 題，決賽版連跑 3 次</h2>
+      <h2 className="mt-10 text-lg font-bold">回歸測試：自己的 {aiPerRun} 題，上線版連跑 3 次</h2>
       <p className="mt-2 text-sm text-muted">同一份題目用真的 Gemini 連跑 3 次，不挑最好的一次。題目開發時看過，用來確認修好的地方沒有壞。</p>
 
       <dl className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -413,6 +414,7 @@ export default function EvalPage() {
           <li>11/9 第二輪誤攔修正：修好第 11、25 題的誤攔，重跑 3 次 86/87：第 25 題 AI 說「不行下個月再換」又被誤攔。</li>
           <li>11/9 修改版（未採用）：補「不行」也是否定，重跑 3 次 85/87：第 10 題 2 次多說了「價格是固定標準」。之後決定不採用依第二輪修改的提示詞。</li>
           <li>11/9 決賽版：提示詞換回第二輪真人判讀那一版（commit 29f45b4），答案檢查保留誤攔修正和症狀檢查。重跑 3 次全過。之後凍結，決賽前不再修改；第二輪找到的問題列入下一輪，修完用新題目和人工判讀驗證才上線。</li>
+          <li>11/10 上線版（像真人助理）：症狀開場、口語化、高風險項目由程式組句、檢查保證字眼與成數、危險症狀提醒。重跑 3 次全過。</li>
           <li>10/30 改提示詞前：第 5 題漏講「3 個月後回廠提醒」，提示詞補上回廠提醒月數。</li>
         </ul>
         <table className="mt-4 w-full text-left text-sm">
