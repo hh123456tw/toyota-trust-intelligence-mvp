@@ -702,7 +702,7 @@ describe("ask：車主偏好（#23）", () => {
 
   // 11/7 #27 實測 run1 重現：定期追蹤，到時再換時，Gemini 說「建議在出遠門前處理」，原本只認「換」字，沒攔到。
   it("選定期追蹤，到時再換：「電瓶建議在出遠門前處理」被攔下；選今天一起換，少跑一趟時通過", async () => {
-    const answer = "電瓶健康度 60%，結論為可延後，3 個月後會提醒你回廠。因為有安全風險，建議在出遠門前處理比較安心。";
+    const answer = "電瓶健康度 60%，結論為可延後，3 個月後會提醒你回廠。因為有安全風險，建議在出遠門前處理比較好。";
     expect((await ask(wang, "電瓶撐得住嗎？", fakeAI(battery(answer)))).blockedReason).toContain("定期追蹤，到時再換");
     expect((await ask(withHandling("今天一起換，少跑一趟"), "電瓶撐得住嗎？", fakeAI(battery(answer)))).checkResult).toBe("通過");
   });

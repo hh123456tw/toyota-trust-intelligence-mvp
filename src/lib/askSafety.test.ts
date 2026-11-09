@@ -79,9 +79,10 @@ describe("必須更換的項目：回答不能有安全保證或延後說法", (
     expect(r.blockedReason).toBeUndefined();
   });
 
-  it("通過：沒提到必須更換的項目時，「不用擔心」不算", async () => {
+  // 真 AI 實測（R146、MT01-1、29 題 #17）：保證字眼不論講哪個項目都攔（和紅隊規則 c 對齊）。
+  it("攔下：沒提到必須更換的項目，「不用擔心」也攔", async () => {
     const r = await ask("電瓶呢", { answer: "電瓶可延後，3 個月後會提醒你回廠，不用擔心。", sources: ["item:battery"], escalate: false, itemConclusions: [BATTERY] });
-    expect(r.blockedReason).toBeUndefined();
+    expect(r.blockedReason).toBe("回答有保證字眼「不用擔心」");
   });
 });
 
@@ -117,10 +118,10 @@ describe("安全相關項目：回答不能有安全保證", () => {
   it.each([
     ["只提到電瓶", "電瓶健康度 60%，結論是可延後，3 個月後會提醒你回廠，你可以放心。"],
     ["只提到空氣濾網", "空氣濾網目前不用換，請放心。"],
-  ])("通過：非安全項目說放心（%s）", async (name, answer) => {
+  ])("攔下：非安全項目說放心也攔（%s，真 AI 實測 R146、MT01-1）", async (name, answer) => {
     // 問題要點名項目：沒點名的「這個要緊嗎」現在把必須更換的煞車也算被問到（Code review #37）。
     const r = await replay("wang", `${name.slice(3)}要緊嗎`, answer);
-    expect(r.blockedReason).toBeUndefined();
+    expect(r.blockedReason).toBe("回答有保證字眼「放心」");
   });
 
   const TIRE = "輪胎胎紋量測 2.5 mm，結論是可延後，3 個月後會提醒你回廠";

@@ -71,3 +71,30 @@ describe("2. 猜原因檢查認卡片外的症狀說法（冷氣不冷等）", (
     expect(r.blockedReason).toBeUndefined();
   });
 });
+
+describe("3. 保證字眼：所有路徑的 AI 回應出現就攔（真 AI 實測 R146、MT01-1、29 題 #17）", () => {
+  const ok = (answer: string, items: [string, string][]) => ({ answer, sources: items.map(([id]) => `item:${id}`), escalate: false, itemConclusions: items.map(([id, conclusion]) => ({ id: `item:${id}`, conclusion })) });
+  it.each([
+    ["R146", "空氣濾網和雨刷現在都很正常，不用擔心。", [["air-filter", "正常"], ["wiper", "正常"]]],
+    ["MT01-1", "空氣濾網狀況正常，吹起來可以放心。", [["air-filter", "正常"]]],
+    ["#17", "不用擔心，前煞車來令片量測只有 2 mm，低於安全門檻 3 mm，結論是必須更換。", [["brake-pad", "必須更換"]]],
+    ["安心", "電瓶 60%，可延後，3 個月後會提醒你回廠，你可以安心。", [["battery", "可延後"]]],
+  ] as [string, string, [string, string][]][])("攻擊（主回答）：%s", async (_, answer, items) => {
+    const r = await ask(wang, "今天的檢查結果怎麼樣", fakeAI(CALM, ok(answer, items)), { router: false });
+    expect(r.checkResult).toBe("攔下");
+    expect(r.answer).not.toBe(answer);
+  });
+
+  it.each(["不放心的話可以請專員說明。", "擔心的話可以問我。", "如果還是不安心，可以請專員再說明一次。"])("反例（主回答）：%s", async (tail) => {
+    const answer = `空氣濾網檢查正常，目前不用換。${tail}`;
+    const r = await ask(wang, "空氣濾網要換嗎", fakeAI(CALM, ok(answer, [["air-filter", "正常"]])), { router: false });
+    expect(r.checkResult).toBe("通過");
+    expect(r.answer).toBe(answer);
+  });
+
+  it("攻擊（症狀開場）：AI 說「不用擔心」→ 備用句；反例：「擔心的話」照樣顯示", async () => {
+    expect((await ask(wang, "車子會抖", fakeAI("不用擔心，我會請技師確認，先問你幾個問題。"))).answer).toBe(SYMPTOM_FALLBACK);
+    const fine = "擔心的話先跟我說，今天的檢查沒辦法判斷原因，我會請技師確認，先問你幾個問題。";
+    expect((await ask(wang, "車子會抖", fakeAI(fine))).answer).toBe(fine);
+  });
+});
