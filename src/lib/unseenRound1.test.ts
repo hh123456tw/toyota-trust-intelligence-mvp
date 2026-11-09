@@ -150,14 +150,28 @@ describe("先直接回答時的否定句不誤攔（11/9 第 5 題）", () => {
   });
 });
 
-describe("款式價格標明是幾條的合計", () => {
-  it("AI 拿到的款式費用寫「2 條合計」（林小姐）、「4 條合計」（王先生沒有顯示款式）", () => {
+describe("款式價格寫出每條價格和條數", () => {
+  it("AI 拿到的款式費用寫出算式（林小姐 2 條；王先生沒有顯示款式）", () => {
     const tire = cardContext(lin).檢查項目.find((i) => i.來源代號 === "item:tire")!;
-    expect(tire.可選款式?.map((o) => o.示意費用)).toEqual(["NT$5,600（2 條合計）", "NT$6,400（2 條合計）", "NT$8,400（2 條合計）"]);
+    expect(tire.可選款式?.map((o) => o.示意費用)).toEqual([
+      "NT$5,600（每條 NT$2,800 × 2 條）",
+      "NT$6,400（每條 NT$3,200 × 2 條）",
+      "NT$8,400（每條 NT$4,200 × 2 條）",
+    ]);
     expect(cardContext(wang).檢查項目.find((i) => i.來源代號 === "item:tire")!.可選款式).toBeUndefined();
   });
 
-  it("程式回的款式清單也寫合計", () => {
-    expect(optionAnswer(lin, "輪胎多少錢？")!.answer).toContain("（皆為示意，2 條合計）");
+  it("程式回的款式清單每款都寫算式", () => {
+    const a = optionAnswer(lin, "輪胎多少錢？")!.answer;
+    expect(a).toContain("基本款 NT$5,600（每條 NT$2,800 × 2 條）");
+    expect(a).toContain("長效款 NT$8,400（每條 NT$4,200 × 2 條）");
+  });
+
+  it("AI 講每條價格不會被攔；反例：卡片外的每條價格 3,000 照樣攔下", async () => {
+    const reply = (answer: string) => ({ answer, sources: ["item:tire"], itemConclusions: [{ id: "item:tire", conclusion: "必須更換" }] });
+    expect((await run(lin, "一條多少？", reply("長效款每條 NT$4,200，前輪 2 條合計 NT$8,400。最後由你決定。"))).checkResult).toBe("通過");
+    expect((await run(lin, "一條多少？", reply("長效款每條 NT$3,000，前輪 2 條合計 NT$8,400。最後由你決定。"))).blockedReason).toMatch(/3,000/);
+    // 反例：別款的每條價格（基本款 2,800）不能安在長效款上
+    expect((await run(lin, "一條多少？", reply("長效款每條 NT$2,800。最後由你決定。"))).blockedReason).toMatch(/長效款是 NT\$8,400/);
   });
 });

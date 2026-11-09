@@ -353,7 +353,7 @@ function check(vehicle: Vehicle, reply: AIReply, chosenToday: Set<string> = new 
     const named = options.filter((o) => part.includes(o.name));
     if (named.length !== 1) continue;
     // 「NT$5,600 起」是整個項目的起價，不是這一款的價格。
-    const wrong = amounts(part.replace(/NT\$\s*[\d,]+\s*起/g, "")).find((a) => a !== named[0].price);
+    const wrong = amounts(part.replace(/NT\$\s*[\d,]+\s*起/g, "")).find((a) => a !== named[0].price && a !== named[0].unitPrice);
     if (wrong !== undefined) return `${named[0].name}是 ${formatPrice(named[0].price)}，回答卻寫 ${formatPrice(wrong)}`;
   }
 
@@ -366,6 +366,8 @@ function check(vehicle: Vehicle, reply: AIReply, chosenToday: Set<string> = new 
     prices = new Set([...prices].flatMap((p) => [p, ...choices.map((c) => p + c)]));
   }
   prices.delete(0);
+  // 款式的「每條」價格也印在卡片上，可以單獨講，但不參與合計。
+  for (const i of vehicle.items) for (const o of visibleOptions(i, judge(i).conclusion) ?? []) prices.add(o.unitPrice);
   const wrong = amounts(reply.answer).find((a) => !prices.has(a));
   if (wrong !== undefined) return `回答提到的金額 ${formatPrice(wrong)} 不在卡片上`;
 
@@ -402,9 +404,9 @@ export function optionAnswer(vehicle: Vehicle, question: string): (Answer & { it
     const options = visibleOptions(item, judge(item).conclusion);
     if (!options) continue;
     if (!options.some((o) => question.includes(o.name)) && !mentions(item, question)) continue;
-    const list = options.map((o) => `${o.name} ${formatPrice(o.price)}`).join("、");
+    const list = options.map((o) => `${o.name} ${formatPrice(o.price)}（${o.priceNote}）`).join("、");
     return {
-      answer: `${item.name}可以選的款式：${list}（皆為示意，${options[0].priceNote}）。規格列在卡片的清單裡。想知道哪款適合你，可以告訴我你平常怎麼開。`,
+      answer: `${item.name}可以選的款式：${list}，皆為示意。規格列在卡片的清單裡。想知道哪款適合你，可以告訴我你平常怎麼開。`,
       sources: [`item:${item.id}`],
       escalate: needsHuman(question),
       itemId: item.id,
