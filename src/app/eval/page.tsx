@@ -106,6 +106,35 @@ const TAG_STYLE: Record<Verdict["tag"], string> = {
   待人工判讀: "bg-paper text-muted border border-line",
 };
 
+// 改進循環與輪次紀錄：數字來自 docs/eval/unseen/判讀結果.md、round2/判讀結果.md 和上方的回歸測試紀錄。
+const LOOP = [
+  { title: "找問題", text: "其他 AI 只看車主畫面出新題。題目先凍結，真實 Gemini 跑一次，2 位組員獨立判讀。" },
+  { title: "修正", text: "找出原因，修程式或提示詞。每個修正都補「該攔／不該攔」的反例測試。" },
+  { title: "回歸測試", text: "自己的 29 題用真實 Gemini 連跑 3 次，確認修好的地方沒有壞。" },
+  { title: "凍結、公開", text: "版本凍結後不再為分數修改。每一輪的原文都公開。" },
+];
+const CYCLES = [
+  {
+    round: "第一輪：沒看過的 20 題",
+    result: "15 / 20",
+    found: "改結論、打折、保證等誘導題全部守住。沒過 5 題：合計金額被誤攔；說要請專員卻沒轉；沒先回答車主問的事。",
+    fixed: "卡片金額的合計可以講；說請專員就轉專員；第一句先回答車主；款式價格寫出每條和條數。",
+  },
+  {
+    round: "第二輪：換一批新題、5 個主題",
+    result: "15 / 20",
+    found: "誘導題全部守住。沒過 5 題：預寫清單攔走別的問題；卡片沒有的症狀，AI 自己判斷原因；車主想換卻沒說可以換。",
+    fixed: "清單只回單純問價格；症狀一律請技師確認；離題直接拒絕、不佔用專員；可延後的項目說今天也可以換。",
+  },
+  {
+    round: "回歸測試：自己的 29 題 × 3",
+    // 回歸測試的分數從紀錄算（下方 AFTER），不寫死。
+    result: null,
+    found: "修正途中 84/87、86/87，多是檢查誤攔正確回答。凍結版沒過的 2 次是說法不符規定，不是改結論。",
+    fixed: "修好誤攔後凍結，之後不再為這份考卷修改。",
+  },
+];
+
 function Stat({ label, value, note }: { label: string; value: string; note: string }) {
   return (
     <div className="rounded-2xl border border-line bg-white p-4">
@@ -165,10 +194,53 @@ export default function EvalPage() {
         <Icon name="shield" className="size-4" />
         TRUST INTELLIGENCE｜真實 AI 實測紀錄
       </p>
-      <h1 className="mt-2 text-2xl font-bold">真實 AI 實測結果</h1>
-      <p className="mt-2 text-sm text-muted">同一份題目用真的 Gemini 連跑 3 次，不挑最好的一次。</p>
+      <h1 className="mt-2 text-2xl font-bold">AI 回答品質：找問題、修正、驗證</h1>
+      <p className="mt-2 text-sm text-muted">
+        維修結論由規則決定，AI 改不了。AI 的回答品質用下面這個循環改進，已經跑過兩輪，每一輪的原文都公開在這頁。
+      </p>
 
-      <dl className="mt-6 grid gap-3 sm:grid-cols-3">
+      <h2 className="mt-8 text-lg font-bold">改進循環</h2>
+      <ol className="mt-3 grid gap-3 sm:grid-cols-4">
+        {LOOP.map((s, i) => (
+          <li key={s.title} className="rounded-2xl border border-line bg-white p-4">
+            <p className="text-xs font-semibold text-brand">第 {i + 1} 步</p>
+            <p className="mt-1 font-bold">{s.title}</p>
+            <p className="mt-1 text-sm text-muted">{s.text}</p>
+          </li>
+        ))}
+      </ol>
+
+      <h2 className="mt-8 text-lg font-bold">已經跑過的輪次</h2>
+      <div className="mt-3 overflow-x-auto">
+        <table className="w-full min-w-[34rem] text-left text-sm">
+          <thead className="text-xs text-muted">
+            <tr className="border-b border-line">
+              <th className="py-2 pr-3 font-semibold">輪次</th>
+              <th className="py-2 pr-3 font-semibold">結果</th>
+              <th className="py-2 pr-3 font-semibold">找到的問題</th>
+              <th className="py-2 font-semibold">修正</th>
+            </tr>
+          </thead>
+          <tbody>
+            {CYCLES.map((c) => (
+              <tr key={c.round} className="border-b border-line align-top">
+                <td className="py-2 pr-3 font-semibold">{c.round}</td>
+                <td className="py-2 pr-3 font-semibold text-brand">{c.result ?? `${aiPassed} / ${aiPerRun * AFTER.length}`}</td>
+                <td className="py-2 pr-3">{c.found}</td>
+                <td className="py-2">{c.fixed}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-2 text-xs text-muted">
+        限制：題目由其他 AI 模型出，不是真的車主；每輪只跑一次；第二輪之後的修正沒有再用新題驗證。逐題原文與判讀在 repo 的 docs/eval/unseen/。
+      </p>
+
+      <h2 className="mt-10 text-lg font-bold">回歸測試：自己的 {aiPerRun} 題，凍結版連跑 3 次</h2>
+      <p className="mt-2 text-sm text-muted">同一份題目用真的 Gemini 連跑 3 次，不挑最好的一次。題目開發時看過，用來確認修好的地方沒有壞。</p>
+
+      <dl className="mt-4 grid gap-3 sm:grid-cols-3">
         <Stat label="追問通過" value={`${aiPassed} / ${aiPerRun * AFTER.length}`} note={`${aiPerRun} 題 × ${AFTER.length} 次`} />
         <Stat label="檢查結果摘要通過" value={`${summaryPassed} / ${summaryTotal}`} note={`2 位車主 × ${SUMMARY_RUNS.length} 次`} />
         <Stat label="AI 平均回答" value={`${avgSeconds} 秒`} note={`中位數 ${medianSeconds} 秒，最慢 ${maxSeconds} 秒`} />
