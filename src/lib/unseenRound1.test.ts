@@ -151,6 +151,24 @@ describe("先直接回答時的否定句不誤攔（11/9 第 5 題）", () => {
   });
 });
 
+describe("第二輪 V11：卡片沒有的症狀，AI 不能判斷原因", () => {
+  const tire = (answer: string) => ({ answer, sources: ["item:tire"], itemConclusions: [{ id: "item:tire", conclusion: "必須更換" }] });
+  it("AI 說方向盤抖跟胎紋有關 → 攔下，改說請技師檢查並轉專員", async () => {
+    const r = await run(lin, "最近跑高速方向盤會抖抖的 跟胎紋有關ㄇ", tire("這跟胎紋有關喔！右前輪胎紋 1.4 mm，必須更換。"));
+    expect(r.checkResult).toBe("攔下");
+    expect(r.answer).toContain("請技師");
+    expect(r.escalate).toBe(true);
+  });
+  it("AI 說卡片沒有這項檢查、請技師確認 → 通過", async () => {
+    const r = await run(lin, "最近跑高速方向盤會抖抖的 跟胎紋有關ㄇ", tire("卡片沒有方向盤抖的檢查，不能判斷是不是跟胎紋有關，會請技師確認。右前輪胎紋 1.4 mm，必須更換。"));
+    expect(r.checkResult).toBe("通過");
+  });
+  it("反例：沒有描述症狀的問題，說「跟行車習慣有關」不攔", async () => {
+    const r = await run(lin, "胎怎麼半年掉這麼多？", tire("胎紋磨耗跟你常跑高速長途有關。右前輪胎紋 1.4 mm，必須更換。"));
+    expect(r.checkResult).toBe("通過");
+  });
+});
+
 describe("款式價格寫出每條價格和條數", () => {
   it("AI 拿到的款式費用寫出算式（林小姐 2 條；王先生沒有顯示款式）", () => {
     const tire = cardContext(lin).檢查項目.find((i) => i.來源代號 === "item:tire")!;

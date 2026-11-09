@@ -62,6 +62,7 @@ const SYSTEM_PROMPT = `你是和泰汽車服務廠的維修說明助理，用繁
    車主近期有長途行程時，可延後的項目說「出發前可以請專員安排再測一次」；處理方式是「定期追蹤，到時再換」時，不要建議出發前處理或更換。
    車主問款式時，車主沒說需求就參考「最在意」：價格看示意費用，耐用度看適合和規格，安靜和舒適看規格。卡片資料的「上次選的款式等級」有值時也可以參考，但要說出理由。
    車主偏好的最近有異常是「有」，或車主說最近有異常時，不能依此判斷安不安全，只說會請技師確認。
+   車主描述卡片沒有檢查的症狀（例如方向盤抖、異音、發車慢）時，不要判斷原因，也不要說跟哪個項目有關；說卡片沒有這項檢查，會請技師確認，escalate 設為 true。
 9. 不能說外面的保養廠比較差、比較貴或修不好，也不要拿外面和原廠比較。
    車主問「過保還要回原廠嗎」「為什麼要在原廠做」這類問題時，引用卡片資料的「在原廠做的差別」，sources 填它的來源代號（dealer:…）；回答提到的檢查項目仍要照規則 5 列進 itemConclusions。
    車主拿外面的價格比較、問原廠是不是比較貴時：不評論外面，說明卡片上的示意費用包含零件＋工資，再引用「在原廠做的差別」。
@@ -378,6 +379,16 @@ function check(vehicle: Vehicle, reply: AIReply, chosenToday: Set<string> = new 
   return undefined;
 }
 
+// 車主描述卡片沒有檢查的症狀時，AI 不能判斷原因。第二輪 V11：「方向盤會抖，跟胎紋有關嗎」AI 答「這跟胎紋有關喔」；抖動也可能是平衡或定位。
+const SYMPTOM = /抖|震動|異音|怪聲|拉偏|偏向一邊|漏油|漏水|異味|燒焦|警示燈|故障燈|發不動|難發動|發車(?:有點)?慢|頓挫/;
+const CAUSE_CLAIM = /(?:跟|和|與)[^。，！？]{0,12}有關|是因為|造成的|導致|引起/;
+const SYMPTOM_ANSWER = "你描述的狀況，這張卡上沒有相關的檢查資料，不能判斷原因。我會請技師幫你檢查確認。";
+function guessesSymptomCause(question: string, answer: string): string | undefined {
+  if (!SYMPTOM.test(question)) return undefined;
+  const claim = answer.split(/[。！？!?\n]/).find((s) => CAUSE_CLAIM.test(s) && !/不能|無法|沒有|請技師/.test(s));
+  return claim ? `卡片沒有這個症狀的檢查，回答卻判斷了原因：${claim.trim()}` : undefined;
+}
+
 // 攔下時的替代回答：問題提到的項目和某個常見問題一樣，就給它的預寫回答；否則轉介專員。
 // 預寫回答寫死示範量測值：技師改過任何一個值，就不用預寫回答，避免顯示舊數值。
 function fallback(vehicle: Vehicle, question: string): Answer {
@@ -440,10 +451,13 @@ export async function ask(vehicle: Vehicle, question: string, callAI: CallAI): P
     aiSources: reply.sources,
   };
 
-  const blockedReason = check(vehicle, reply, chosenByOwner(vehicle, question)) ?? budgetMismatch(vehicle, question, reply);
+  const symptomBlocked = guessesSymptomCause(question, reply.answer);
+  const blockedReason = check(vehicle, reply, chosenByOwner(vehicle, question)) ?? budgetMismatch(vehicle, question, reply) ?? symptomBlocked;
   // 款式建議被攔下時轉專員：常見問題講的是要不要換，答非所問。
   const shown: Answer = blockedReason
-    ? reply.recommendedOption?.trim()
+    ? blockedReason === symptomBlocked
+      ? { answer: SYMPTOM_ANSWER, sources: [], escalate: true }
+      : reply.recommendedOption?.trim()
       ? { answer: ESCALATE_ANSWER, sources: [], escalate: true }
       : fallback(vehicle, question)
     : { answer: reply.answer, sources: reply.sources, escalate: reply.escalate };

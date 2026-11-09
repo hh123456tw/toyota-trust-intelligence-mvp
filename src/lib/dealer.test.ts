@@ -29,6 +29,9 @@ describe("在原廠做的差別：卡片內容", () => {
     const warranty = cardItems(wang.items).find((i) => i.id === "battery")!.dealerFacts!.find((f) => f.id === "parts-warranty")!;
     expect(warranty.text).toContain("一年或 20,000 公里");
     expect(warranty.text).toContain("先到者為準");
+    // 反例：輪胎不適用一年或 2 萬公里，官網另列 3 年製造不良依胎紋比例補償
+    expect(warranty.text).toContain("原廠輪胎自更換日起 3 年內製造品質不良，依剩餘胎紋比例補償");
+    expect(warranty.text).toContain("國產電瓶 12 個月或 20,000 公里");
   });
 
   it("沒有和外面保養廠比較的字句，也沒有官網以外的數字", () => {
@@ -38,7 +41,7 @@ describe("在原廠做的差別：卡片內容", () => {
       .join();
     expect(text).not.toMatch(/外面|別家|其他(?:保養|修車)?廠|比較便宜|比較貴|比較差|更好|更便宜/);
     // 只有官網查得到的零件保證數字可以出現。
-    expect(text.replace("一年或 20,000 公里", "")).not.toMatch(/\d/);
+    expect(text.replace(/一年或 20,000 公里|12 個月或 20,000 公里|3 年內/g, "")).not.toMatch(/\d/);
   });
 });
 
