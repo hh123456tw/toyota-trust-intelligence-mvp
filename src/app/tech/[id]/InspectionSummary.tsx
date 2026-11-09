@@ -96,7 +96,7 @@ export default function InspectionSummary(props: {
       {result && "error" in result && <p className="text-sm text-muted">{result.error}</p>}
       {result && !("error" in result) && (
         <div className="space-y-3 rounded-xl bg-paper p-3">
-          {/* 精簡清單：一項一行，只當參考；重點是下面的 AI 摘要和專員建議說法。 */}
+          {/* 精簡清單：一項一行，結論一眼看完；下面是 AI 整理的說法。 */}
           <div>
             <p className="mb-1.5 text-xs font-semibold text-muted">今天檢查 {props.items.length} 個項目（規則引擎判定）</p>
             <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-white">
@@ -147,26 +147,23 @@ export default function InspectionSummary(props: {
               </ul>
             </details>
           </div>
-          <div className="rounded-xl bg-ink p-4 text-white">
-            <p className="text-xs font-semibold text-white/70">專員建議說法（規則產生）</p>
-            <p className="mt-1 text-lg leading-relaxed font-bold">「{props.line}」</p>
-            {confirmed ? (
-              <p className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-white">
-                <Icon name="check" className="size-4" />
-                專員已確認，可以向車主說明
-              </p>
-            ) : (
-              <button
-                onClick={() => {
-                  setConfirmed(true);
-                  onFlow(staffConfirmFlow(props.line));
-                }}
-                className="mt-3 min-h-11 w-full rounded-xl bg-white text-sm font-semibold text-ink transition-opacity active:opacity-80"
-              >
-                確認並使用
-              </button>
-            )}
-          </div>
+          {/* 上面的清單已列出每項結論，不再重複規則那句；確認按鈕留著，按下後記錄專員確認（建議說法仍由規則產生，寫進流程紀錄）。 */}
+          {confirmed ? (
+            <p className="flex min-h-11 items-center gap-1.5 text-sm font-semibold text-ok">
+              <Icon name="check" className="size-4" />
+              專員已確認，可以向車主說明
+            </p>
+          ) : (
+            <button
+              onClick={() => {
+                setConfirmed(true);
+                onFlow(staffConfirmFlow(props.line));
+              }}
+              className="min-h-11 w-full rounded-xl bg-ink text-sm font-semibold text-white transition-opacity active:opacity-80"
+            >
+              確認並使用
+            </button>
+          )}
         </div>
       )}
     </div>
