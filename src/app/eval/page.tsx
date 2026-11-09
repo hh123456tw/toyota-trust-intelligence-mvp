@@ -225,7 +225,7 @@ export default function EvalPage() {
             {CYCLES.map((c) => (
               <tr key={c.round} className="border-b border-line align-top">
                 <td className="py-2 pr-3 font-semibold">{c.round}</td>
-                <td className="py-2 pr-3 font-semibold text-brand">{c.result ?? `${aiPassed} / ${aiPerRun * AFTER.length}`}</td>
+                <td className="py-2 pr-3 font-semibold whitespace-nowrap text-brand">{c.result ?? `${aiPassed} / ${aiPerRun * AFTER.length}`}</td>
                 <td className="py-2 pr-3">{c.found}</td>
                 <td className="py-2">{c.fixed}</td>
               </tr>
