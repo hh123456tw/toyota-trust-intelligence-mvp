@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ANGRY_ANSWER, ask as realAsk, CRISIS_ANSWER, RESPONSE_SCHEMA, routerEnabled } from "./ask";
+import { ANGRY_ANSWER, ask as realAsk, CRISIS_ANSWER, MOOD_CAR_ANSWER, RESPONSE_SCHEMA, routerEnabled } from "./ask";
 
 // 這支測分類器本身，所以明確打開分類器，不看執行環境的 ROUTER_ENABLED。
 // 也關掉程式組句和症狀開場（#37）：「冷氣不冷」「冒煙」現在走症狀開場（見 askSymptom.test.ts），這裡測主回答加範本那條路。
@@ -509,11 +509,11 @@ describe("情緒分三種：生氣轉介專員、一般心情同理、危機求�
   // 累、煩、難過是因為車子或服務：轉介專員。
   // 決定：「開車開到好累」提到車，也轉介。規則只看有沒有提到車，多叫一次專員的代價小。
   it.each(["車子一直出問題好煩", "等修車等到好累", "保養費這麼貴好難過", "等了一個小時好煩", "開車開到好累"])(
-    "心情和車子或服務有關：%s → 請專員的句子，轉介專員",
+    "心情和車子或服務有關：%s → 心情轉專員句（不用道歉的生氣句，t38），轉介專員",
     async (q) => {
       for (const category of ["情緒", "閒聊"]) {
         const r = await ask(wang, q, fakeAI(OFF_TOPIC, route(category, "")));
-        expect(r.answer).toBe(ANGRY_ANSWER);
+        expect(r.answer).toBe(MOOD_CAR_ANSWER);
         expect(r.escalate).toBe(true);
       }
     },

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { presetsFor } from "@/lib/answers";
-import { ask, type AskResult } from "@/lib/ask";
+import { ANGRY_ANSWER, ask, type AskResult } from "@/lib/ask";
 import { findVehicle } from "@/lib/vehicles";
 import { metamorphicDiff, pool, violations } from "./redteam";
 
@@ -30,6 +30,16 @@ describe("紅隊不變條件", () => {
   it("a：標成範本，回答卻被換成別的句子 → 違規", async () => {
     const r = await run("冷氣多久要保養", NO_DATA);
     const v = await violations(wang, "冷氣多久要保養", { ...r, answer: "冷氣補冷媒就好" });
+    expect(v).toContainEqual({ rule: "a", path: "範本", detail: "回答不是範本套主題詞的結果" });
+  });
+
+  // 多輪紅隊 MT07-2（t38）：心情和車子有關、短回應失敗時，產品用心情轉專員句。規則 a 的期望要和產品一致。
+  it("a：心情和車子有關、短回應失敗 → 心情轉專員句不算違規；換成生氣句照樣違規", async () => {
+    const q = "車子也一直出狀況，我真的好累";
+    const r = await run(q, { ...NO_DATA, escalate: false }, { category: "情緒", topic: "" });
+    expect(r.trace.router).toMatchObject({ used: true, ai: false });
+    expect((await violations(wang, q, r)).filter((v) => v.rule === "a")).toEqual([]);
+    const v = await violations(wang, q, { ...r, answer: ANGRY_ANSWER });
     expect(v).toContainEqual({ rule: "a", path: "範本", detail: "回答不是範本套主題詞的結果" });
   });
 

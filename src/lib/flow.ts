@@ -64,7 +64,7 @@ export function askFlow(
     return {
       title,
       steps: [
-        "症狀：AI 用症狀指示回應，不念卡片、不猜原因",
+        "症狀：AI 用症狀指示回應；車主提到的項目照卡片講當天數據，不猜原因",
         ...memo,
         ...(failed ? [`症狀開場：${failed}，改用備用句`] : [`答案檢查：${checkResult === "攔下" ? `攔下（${blockedReason}），改用備用句` : "通過"}`]),
         ...routerSteps,

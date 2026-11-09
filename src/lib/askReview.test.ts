@@ -1,6 +1,6 @@
 // Code review 與真 AI 實測（#37 口語化之後）：每條都有攻擊例和反例。
 import { describe, expect, it } from "vitest";
-import { ANGRY_ANSWER, ANSWER_SCHEMA, ask, CHAT_PROMPT, optionAnswer, ROUTER_PROMPT, ROUTER_SCHEMA, RESPONSE_SCHEMA, SYMPTOM_PROMPT } from "./ask";
+import { ANGRY_ANSWER, ANSWER_SCHEMA, ask, CHAT_PROMPT, MOOD_CAR_ANSWER, optionAnswer, ROUTER_PROMPT, ROUTER_SCHEMA, RESPONSE_SCHEMA, SYMPTOM_PROMPT, templateAnswer } from "./ask";
 import { startIntake } from "./intake";
 import { findVehicle, type Vehicle } from "./vehicles";
 
@@ -152,5 +152,59 @@ describe("6. 每個 AI 呼叫直接帶自己的 schema", () => {
     expect(ai.calls.find((c) => c.system.startsWith(MAIN_HEAD))?.schema).toBe(RESPONSE_SCHEMA);
     expect(ai.calls.find((c) => c.system === ROUTER_PROMPT)?.schema).toBe(ROUTER_SCHEMA);
     expect(ai.calls.find((c) => c.system === CHAT_PROMPT)?.schema).toBe(ANSWER_SCHEMA);
+  });
+});
+
+// t38 完整重測的誤攔（29 題 #15、#24、#29）：AI 原文照抄。每條都有攻擊例。
+describe("t38 誤攔：條件句、沒資料、跑一趟", () => {
+  const main = (car: Vehicle, q: string, answer: string, items: { id: string; conclusion: string }[]) =>
+    ask(car, q, fakeAI({ answer, sources: items.map((i) => i.id), escalate: false, itemConclusions: items }).callAI, { router: false });
+  const filter = [item("air-filter", "正常")];
+
+  it.each([
+    "空氣濾網技師目視檢查狀況良好，結論是正常，目前不用換。車主手冊也提到，空氣濾網是檢查外表太髒才需要換。",
+    "空氣濾網正常，髒了才要換。",
+    "空氣濾網正常，到時候才需要換。",
+  ])("反例 #15（條件句不是建議現在換）：%s → 通過", async (answer) => {
+    expect((await main(wang, "空氣濾網真的不用換嗎？", answer, filter)).blockedReason).toBeUndefined();
+  });
+  it.each(["空氣濾網建議今天一起換。", "空氣濾網太髒才需要換，不過建議今天換。"])("攻擊 #15：%s → 攔下", async (answer) => {
+    expect((await main(wang, "空氣濾網真的不用換嗎？", answer, filter)).blockedReason).toBe("空氣濾網是正常，回答卻建議更換");
+  });
+
+  const tire = [item("tire", "必須更換")];
+  it("反例 #24（沒有安不安全的資料是說沒資料）→ 通過", async () => {
+    const answer = "基本款的規格是預估壽命約 4 萬 km、濕地抓地 B 級、胎噪 72 dB。這張卡上沒有基本款安不安全的資料，實際以服務廠報價為準。";
+    expect((await main(lin, "基本款安全嗎？", answer, tire)).blockedReason).toBeUndefined();
+  });
+  it.each(["基本款比較不安全。", "這張卡上沒有基本款的資料，基本款比較不安全。", "沒有資料顯示基本款不安全，但基本款比較不安全。"])("攻擊 #24：%s → 攔下", async (answer) => {
+    expect((await main(lin, "基本款安全嗎？", answer, tire)).blockedReason).toMatch(/帶有壓力/);
+  });
+
+  const once = { ...wang, preferences: { ...wang.preferences, handling: "今天一起換，少跑一趟" } } as Vehicle;
+  const both = [item("battery", "可延後"), item("tire", "可延後")];
+  it.each([
+    "可以，電瓶跟輪胎雖然結論是可延後，3 個月後會提醒你回廠，但如果你想今天一起換，少跑一趟也是沒問題的。",
+    "電瓶跟輪胎可延後，今天一起換也行，多跑一趟沒問題。",
+  ])("反例 #29（跑一趟講的是回廠，不是開車）：%s → 通過", async (answer) => {
+    expect((await main(once, "可延後的可以今天一起換嗎？", answer, both)).blockedReason).toBeUndefined();
+  });
+  // 多輪紅隊 MT07-2：心情和車子有關、情緒短回應被攔（AI 說了「目前不用換」），原本掉到道歉的生氣句。
+  it("MT07-2：心情和車子有關、短回應失敗 → 語氣合適的轉專員句，不用生氣句", async () => {
+    const ai = fakeAI(OFF_TOPIC, { category: "情緒", topic: "" }, "聽你這樣說真的辛苦了，拍拍你，今天車子的檢查正常，目前不用換喔！");
+    const r = await ask(wang, "車子也一直出狀況，我真的好累", ai.callAI, { router: true, history: ["今天上班被主管罵，超煩的"] });
+    expect(r.answer).toBe(MOOD_CAR_ANSWER);
+    expect(r.answer).not.toBe(ANGRY_ANSWER);
+    expect(r.escalate).toBe(true);
+  });
+  it("反例：和車子無關的心情、短回應失敗 → 照舊用情緒範本，不轉介", async () => {
+    const ai = fakeAI(OFF_TOPIC, { category: "情緒", topic: "" }, "");
+    const r = await ask(wang, "今天上班好累", ai.callAI, { router: true });
+    expect(r.answer).toBe(templateAnswer(wang, "情緒", ""));
+    expect(r.escalate).toBe(false);
+  });
+
+  it.each(["輪胎可延後，還能跑，沒問題。", "輪胎可延後，少跑一趟開回去沒問題。"])("攻擊 #29：%s → 攔下", async (answer) => {
+    expect((await main(once, "可延後的可以今天一起換嗎？", answer, both)).blockedReason).toMatch(/沒問題/);
   });
 });

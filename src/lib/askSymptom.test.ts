@@ -1,4 +1,4 @@
-// 症狀開場（#37 正式站實測）：車主描述症狀時，AI 用症狀指示回應，不念卡片、不猜原因，後面接症狀登記。
+// 症狀開場（#37 正式站實測）：車主描述症狀時，AI 用症狀指示回應，只講車主提到的項目當天的數據、不猜原因，後面接症狀登記。
 import { describe, expect, it } from "vitest";
 import { ask, STOP_LINE, SYMPTOM_FALLBACK, SYMPTOM_PROMPT } from "./ask";
 import { askFlow } from "./flow";
@@ -194,7 +194,7 @@ describe("流程面板", () => {
     const r = await ask(wang, "車子會抖", fakeAI(GOOD).callAI);
     expect(askFlow("車子會抖", 200, r, {})).toEqual({
       title: "追問：車子會抖",
-      steps: ["症狀：AI 用症狀指示回應，不念卡片、不猜原因", "答案檢查：通過", "接著問症狀登記的題目"],
+      steps: ["症狀：AI 用症狀指示回應；車主提到的項目照卡片講當天數據，不猜原因", "答案檢查：通過", "接著問症狀登記的題目"],
       aiCalls: 1,
     });
   });

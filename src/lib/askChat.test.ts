@@ -1,6 +1,6 @@
 // 口語化（#37 好用度）：閒聊、情緒、卡片外改用 AI 短指示回應，範本變成備用句；好用度基準最差題的路徑。
 import { describe, expect, it } from "vitest";
-import { ANGRY_ANSWER, ask, CHAT_PROMPT, optionAnswer, SYMPTOM_PROMPT, templateAnswer } from "./ask";
+import { ask, CHAT_PROMPT, MOOD_CAR_ANSWER, optionAnswer, SYMPTOM_PROMPT, templateAnswer } from "./ask";
 import { findVehicle } from "./vehicles";
 
 const wang = findVehicle("wang")!;
@@ -65,14 +65,14 @@ describe("閒聊、情緒、卡片外：AI 短指示回應，範本是備用句"
     expect(r.blockedReason).toBe("回答沒有附來源→改用短回應");
   });
 
-  it("G34：心情和車子費用有關、主回答被攔下 → 情緒短回應，轉介專員；AI 失敗時用生氣轉專員句", async () => {
+  it("G34：心情和車子費用有關、主回答被攔下 → 情緒短回應，轉介專員；AI 失敗時用心情轉專員句（t38：不用道歉的生氣句）", async () => {
     const chat = "又要花錢真的會心煩，辛苦你了。費用有疑問的話，可以按下面的按鈕請專員說明。";
     const blocked = { answer: "輪胎胎紋 1.4 mm，不用擔心。", sources: ["item:tire"], escalate: false, itemConclusions: [{ id: "item:tire", conclusion: "必須更換" }] };
     const ok = await ask(lin, "唉 車子又要花錢 煩死了", fakeAI(blocked, { category: "情緒", topic: "" }, chat).callAI, { router: true });
     expect(ok.answer).toBe(chat);
     expect(ok.escalate).toBe(true);
     const failed = await ask(lin, "唉 車子又要花錢 煩死了", fakeAI(blocked, { category: "情緒", topic: "" }, "").callAI, { router: true });
-    expect(failed.answer).toBe(ANGRY_ANSWER);
+    expect(failed.answer).toBe(MOOD_CAR_ANSWER);
     expect(failed.escalate).toBe(true);
   });
 

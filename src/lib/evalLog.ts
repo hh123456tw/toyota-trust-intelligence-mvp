@@ -158,3 +158,11 @@ export function parseEvalLog(log: string): EvalRun {
   }
   return run;
 }
+
+// 紅隊紀錄（docs/eval/redteam/ 的 run_*.md、multi_*.md）的摘要行。讀不到就丟錯，建置失敗，不顯示假數字。
+export function parseRedteam(singleMd: string, multiMd: string) {
+  const s = /^- 題數 (\d+)：通過 \d+，未通過 (\d+)/m.exec(singleMd);
+  const m = /^- \d+ 組、(\d+) 輪：通過 \d+ 輪，未通過 (\d+) 輪/m.exec(multiMd);
+  if (!s || !m) throw new Error("紅隊紀錄讀不到摘要行");
+  return { single: Number(s[1]), singleFailed: Number(s[2]), multi: Number(m[1]), multiFailed: Number(m[2]) };
+}

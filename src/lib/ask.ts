@@ -54,6 +54,8 @@ const DEFER_NOT_TIME = new RegExp(DEFER_CORE);
 const UPSELL_WORDS = /建議.{0,4}換|需要.{0,2}換|最好.{0,4}換|今天換|現在換|應該.{0,2}換|該換了|順便換|換.{0,2}比較好/;
 // 保養週期是說明，不是推銷：「每 48 個月才需要更換」「每 4 萬公里更換」「依手冊週期更換」。只對「正常」項目先移除再比對。
 const SCHEDULE = /每\s*[\d,.一二兩三四五六七八九十百千萬]+\s*(?:個月|年|萬?\s*(?:公里|km))[^，,]{0,8}?換|依[^，,]{0,6}(?:週期|周期|手冊|里程)[^，,]{0,4}?換/g;
+// 條件句也是說明：「太髒才需要換」「到時候才需要換」（t38 29 題 #15）。「今天換」由 NOW_ACT 另外看，不移除。
+const ONLY_WHEN = /才(?:需要|要|該|會)?更?換/g;
 // 車主選定期追蹤，到時再換時，可延後的項目先看「什麼時候」處理：今天、現在、出遠門前處理就攔。
 // 沒說時間的「建議換／建議處理」也攔；同一子句說了以後的時間（下個月、下次、3 個月後、回廠）就是延後，不攔。
 const NOW_ACT = /(?:今天|現在|馬上|立刻|立即|盡快|儘快|趁早|(?:出遠門|出發|出遊|長途|遠行)之?前)(?:(?![不別沒無]).){0,6}(?:換|處理|修)/;
@@ -94,13 +96,15 @@ const RATIO = /[一二兩三四五六七八九十]成(?!不變|本|功|為|績|�
 export const ratioIn = (text: string) => RATIO.exec(text)?.[0];
 
 // 「沒問題」「沒關係」講的是換、處理、一起做（「今天一起處理沒問題」，29 題 #29 誤攔）不算保證；同一子句講開車、安全照樣算。
-const JOB_OK = /換|處理|一起|安排|做/;
+// 「少跑一趟」「多跑一趟」「跑一趟」講的是回廠，不是開車（t38 29 題 #29）：算處理，不算行車。
+const TRIP = /[少多再白]?跑一趟/g;
+const JOB_OK = /換|處理|一起|安排|做|跑一趟/;
 const DRIVE_TALK = /開|上路|安全|撐|跑|路上|行駛|危險|高速|長途/;
 // 回傳子句裡第一個沒被否定的安全保證字眼。
 export function assuranceIn(clause: string): string | undefined {
   if (AFTER_JOB.test(clause) && !BEFORE_JOB.test(clause)) return undefined;
   for (const m of clause.matchAll(new RegExp(ASSURANCE.source, "g"))) {
-    if (/^沒(?:問題|關係)$/.test(m[0]) && JOB_OK.test(clause) && !DRIVE_TALK.test(clause)) continue;
+    if (/^沒(?:問題|關係)$/.test(m[0]) && JOB_OK.test(clause) && !DRIVE_TALK.test(clause.replace(TRIP, ""))) continue;
     if (!NEG_BEFORE.test(clause.slice(Math.max(0, m.index - 6), m.index))) return m[0];
   }
   return undefined;
@@ -283,7 +287,10 @@ function moodAboutCar(vehicle: Vehicle, question: string): boolean {
 }
 // 生氣或心情和車子有關、主回答又沒內容時，用這句請專員，不給同理句。
 export const ANGRY_ANSWER = "讓你不開心了，真的很抱歉。我請專員過來當面跟你說清楚，按下面的按鈕就可以。";
-const upset = (vehicle: Vehicle, question: string) => clausesOf(question).some((c) => COMPLAINT.test(c)) || moodAboutCar(vehicle, question);
+const complains = (question: string) => clausesOf(question).some((c) => COMPLAINT.test(c));
+const upset = (vehicle: Vehicle, question: string) => complains(question) || moodAboutCar(vehicle, question);
+// 真的在抱怨才道歉；只是累、煩（「車子也一直出狀況，我真的好累」多輪紅隊 MT07-2）用心情轉專員句。
+const upsetAnswer = (question: string) => (complains(question) ? ANGRY_ANSWER : MOOD_CAR_ANSWER);
 
 function parseReply(text: string): AIReply {
   const r = JSON.parse(text);
@@ -383,6 +390,8 @@ function budgetMismatch(vehicle: Vehicle, question: string, reply: AIReply): str
 
 // 不能用安全或「非選不可」壓車主選特定款式：清單上的款式都符合原廠規格。
 const PRESSURE_WORDS = /不安全|不夠安全|危險|一定要選|必須選|非選不可|不要選|別選/;
+// 「這張卡上沒有基本款安不安全的資料」是說沒資料，不是施壓（t38 29 題 #24）。只移除這一段，同子句其他說法照樣看。
+const NO_DATA_SPAN = /沒有[^，,。]{0,20}?(?:資料|資訊)/g;
 
 // 不能貶低外面的保養廠：主詞是外面、又有比較字眼才算，只提到「外面」（車主問外面換）不算。
 // 「外面下雨」「外面天氣」的外面是戶外，不是保養廠。
@@ -533,7 +542,7 @@ function check(
           if (problem) return problem;
         }
         // 先看今天／現在換這類建議：命中就攔。沒有時才把保養週期的說明拿掉再比對推銷字詞。
-        if (real === "正常" && (hasWord(clause, NOW_ACT) || hasWord(clause.replace(SCHEDULE, ""), UPSELL_WORDS)))
+        if (real === "正常" && (hasWord(clause, NOW_ACT) || hasWord(clause.replace(SCHEDULE, "").replace(ONLY_WHEN, ""), UPSELL_WORDS)))
           return `${item.name}是正常，回答卻建議更換`;
         if (real === "可延後" && !chosenToday.has(item.id) && vehicle.preferences?.handling === HANDLING.wait && waitUpsell(clause))
           return waitUpsellReason(item);
@@ -565,7 +574,7 @@ function check(
   if (outside !== undefined) return `回答拿外面的保養廠比較：${outside}`;
   for (const clause of reply.answer.split(/[。！？!?；;，,\n]/)) {
     const named = options.find((o) => clause.includes(o.name));
-    if (named && PRESSURE_WORDS.test(clause)) return `回答對${named.name}的說法帶有壓力：${clause.trim()}`;
+    if (named && PRESSURE_WORDS.test(clause.replace(NO_DATA_SPAN, ""))) return `回答對${named.name}的說法帶有壓力：${clause.trim()}`;
   }
   // 整句檢查：「基本款胎噪 72 dB，安全上沒問題」的主詞在前一個子句。
   for (const sentence of reply.answer.split(/[。！？!?；;\n]/)) {
@@ -876,6 +885,13 @@ export function templateAnswer(vehicle: Vehicle, category: string, topic: string
   // 情緒：紅隊「我爸走了，很想哭」拿到「這題我不清楚喔」太冷漠。
   if (category === MOOD) return `聽起來你今天不太好受，辛苦了。我是這張維修決策卡的 AI 助理，只能回答這台車今天的檢查結果；在店裡有任何需要，可以直接找現場人員。`;
   return undefined;
+}
+// 心情和車子有關（「車子也一直出狀況，我真的好累」多輪紅隊 MT07-2）：短回應失敗時用這句轉專員。
+// 車主沒在生氣，不用道歉的生氣句。
+export const MOOD_CAR_ANSWER = "辛苦了，車子的事真的讓人心累。我請專員過來當面幫你看看，按下面的按鈕就可以。";
+// 短回應失敗或不合格時車主看到的句子。紅隊規則 a 用同一個函式比對。
+export function shortFallback(vehicle: Vehicle, question: string, category: string, topic: string): string | undefined {
+  return category === MOOD && moodAboutCar(vehicle, question) ? MOOD_CAR_ANSWER : templateAnswer(vehicle, category, topic);
 }
 
 // 主題詞會原樣放進範本，所以要嚴格：只能是車主自己說過的一個名稱。
@@ -1225,7 +1241,7 @@ export async function ask(
   // 生氣，或心情和車子、服務有關：主回答沒內容就請專員，有內容照主回答，兩種都轉介專員。分類器開關都一樣。
   if (upset(vehicle, question)) {
     shown.escalate = true;
-    if (!blockedReason && (reply.answer.includes(NO_DATA) || reply.answer.trim() === OFF_TOPIC)) shown.answer = ANGRY_ANSWER;
+    if (!blockedReason && (reply.answer.includes(NO_DATA) || reply.answer.trim() === OFF_TOPIC)) shown.answer = upsetAnswer(question);
   }
 
   // 分類器判症狀、程式沒認出來（「車窗降不下來」）：問題沒提卡片項目時，也改用症狀開場。主回答已經送出，所以 AI 共 3 次。
@@ -1243,9 +1259,9 @@ export async function ask(
     if (templated) {
       const chat = await chatReply(vehicle, question, history, router.category, callAI);
       trace.router = { ...trace.router, ai: chat.answer !== undefined, ...(chat.reason && { fallback: chat.reason }) };
-      // 心情和車子有關：轉介專員，AI 失敗時用生氣轉專員的句子，不用「只能回答檢查結果」的情緒範本。
+      // 心情和車子有關：轉介專員，AI 失敗時用 MOOD_CAR_ANSWER，不用「只能回答檢查結果」的情緒範本。
       const carMood = router.category === MOOD && moodAboutCar(vehicle, question);
-      Object.assign(shown, { answer: chat.answer ?? (carMood ? ANGRY_ANSWER : templated), sources: [], escalate: router.category === OUTSIDE_CAR || carMood });
+      Object.assign(shown, { answer: chat.answer ?? shortFallback(vehicle, question, router.category, router.topic), sources: [], escalate: router.category === OUTSIDE_CAR || carMood });
       // 主回答被攔下：留下攔下理由和改用了什麼，紅隊和流程面板看得到（Code review #37）。
       return blockedReason
         ? { ...shown, checkResult: "攔下", blockedReason: `${blockedReason}→改用${chat.answer !== undefined ? "短回應" : "範本"}`, trace }
