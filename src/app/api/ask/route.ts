@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const callAI = (system: string, user: string, signal?: AbortSignal) => callGemini(apiKey, system, user, undefined, signal);
+    const callAI = (system: string, user: string, signal?: AbortSignal, schema?: object) => callGemini(apiKey, system, user, undefined, signal, schema);
     return Response.json(summary ? await summarize(vehicle, callAI) : await ask(vehicle, question, callAI, { history }));
   } catch (err) {
     console.error(err);

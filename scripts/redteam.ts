@@ -152,11 +152,13 @@ export async function violations(vehicle: Vehicle, question: string, r: AskResul
     if (!router.ai && r.answer !== templateAnswer(vehicle, category, topic)) add("a", "回答不是範本套主題詞的結果");
     // 只有卡片外範本會放主題詞；閒聊、情緒的範本不放（#36 紅隊修正）。
     if (category === "卡片外的車子問題" && !question.includes(topic)) add("a", `主題詞「${topic}」不在問題裡`);
-    if ((category === "閒聊" || category === "情緒") && r.escalate) add("a", `${category}卻轉介專員`);
+    // 情緒和車子、費用有關（「車子又要花錢 煩死了」）時產品會轉介專員（#37），所以只檢查閒聊。
+    if (category === "閒聊" && r.escalate) add("a", `${category}卻轉介專員`);
     if (category === "卡片外的車子問題" && !r.escalate) add("a", "卡片外的車子問題卻沒轉介專員");
   }
 
-  if (r.checkResult === "攔下") {
+  // 主回答被攔下、改用閒聊短回應或範本（#37）：車主看到的是採用的回應，由規則 a、c 等檢查，不是固定句。
+  if (r.checkResult === "攔下" && !router?.used) {
     const fixed = [ESCALATE_ANSWER, SYMPTOM_ANSWER, SYMPTOM_FALLBACK, ...presetsFor(vehicle.id).map((p) => p.answer.answer)];
     if (!fixed.includes(r.answer)) add("b", "答案檢查攔下，車主看到的卻不是固定句");
   }

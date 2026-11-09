@@ -45,9 +45,9 @@ describe(`口語化對照（${label}）`, () => {
     it(`${q.id} ${q.turns.at(-1)}`, async () => {
       await sleep(1_000);
       const question = q.turns.at(-1)!;
-      const r = await ask(findVehicle(q.car)!, question, async (s, u, signal) => {
+      const r = await ask(findVehicle(q.car)!, question, async (s, u, signal, schema) => {
         if (++calls > MAX_CALLS) throw new Error(`超過 ${MAX_CALLS} 次呼叫上限`);
-        return callGemini(apiKey, s, u, undefined, signal);
+        return callGemini(apiKey, s, u, undefined, signal, schema);
       }, { history: q.turns.slice(0, -1) });
       const row = [
         `## ${q.id}（${q.car}）${q.turns.length > 1 ? `前幾題：${q.turns.slice(0, -1).map((t) => `「${t}」`).join("、")}｜` : ""}問：${question}`,

@@ -56,10 +56,10 @@ describe("症狀開場小測", () => {
       const r = await ask(
         vehicle,
         q.question,
-        async (s, u, signal) => {
+        async (s, u, signal, schema) => {
           if (++calls > MAX_CALLS) throw new Error(`超過 ${MAX_CALLS} 次呼叫上限`);
           used.push(s === SYMPTOM_PROMPT ? "症狀開場" : s === ROUTER_PROMPT ? "分類器" : "主回答");
-          return callGemini(apiKey, s, u, undefined, signal);
+          return callGemini(apiKey, s, u, undefined, signal, schema);
         },
         { history: q.history ?? [] },
       );

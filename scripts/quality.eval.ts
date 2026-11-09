@@ -46,10 +46,10 @@ const results: unknown[] = [];
 async function runTurn(vehicle: unknown, question: string, history: string[]) {
   const t0 = Date.now();
   try {
-    const call = (s: string, u: string) =>
+    const call = (s: string, u: string, signal?: AbortSignal, schema?: object) =>
       withRetry(() => {
         if (++calls > MAX_CALLS) throw new Error(`呼叫超過上限 ${MAX_CALLS} 次，停止`);
-        return callGemini(apiKey!, s, u);
+        return callGemini(apiKey!, s, u, undefined, signal, schema);
       });
     const r = HISTORY_MAX ? await ask(vehicle, question, call, { history }) : await ask(vehicle, question, call);
     const intake = intakeMod?.startIntake(r, question);

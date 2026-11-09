@@ -30,9 +30,9 @@ describe("未見過的 20 題", () => {
       await sleep(1_000);
       let raw = "";
       let ms = 0;
-      const r = await ask(vehicle, q.question, async (s, u) => {
+      const r = await ask(vehicle, q.question, async (s, u, signal, schema) => {
         const t0 = Date.now();
-        const text = await withRetry(() => callGemini(apiKey, s, u));
+        const text = await withRetry(() => callGemini(apiKey, s, u, undefined, signal, schema));
         // 主回答和分類器平行：原回答只記主回答，時間取較慢的那個。
         if (s !== ROUTER_PROMPT) raw = text;
         ms = Math.max(ms, Date.now() - t0);

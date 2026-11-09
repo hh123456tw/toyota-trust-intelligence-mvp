@@ -130,12 +130,13 @@ describe("範本制：分類器只回類別和主題詞，句子由程式組", (
     }
   });
 
-  it("反例：主回答被攔下 → 不換", async () => {
+  // #37 好用度 G35：主回答被攔下時，車主看不到它，改用卡片外範本（或 AI 短回應）；攔下理由留著。
+  it("主回答被攔下 → 換成卡片外範本，checkResult 仍是攔下、理由寫改用了什麼", async () => {
     const bad = { answer: "這張卡上沒有這項資料，費用 NT$99,999", sources: [], escalate: false, itemConclusions: [] };
     const r = await ask(wang, "我冷氣不冷", fakeAI(bad, route("卡片外的車子問題", "冷氣")));
     expect(r.checkResult).toBe("攔下");
-    expect(r.answer).not.toBe(AC_REPLY);
-    expect(r.trace.router?.reason).toBe("主回答被攔下");
+    expect(r.answer).toBe(AC_REPLY);
+    expect(r.blockedReason).toMatch(/→改用範本$/);
   });
 
   it("反例：問題描述症狀 → 不換，用 v37 症狀固定句", async () => {

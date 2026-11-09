@@ -117,8 +117,9 @@ describe("安全相關項目：回答不能有安全保證", () => {
   it.each([
     ["只提到電瓶", "電瓶健康度 60%，結論是可延後，3 個月後會提醒你回廠，你可以放心。"],
     ["只提到空氣濾網", "空氣濾網目前不用換，請放心。"],
-  ])("通過：非安全項目說放心（%s）", async (_, answer) => {
-    const r = await replay("wang", "這個要緊嗎", answer);
+  ])("通過：非安全項目說放心（%s）", async (name, answer) => {
+    // 問題要點名項目：沒點名的「這個要緊嗎」現在把必須更換的煞車也算被問到（Code review #37）。
+    const r = await replay("wang", `${name.slice(3)}要緊嗎`, answer);
     expect(r.blockedReason).toBeUndefined();
   });
 

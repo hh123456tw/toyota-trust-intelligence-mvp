@@ -96,9 +96,10 @@ describe("指代：前幾題提到的項目", () => {
     expect(r.trace.referredItems).toEqual(["item:brake-pad"]);
   });
 
-  it("單輪沒有前幾題時行為不變：同一句回答不攔（指代只在多輪生效）", async () => {
+  // Code review #37：單輪沒點名項目又要延後，這台車所有必須更換的項目都算被問到，原本放行的回答現在攔下。
+  it("單輪沒有前幾題、沒點名項目要延後：必須更換的煞車也算被問到", async () => {
     const r = await ask(wang, "那可以下個月再換嗎？", fakeAI(DEFER_BRAKE));
-    expect(r.checkResult).toBe("通過");
+    expect(r.checkResult).toBe("攔下");
     expect(r.trace.referredItems).toBeUndefined();
   });
 

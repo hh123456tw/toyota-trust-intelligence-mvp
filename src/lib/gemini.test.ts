@@ -51,10 +51,10 @@ describe("callGemini 重試", () => {
     expect(got).toEqual([usage]);
   });
 
-  it("分類器提示詞用分類器的 schema；其他提示詞（反例）照舊用主回答 schema", async () => {
+  it("呼叫端傳的 schema 原樣送出（分類器）；沒傳（反例）用主回答 schema", async () => {
     const schemaOf = async (system: string) => {
       const f = stubFetch(ok());
-      await callGemini("k", system, "u");
+      await callGemini("k", system, "u", undefined, undefined, system === ROUTER_PROMPT ? ROUTER_SCHEMA : undefined);
       return JSON.parse((f.mock.calls[0] as unknown as [string, { body: string }])[1].body).generationConfig.responseSchema;
     };
     expect(await schemaOf(ROUTER_PROMPT)).toEqual(ROUTER_SCHEMA);

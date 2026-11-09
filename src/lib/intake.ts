@@ -63,11 +63,12 @@ const MATCH: Record<Exclude<IntakeSet["id"], "general">, RegExp> = {
 };
 // 否定說法「沒有異音」「不會亮燈」「我不是問冷氣」先拿掉，避免被選成那個題組。
 // 「沒冷氣」「沒有冷氣」是冷氣壞了，不算否定。
-// 「停紅燈」「等紅燈」是交通號誌，不是儀表燈，也不算紅燈警示（#37 真 AI 小測）。
-const NEGATED = /(?:沒有|沒|不會|不再)(?:任何|什麼)?(?:異音|怪聲|異響|聲音|亮燈|燈亮)|(?:不是|並不是)在?(?:問|說|講)?(?:冷氣|空調|異音|怪聲|異響|聲音|燈)|[停等]紅燈|紅燈(?=停|的時候|時)/g;
+// 「停紅燈」「等紅燈」「紅燈停車」是交通號誌，不是儀表燈，也不算紅燈警示（#37 真 AI 小測）。「亮紅燈時好時壞」照樣算。
+const TRAFFIC_LIGHT = /[停等]紅燈|紅燈停/g;
+const NEGATED = /(?:沒有|沒|不會|不再)(?:任何|什麼)?(?:異音|怪聲|異響|聲音|亮燈|燈亮)|(?:不是|並不是)在?(?:問|說|講)?(?:冷氣|空調|異音|怪聲|異響|聲音|燈)/g;
 
 export function pickSet(question: string): IntakeSet {
-  const text = question.replace(NEGATED, "");
+  const text = question.replace(NEGATED, "").replace(TRAFFIC_LIGHT, "");
   const id = (Object.keys(MATCH) as (keyof typeof MATCH)[]).find((k) => MATCH[k].test(text)) ?? "general";
   return SETS.find((s) => s.id === id)!;
 }
@@ -96,7 +97,7 @@ export function startIntake(reply: Reply, question: string): Intake | undefined 
   const router = trace.router;
   const outside = router?.used && router.category === OUTSIDE_CAR && router.topic;
   if (!outside && !trace.symptom && reply.answer !== SYMPTOM_ANSWER && router?.category !== SYMPTOM_CATEGORY) return undefined;
-  return { topic: outside || DESCRIBED, set: pickSet(question), answers: [], stopped: false, urgent: SAFETY_SIGNAL.test(question.replace(/[停等]紅燈|紅燈(?=停|的時候|時)/g, "")), intro: !trace.symptom };
+  return { topic: outside || DESCRIBED, set: pickSet(question), answers: [], stopped: false, urgent: SAFETY_SIGNAL.test(question.replace(TRAFFIC_LIGHT, "")), intro: !trace.symptom };
 }
 
 export const SKIP = "先不用";

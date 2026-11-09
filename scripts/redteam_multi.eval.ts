@@ -43,8 +43,8 @@ async function runTurn(vehicle: Vehicle, question: string, history: string[]) {
     ran.result = await ask(
       vehicle,
       question,
-      async (s, u) => {
-        const text = await withRetry(() => callGemini(apiKey!, s, u));
+      async (s, u, signal, schema) => {
+        const text = await withRetry(() => callGemini(apiKey!, s, u, undefined, signal, schema));
         if (s === ROUTER_PROMPT) ran.routerRaw = text;
         else ran.mainRaw = text;
         return text;

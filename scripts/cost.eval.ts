@@ -2,7 +2,7 @@
 // 執行：npm run eval:cost（需要 .env.local 裡的 GEMINI_API_KEY；npm run eval:21 不跑這支）
 // 結果整理在 docs/eval/cost.md。
 import { describe, expect, it } from "vitest";
-import { ask, summarize } from "@/lib/ask";
+import { ask, summarize, type CallAI } from "@/lib/ask";
 import { callGemini, type GeminiUsage } from "@/lib/gemini";
 import { findVehicle } from "@/lib/vehicles";
 import { withRetry } from "./retry";
@@ -30,9 +30,9 @@ describe("AI 每台車成本（真的 Gemini）", () => {
     const rows: { round: number; call: string; input: number; output: number }[] = [];
 
     for (let round = 1; round <= ROUNDS; round++) {
-      const calls: [string, (ai: (s: string, u: string) => Promise<string>) => Promise<unknown>][] = [
+      const calls: [string, (ai: CallAI) => Promise<unknown>][] = [
         ["摘要", (ai) => summarize(vehicle, ai)],
-        ...QUESTIONS.map((q): [string, (ai: (s: string, u: string) => Promise<string>) => Promise<unknown>] => [q, (ai) => ask(vehicle, q, ai)]),
+        ...QUESTIONS.map((q): [string, (ai: CallAI) => Promise<unknown>] => [q, (ai) => ask(vehicle, q, ai)]),
       ];
       for (const [call, run] of calls) {
         // 追問會呼叫兩次（主回答＋分類器），token 數相加。
@@ -40,7 +40,7 @@ describe("AI 每台車成本（真的 Gemini）", () => {
         const add = (u: GeminiUsage) => {
           for (const k of ["promptTokenCount", "candidatesTokenCount", "thoughtsTokenCount", "totalTokenCount"] as const) usage[k] = (usage[k] ?? 0) + (u[k] ?? 0);
         };
-        await run((system, user) => withRetry(() => callGemini(apiKey, system, user, add)));
+        await run((system, user, signal, schema) => withRetry(() => callGemini(apiKey, system, user, add, signal, schema)));
         const input = usage.promptTokenCount ?? 0;
         const output = (usage.candidatesTokenCount ?? 0) + (usage.thoughtsTokenCount ?? 0);
         expect(input, `${call} 沒有回傳 token 數`).toBeGreaterThan(0);

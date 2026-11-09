@@ -50,6 +50,7 @@ export function askFlow(
     ...(trace.history?.length ? [`參考前幾題：${trace.history.map((h) => `「${h}」`).join("、")}`] : []),
     ...(trace.referredItems?.length ? [`這一題接著問：${list(trace.referredItems, labels, "")}`] : []),
   ];
+  if (trace.angry) return { title, steps: ["生氣又描述症狀：程式句請專員當面說明，不呼叫 AI", ...memo], aiCalls: 0 };
   if (trace.crisis) return { title, steps: ["危機訊息：回固定的求助句（1925 安心專線），不呼叫 AI"], aiCalls: 0 };
   if (trace.scripted) {
     return {

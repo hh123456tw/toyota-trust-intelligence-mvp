@@ -1,6 +1,6 @@
 // 口語化（#37 好用度）：閒聊、情緒、卡片外改用 AI 短指示回應，範本變成備用句；好用度基準最差題的路徑。
 import { describe, expect, it } from "vitest";
-import { ask, CHAT_PROMPT, optionAnswer, SYMPTOM_PROMPT, templateAnswer } from "./ask";
+import { ANGRY_ANSWER, ask, CHAT_PROMPT, optionAnswer, SYMPTOM_PROMPT, templateAnswer } from "./ask";
 import { findVehicle } from "./vehicles";
 
 const wang = findVehicle("wang")!;
@@ -53,14 +53,33 @@ describe("閒聊、情緒、卡片外：AI 短指示回應，範本是備用句"
     const r = await ask(wang, "謝謝 你講得很清楚", fakeAI(NO_SOURCE, { category: "閒聊", topic: "" }, chat).callAI, { router: true });
     expect(r.answer).toBe(chat);
     expect(r.escalate).toBe(false);
-    expect(r.checkResult).toBe("通過");
+    expect(r.checkResult).toBe("攔下");
+    expect(r.blockedReason).toMatch(/→改用短回應$/);
   });
 
-  it("反例：主回答被攔下、分類器判卡片外 → 照舊不換", async () => {
-    const r = await ask(wang, "冷氣多久要保養", fakeAI(NO_SOURCE, { category: "卡片外的車子問題", topic: "冷氣" }, "好").callAI, { router: true });
-    expect(r.trace.router).toMatchObject({ used: false, reason: "主回答被攔下" });
+  it("G35：主回答被攔下（沒附來源）、分類器判卡片外 → 卡片外短回應，轉介專員，留下攔下理由", async () => {
+    const chat = "機油不在今天的檢查裡，我手上沒有它的資料，可以按下面的按鈕請專員確認。";
+    const r = await ask(wang, "機油是不是該換了", fakeAI(NO_SOURCE, { category: "卡片外的車子問題", topic: "機油" }, chat).callAI, { router: true });
+    expect(r.answer).toBe(chat);
+    expect(r.escalate).toBe(true);
+    expect(r.blockedReason).toBe("回答沒有附來源→改用短回應");
   });
 
+  it("G34：心情和車子費用有關、主回答被攔下 → 情緒短回應，轉介專員；AI 失敗時用生氣轉專員句", async () => {
+    const chat = "又要花錢真的會心煩，辛苦你了。費用有疑問的話，可以按下面的按鈕請專員說明。";
+    const blocked = { answer: "輪胎胎紋 1.4 mm，不用擔心。", sources: ["item:tire"], escalate: false, itemConclusions: [{ id: "item:tire", conclusion: "必須更換" }] };
+    const ok = await ask(lin, "唉 車子又要花錢 煩死了", fakeAI(blocked, { category: "情緒", topic: "" }, chat).callAI, { router: true });
+    expect(ok.answer).toBe(chat);
+    expect(ok.escalate).toBe(true);
+    const failed = await ask(lin, "唉 車子又要花錢 煩死了", fakeAI(blocked, { category: "情緒", topic: "" }, "").callAI, { router: true });
+    expect(failed.answer).toBe(ANGRY_ANSWER);
+    expect(failed.escalate).toBe(true);
+  });
+
+  it("反例：被分類器判卡片外、但問題點名卡片項目 → 照舊不換", async () => {
+    const r = await ask(wang, "電瓶的保固多久", fakeAI(NO_SOURCE, { category: "卡片外的車子問題", topic: "保固" }, "好").callAI, { router: true });
+    expect(r.trace.router).toMatchObject({ used: false, reason: "問題提到卡片上的檢查項目" });
+  });
   it("反例：卡片問題被分類器判閒聊、主回答有內容 → 照舊用主回答", async () => {
     const battery = { answer: "電瓶目前 60%，可延後，3 個月後會提醒你回廠。", sources: ["item:battery"], escalate: false, itemConclusions: [{ id: "item:battery", conclusion: "可延後" }] };
     const r = await ask(wang, "今天要付多少", fakeAI(battery, { category: "閒聊", topic: "" }, "好").callAI, { router: true });

@@ -46,9 +46,9 @@ describe("21 題實測", () => {
       await sleep(1_000); // 付費版沒有每分鐘 15 次的限制，稍微間隔就好
       let raw = "";
       let ms = 0;
-      const r = await ask(vehicle, q.question, async (s, u) => {
+      const r = await ask(vehicle, q.question, async (s, u, signal, schema) => {
         const t0 = Date.now();
-        const text = await withRetry(() => callGemini(apiKey, s, u));
+        const text = await withRetry(() => callGemini(apiKey, s, u, undefined, signal, schema));
         // 主回答和分類器平行：原回答只記主回答，時間取較慢的那個。
         if (s !== ROUTER_PROMPT) raw = text;
         ms = Math.max(ms, Date.now() - t0); // AI 回應時間（含重試），不含上面的間隔

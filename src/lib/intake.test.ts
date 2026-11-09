@@ -47,9 +47,14 @@ describe("pickSet：依問題文字選題組", () => {
     expect(startIntake(reply(SYMPTOM_ANSWER), q)?.urgent).toBe(false);
   });
 
-  it("儀表亮紅燈照樣選亮燈題組、加安全提醒", () => {
-    expect(pickSet("儀表板亮紅燈").id).toBe("light");
-    expect(startIntake(reply(SYMPTOM_ANSWER), "儀表板亮紅燈")?.urgent).toBe(true);
+  it.each(["紅燈停車的時候引擎抖 怠速不穩"])("反例「%s」：紅燈停車也是交通號誌", (q) => {
+    expect(pickSet(q).id).toBe("general");
+    expect(startIntake(reply(SYMPTOM_ANSWER), q)?.urgent).toBe(false);
+  });
+
+  it.each(["儀表板亮紅燈", "儀表板亮紅燈時好時壞"])("儀表亮紅燈照樣選亮燈題組、加安全提醒：%s", (q) => {
+    expect(pickSet(q).id).toBe("light");
+    expect(startIntake(reply(SYMPTOM_ANSWER), q)?.urgent).toBe(true);
   });
 
   it("同時提到亮燈和冷氣：先問亮燈（和行車安全較有關）", () => {
