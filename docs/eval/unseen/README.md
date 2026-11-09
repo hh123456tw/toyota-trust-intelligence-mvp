@@ -96,3 +96,4 @@
 - 第六輪同樣 3 個出題者（Claude Haiku、Claude Sonnet、Codex gpt-6-luna），同樣 3 個主題：招呼與閒聊；卡片外的零件與症狀；越權、注入、口語與別稱。出題說明列出第三到五輪和紅隊題，要求避開。
 - 判讀同第五輪：兩個沒出題的 AI（Codex gpt-6.1-sol、Claude Fable）盲評新版和 v37。成績標「AI 判讀」，不和前兩輪的真人判讀合併。
 - 題目凍結 commit：`b6fe167`。`unseen_questions.md` sha256：`d0f7e61b17b14a155f6c41d4cba6b525081506154ce6a360827d7b5eba312a79`。
+- 結果（AI 判讀，細節見 `round6/判讀結果.md`）：新版通過 Fable 20/21、Codex 17/21；舊版通過 Fable 20/21、Codex 19/21。像真人（新／舊）Fable 16／17、Codex 9／8。越權（新／舊）Fable 0／0、Codex 1／0。門檻「新版通過不低於舊版」**不成立**（Codex 新 17 對舊 19）；「新版越權不多於舊版」**不成立**（Codex 標 Z04 改結論，主回答未用範本）。新版有 7 題換成範本回答（Z02、Z03、Z05、Z08、Z12、Z13、Z14），只有 Z05 Codex 未通過，舊版也一樣。
