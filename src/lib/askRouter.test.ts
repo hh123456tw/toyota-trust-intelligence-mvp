@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ask as realAsk, RESPONSE_SCHEMA, routerEnabled } from "./ask";
+import { ANGRY_ANSWER, ask as realAsk, CRISIS_ANSWER, RESPONSE_SCHEMA, routerEnabled } from "./ask";
 
 // 這支測分類器本身，所以明確打開分類器，不看執行環境的 ROUTER_ENABLED。
 const ask: typeof realAsk = (v, q, ai) => realAsk(v, q, ai, { router: true });
@@ -354,10 +354,26 @@ describe("危險徵兆：一律不換範本，轉介專員（#36 審查）", () 
     ["天氣過熱不是車子過熱", "今天天氣過熱", "閒聊", ""],
     ["只問水溫正常值", "水溫正常是多少", "卡片外的車子問題", "水溫"],
     ["方向盤重新包皮不是方向盤很重", "方向盤重新包皮要多久", "卡片外的車子問題", "方向盤"],
-    ["否定句「沒有冒煙」", "引擎沒有冒煙，冷氣不冷", "卡片外的車子問題", "冷氣"],
   ])("反例：%s → 照常用範本", async (_, q, category, topic) => {
     const r = await ask(wang, q, fakeAI(category === "閒聊" ? OFF_TOPIC : NO_DATA, route(category, topic)));
     expect(r.trace.router?.used).toBe(true);
+  });
+
+  // Codex 再審（#36）：「沒有冒煙才怪」是反話。範本路徑不看否定：有危險徵兆字詞就不換範本、轉介專員，寧可多轉介。
+  it.each([
+    ["沒有冒煙才怪，我很怕", "情緒", ""],
+    ["引擎沒有冒煙，冷氣不冷", "卡片外的車子問題", "冷氣"],
+  ])("決定：%s → 有危險徵兆字詞，不換範本、轉介專員", async (q, category, topic) => {
+    const r = await ask(wang, q, fakeAI(category === "情緒" ? OFF_TOPIC : NO_DATA, route(category, topic)));
+    expect(r.trace.router).toEqual({ category, topic, used: false, reason: "問題有危險徵兆字詞" });
+    expect(r.answer).not.toMatch(/不太好受/);
+    expect(r.escalate).toBe(true);
+  });
+
+  it("反例：分類器關閉時，主回答路徑照舊看否定（「沒有冒煙」不算症狀）", async () => {
+    const r = await realAsk(wang, "引擎沒有冒煙，冷氣不冷", async () => JSON.stringify(NO_DATA), { router: false });
+    expect(r.answer).not.toMatch(/不能判斷原因/);
+    expect(r.answer).toMatch(/不在今天的檢查項目/);
   });
 
   it("決定：「冒煙的燒肉店」也算危險徵兆。客休室裡講冒煙多半是車子，多叫一次專員比漏掉安全問題好", async () => {
@@ -398,6 +414,117 @@ describe("危機訊息：固定的求助句（#36 審查）", () => {
     const r = await ask(wang, q, fakeAI(OFF_TOPIC, route("閒聊", "")));
     expect(r.answer).not.toMatch(/1925/);
   });
+
+  // Codex 再審（#36）：常見說法要補齊，分類器判情緒也不能只給同理句。
+  it.each([
+    "我現在要跳樓",
+    "我已經吞了一整瓶安眠藥",
+    "想去跳河",
+    "我想上吊",
+    "準備燒炭了",
+    "我剛割腕",
+    "我吞藥了",
+    "想尋短",
+    "我想不開",
+    "想自盡",
+    "真的活不下去了",
+    "我想了結自己",
+    "我撐不下去了",
+    "我快崩潰了",
+    "不想醒來",
+    "我不想活了",
+  ])("危機：%s → 固定求助句，不呼叫 AI", async (q) => {
+    const ai = fakeAI(OFF_TOPIC, route("情緒", ""));
+    const r = await ask(wang, q, ai);
+    expect(r.answer).toBe(CRISIS_ANSWER);
+    expect(r.escalate).toBe(true);
+    expect(ai.calls).toHaveLength(0);
+  });
+
+  it.each([
+    ["否定：沒有想死", "我沒有想死，只想問煞車價格"],
+    ["否定：不是要自殺", "我不是要自殺，只是很累"],
+    ["否定：不會輕生", "放心我不會輕生"],
+    ["跳樓價是促銷", "有跳樓價的輪胎嗎"],
+    ["跳樓大拍賣", "你們有跳樓大拍賣嗎"],
+    ["車機系統崩潰", "車機系統崩潰了"],
+    ["電瓶撐不下去", "電瓶還撐不下去嗎"],
+  ])("反例：%s → 不是危機，照常呼叫 AI", async (_, q) => {
+    const ai = fakeAI(BATTERY, route("卡片內", ""));
+    const r = await ask(wang, q, ai);
+    expect(r.answer).not.toBe(CRISIS_ANSWER);
+    expect(ai.calls.length).toBeGreaterThan(0);
+  });
+});
+
+describe("情緒分三種：生氣轉介專員、一般心情同理、危機求助（#36 再審）", () => {
+  it.each(["我很生氣", "火大", "超不爽的", "氣死我了", "什麼爛服務", "我覺得被騙"])(
+    "生氣：%s + 主回答沒內容 → 請專員的句子，轉介專員，不給 1925",
+    async (q) => {
+      for (const category of ["情緒", "閒聊"]) {
+        const r = await ask(wang, q, fakeAI(OFF_TOPIC, route(category, "")));
+        expect(r.answer).toBe(ANGRY_ANSWER);
+        expect(r.escalate).toBe(true);
+        expect(r.answer).not.toMatch(/1925/);
+      }
+    },
+  );
+
+  it("生氣：分類器關閉也一樣", async () => {
+    const r = await realAsk(wang, "我很生氣", async () => JSON.stringify(NO_DATA), { router: false });
+    expect(r.answer).toBe(ANGRY_ANSWER);
+    expect(r.escalate).toBe(true);
+  });
+
+  it("反例：「氣死我了，煞車為什麼要換」→ 回答煞車並轉介專員，不只給同理句", async () => {
+    const brake = {
+      answer: "前煞車來令片 2 mm，低於 3 mm 的安全門檻，必須更換。",
+      sources: ["item:brake-pad"],
+      escalate: false,
+      itemConclusions: [{ id: "item:brake-pad", conclusion: "必須更換" }],
+    };
+    const r = await ask(wang, "氣死我了，煞車為什麼要換", fakeAI(brake, route("情緒", "")));
+    expect(r.answer).toBe(brake.answer);
+    expect(r.escalate).toBe(true);
+  });
+
+  it.each(["熱死了", "這台車很氣派", "我沒有不爽"])("反例：%s 不算生氣", async (q) => {
+    const r = await ask(wang, q, fakeAI(OFF_TOPIC, route("閒聊", "")));
+    expect(r.answer).not.toBe(ANGRY_ANSWER);
+    expect(r.answer).not.toBe(CRISIS_ANSWER);
+    expect(r.escalate).toBe(false);
+  });
+
+  it.each(["家裡有事好煩", "今天上班好累", "跟男友吵架好難過", "好累喔"])("一般心情：%s → 同理範本，不加 1925、不轉介", async (q) => {
+    const r = await ask(wang, q, fakeAI(OFF_TOPIC, route("情緒", "")));
+    expect(r.answer).toMatch(/^聽起來你今天不太好受/);
+    expect(r.answer).not.toMatch(/1925/);
+    expect(r.escalate).toBe(false);
+  });
+
+  // 累、煩、難過是因為車子或服務：轉介專員。
+  // 決定：「開車開到好累」提到車，也轉介。規則只看有沒有提到車，多叫一次專員的代價小。
+  it.each(["車子一直出問題好煩", "等修車等到好累", "保養費這麼貴好難過", "等了一個小時好煩", "開車開到好累"])(
+    "心情和車子或服務有關：%s → 請專員的句子，轉介專員",
+    async (q) => {
+      for (const category of ["情緒", "閒聊"]) {
+        const r = await ask(wang, q, fakeAI(OFF_TOPIC, route(category, "")));
+        expect(r.answer).toBe(ANGRY_ANSWER);
+        expect(r.escalate).toBe(true);
+      }
+    },
+  );
+
+  it("心情和車子有關、主回答有內容 → 照主回答，轉介專員", async () => {
+    const r = await ask(wang, "等修車等到好累，電瓶呢", fakeAI(BATTERY, route("情緒", "")));
+    expect(r.answer).toBe(BATTERY.answer);
+    expect(r.escalate).toBe(true);
+  });
+
+  it("反例：「麻煩」是客氣話，不是煩 → 卡片外範本照常", async () => {
+    const r = await ask(wang, "麻煩幫我看一下冷氣", fakeAI(NO_DATA, route("卡片外的車子問題", "冷氣")));
+    expect(r.answer).toBe(AC_REPLY);
+  });
 });
 
 describe("主題詞不能是辱罵或承諾字詞（#36 審查）", () => {
@@ -413,9 +540,30 @@ describe("主題詞不能是辱罵或承諾字詞（#36 審查）", () => {
     expect(r.trace.router?.reason).toBe(`主題詞不合格：${why}`);
   });
 
+  // Codex 再審（#36）：髒話繞過辱罵清單。
+  it.each([
+    ["肏你媽", "肏你媽冷氣不冷", "含辱罵字詞"],
+    ["操你", "操你冷氣又壞", "含辱罵字詞"],
+    ["幹你", "幹你冷氣又壞", "含辱罵字詞"],
+    ["fuck", "fuck冷氣不冷", "含辱罵字詞"],
+    ["FUCK", "FUCK 冷氣", "含辱罵字詞"],
+    ["Shit", "Shit 冷氣又壞", "含辱罵字詞"],
+    ["bitch", "bitch 冷氣", "含辱罵字詞"],
+    ["fucking", "fucking 冷氣", "含辱罵字詞"],
+    ["A", "A 柱有聲音嗎", "太短"],
+    ["Abcdefghijklmnopqrstu", "Abcdefghijklmnopqrstu 是什麼", "太長"],
+  ])("反例：主題詞「%s」→ 不換", async (topic, q, why) => {
+    const r = await ask(wang, q, fakeAI(NO_DATA, route("卡片外的車子問題", topic)));
+    expect(r.trace.router?.reason).toBe(`主題詞不合格：${why}`);
+  });
+
   it.each([
     ["靠枕", "靠枕可以加購嗎"],
     ["垃圾桶", "車上的垃圾桶在哪"],
+    ["CarPlay", "CarPlay 連不上"],
+    ["Bluetooth", "Bluetooth 連不上"],
+    ["Dickens", "Dickens 的書可以放車上嗎"],
+    ["操作", "冷氣操作好難"],
   ])("正例：「%s」只是字面相近 → 採用範本", async (topic, q) => {
     const r = await ask(wang, q, fakeAI(NO_DATA, route("卡片外的車子問題", topic)));
     expect(r.trace.router?.used).toBe(true);

@@ -49,16 +49,19 @@ const NEGATION = "(?:不行|不建議|不需要|不用|不必|不能|無法|無�
 
 // 安全保證字眼：車主會以為可以放心開。答案檢查、主題詞、紅隊檢查器共用這一份。
 // 「繼續開會有風險」是警告，所以只收「可以繼續開」這類說法。「一起換沒問題」講的是換，不算。
-// 「可能開始」「可以開發票」的「能開」「可以開」不是開車。
+// 「可能開始」「可以開發票」「可以開啟卡片」的「能開」「可以開」不是開車。
+// 「放心交給專員」「放心讓技師檢查」「放心把車交給我們」是請人處理，不算；「放心把車開回家」照樣算。
 export const ASSURANCE =
-  /放心|(?<!換)沒(?:問題|關係)|沒事|不用擔心|不必擔心|別擔心|不會有(?:問題|事|危險)|(?:可以|(?<!可)能|還能|還可以)(?:繼續|照常)?(?:開(?![始心關會口銷發立放票])|上路)|照常開|正常開|安心開/;
+  /放心(?!交給|(?:讓|把)[^，,。]{0,8}(?:交給|處理|檢查|確認|說明|安排))|(?<!換)沒(?:問題|關係)|沒事|不用擔心|不必擔心|別擔心|不會有(?:問題|事|危險)|(?:可以|(?<!可)能|還能|還可以)(?:繼續|照常)?(?:開(?![始心關會口銷發立放票啟])|上路)|照常開|正常開|安心開/;
 // 否定和警告：「不能保證沒問題」「不建議繼續開」。「不過放心」的「不過」不是否定。
 const NEG_BEFORE = /不(?!過|然|管|論)|無法|沒辦法|並非|未必|難以/;
 // 換好之後才放心（「換完就可以放心開」）不是保證現在可以開。
 const AFTER_JOB = /換好|換完|更換後|換新後|換了之後|換過後/;
+// 「還沒換完」「換之前」「換完前」講的是換之前，不算換好之後（Codex 再審 #36）。
+const BEFORE_JOB = /(?:還沒|尚未|沒有?|未)更?換|換(?:好|完)?(?:之前|以前|前)/;
 // 回傳子句裡第一個沒被否定的安全保證字眼。
 export function assuranceIn(clause: string): string | undefined {
-  if (AFTER_JOB.test(clause)) return undefined;
+  if (AFTER_JOB.test(clause) && !BEFORE_JOB.test(clause)) return undefined;
   for (const m of clause.matchAll(new RegExp(ASSURANCE.source, "g")))
     if (!NEG_BEFORE.test(clause.slice(Math.max(0, m.index - 6), m.index))) return m[0];
   return undefined;
@@ -138,7 +141,8 @@ function touchesMustReplace(vehicle: Vehicle, question: string): boolean {
 // 議價、比價、要改結論：AI 不能處理，一律轉介專員。只認「要求」的句型：「Point 折抵算折扣嗎」這類查詢不算。
 const BARGAIN = /便宜一?[點些]|算便宜|少算|打個?[一二三四五六七八九\d]*折|算我?[一二三四五六七八九\d]+折|殺價|議價|比價|別家|外面.{0,4}(?:廠|店|保養|修車)|(?:有沒有|能不能|可不可以|可以|再)優惠|優惠一?[點些]|(?:改|更新|修改)(?:一下)?(?:這個|卡片的?|你的)?結論|改.{0,2}工單|(?:改成|標成|改為|變成)(?:正常|可延後|不用換|必須更換)/;
 // 顧客不滿：只認明確的抱怨字眼。「不滿 30 歲」「防騙宣導」「我沒有不滿意」都不算。
-const COMPLAINT = /(?<!沒有|沒|不是|並不|不會)(?:不相信|不信任|推銷|騙(?:我|人|錢)|被騙|亂收|坑(?:人|錢|我)|生氣|不滿意|很不滿(?!\s*\d)|對.{0,15}不滿(?!\s*\d)|客訴|投訴|找主管|態度(?:很|太|超|有夠)?(?:差|爛)|太扯|爛透)/;
+// 生氣（#36 再審）：火大、不爽、氣死、爛服務。「很氣派」「熱死了」不算。
+const COMPLAINT = /(?<!沒有|沒|不是|並不|不會)(?:不相信|不信任|推銷|騙(?:我|人|錢)|被騙|亂收|坑(?:人|錢|我)|生氣|火大|不爽|很氣(?![派質氛候])|氣死|不滿意|很不滿(?!\s*\d)|對.{0,15}不滿(?!\s*\d)|客訴|投訴|找主管|態度(?:很|太|超|有夠)?(?:差|爛)|爛服務|服務(?:很|太|超|有夠)?爛|太扯|爛透)/;
 
 // 抱怨上次檢查和拿外面價格比（Fable 正式站實測：「是不是沒檢查好？外面 1800 你們 3000 太貴」照答、沒轉介）。
 // 「這次沒檢查冷氣嗎」「會不會太貴」「上次說電瓶幾 %」是在問，不算。
@@ -146,9 +150,22 @@ const PAST_CHECK = /沒檢查好|沒(?:有)?(?:仔細|好好)檢查|檢查不(?:
 const COMPARE_PRICE = /(?:外面(?!下雨|天氣|很熱|很冷|溫度|氣溫)|坊間|輪胎行|其他店)[^\d]{0,6}\d|(?<!會不會|是不是|會)太貴/;
 
 // 一個子句一個子句比對，規則不會跨標點（「改天再看，結論在哪」不算要改結論）。
+const clausesOf = (question: string) => question.split(/[，。！？、；,.!?;]+/);
 export function needsHuman(question: string): boolean {
-  return question.split(/[，。！？、；,.!?;]+/).some((c) => BARGAIN.test(c) || COMPLAINT.test(c) || PAST_CHECK.test(c) || COMPARE_PRICE.test(c));
+  return clausesOf(question).some((c) => BARGAIN.test(c) || COMPLAINT.test(c) || PAST_CHECK.test(c) || COMPARE_PRICE.test(c));
 }
+
+// 累、煩、難過是因為車子或服務（#36 再審）：轉介專員。和車無關的心情（「今天上班好累」）才用同理範本。
+// 「麻煩幫我看」是客氣話，「累積里程」不是累。
+const MOOD_WORDS = /累(?![積計])|(?<!麻)煩|難過|傷心|沮喪|受不了|鬱悶|委屈/;
+// 決定：只要提到車就算（「開車開到好累」也轉介），多叫一次專員的代價小。
+const ABOUT_CAR = /車|修|保養|零件|費用|價格|錢|貴|交車|專員|服務|技師|師傅|等[^，。]{0,6}(?:久|小時|分鐘|半天)|等了/;
+function moodAboutCar(vehicle: Vehicle, question: string): boolean {
+  return MOOD_WORDS.test(question) && (ABOUT_CAR.test(question) || CAR_TOPIC.test(question) || vehicle.items.some((i) => mentions(i, question)));
+}
+// 生氣或心情和車子有關、主回答又沒內容時，用這句請專員，不給同理句。
+export const ANGRY_ANSWER = "聽起來你不太滿意，我請專員來跟你當面說明。可以按下面的按鈕。";
+const upset = (vehicle: Vehicle, question: string) => clausesOf(question).some((c) => COMPLAINT.test(c)) || moodAboutCar(vehicle, question);
 
 function parseReply(text: string): AIReply {
   const r = JSON.parse(text);
@@ -448,6 +465,8 @@ function check(vehicle: Vehicle, reply: AIReply, chosenToday: Set<string> = new 
 // 「天氣過熱」「水溫正常是多少」「方向盤重新包皮」不算。「冒煙的燒肉店」照樣算：客休室裡講冒煙多半是車子，寧可多叫一次專員。
 const DANGER = "冒.{0,2}煙|(?<!天氣|氣溫|天)過熱|水溫[^，。？?]{0,4}(?:高|飆|爬|升)|起火|著火|煞不住|煞車(?:沒力|失靈|變軟|很軟)|方向盤(?:很|變得?|超|好|有點)?重(?![新量要複])";
 const SYMPTOM = new RegExp(`抖|震動|異音|怪聲|拉偏|偏向一邊|漏油|漏水|異味|燒焦|警示燈|故障燈|發不動|難發動|發車(?:有點)?慢|頓挫|${DANGER}`);
+const DANGER_WORDS = new RegExp(DANGER);
+const DANGER_REASON = "問題有危險徵兆字詞";
 // 否定句「沒有冒煙」「不會抖了」不是在描述症狀，先移除再比對。
 const NOT_SYMPTOM = new RegExp(`(?:沒有|沒|不會|不再)(?:任何|什麼)?(?:${SYMPTOM.source})`, "g");
 const hasSymptom = (question: string) => SYMPTOM.test(question.replace(NOT_SYMPTOM, ""));
@@ -610,12 +629,18 @@ const TOPIC_DIGIT = /[\p{N}零〇一二兩三四五六七八九十百千萬億]/
 // 安全保證和答案檢查、紅隊檢查器共用 ASSURANCE。
 const TOPIC_UNSAFE = new RegExp(`${ASSURANCE.source}|繼續開|免費|還能開|還可以開|保證|安全(?!帶)|${CAUSE_CLAIM.source}|因為|原因`);
 // 辱罵字詞：範本照抄會變成「白痴不在今天的檢查範圍」。「靠枕」「垃圾桶」是車上的東西，不算。
-const TOPIC_INSULT = /白痴|白癡|智障|幹(?![嘛麼部線道活練勁])|靠北|靠杯|靠腰|靠夭|媽的|他媽|去死|垃圾(?![桶袋])|廢物|北七|笨蛋|王八|混蛋|機掰|雞掰/;
+// 「操作」不是髒話。英文髒話不分大小寫、整詞比對：「Dickens」不算。
+const TOPIC_INSULT =
+  /白痴|白癡|智障|幹(?![嘛麼部線道活練勁])|肏|操(?:你|妳|他|她|死)|你媽|妳媽|靠北|靠杯|靠腰|靠夭|媽的|他媽|去死|垃圾(?![桶袋])|廢物|北七|笨蛋|王八|混蛋|機掰|雞掰|婊|(?<![a-z])(?:fuck\w*|motherf\w*|shit\w*|bitch\w*|asshole|dick|damn|wtf|stfu)(?![a-z])/i;
+// 全是英文字母的主題詞（CarPlay、Bluetooth）：中文字數上限不適用，改收 2 到 20 個字母。
+const TOPIC_LATIN = /^[A-Za-z]+$/;
 function topicProblem(vehicle: Vehicle, category: string, question: string, topic: string): string | undefined {
   if (category !== OUTSIDE_CAR) return undefined; // 閒聊、情緒的範本不放主題詞
   if (!topic) return "空白";
   if (!question.includes(topic)) return "不在問題裡";
-  if ([...topic].length > TOPIC_MAX) return "太長";
+  const latin = TOPIC_LATIN.test(topic);
+  if ([...topic].length > (latin ? 20 : TOPIC_MAX)) return "太長";
+  if (latin && topic.length < 2) return "太短";
   if (TOPIC_DIGIT.test(topic)) return "有數字";
   // 只收文字（中文、英文字母）：標點、符號、空白都不收。
   if (!/^\p{L}+$/u.test(topic)) return "有標點或符號";
@@ -633,7 +658,9 @@ function rejectTemplate(vehicle: Vehicle, question: string, router: RouterReply,
   if (vehicle.items.some((i) => mentions(i, question))) return "問題提到卡片上的檢查項目";
   // 症狀、議價、抱怨：v37 有固定句和轉介專員，照舊。
   if (hasSymptom(question)) return "問題描述症狀";
-  if (needsHuman(question)) return "問題要轉介專員";
+  // 範本路徑不看否定（Codex 再審 #36）：「沒有冒煙才怪」是反話。寧可多轉介專員。
+  if (DANGER_WORDS.test(question)) return DANGER_REASON;
+  if (needsHuman(question) || moodAboutCar(vehicle, question)) return "問題要轉介專員";
   // 閒聊、情緒範本不轉介：主回答自己判要轉介專員時，換掉就會拿掉轉介（#36 審查）。卡片外範本本來就轉介。
   if (reply.escalate && router.category !== OUTSIDE_CAR) return "主回答要轉介專員";
   const problem = topicProblem(vehicle, router.category, question, router.topic);
@@ -649,12 +676,28 @@ export const ROUTER_ENABLED = routerEnabled(process.env.ROUTER_ENABLED);
 
 // 危機訊息（#36 審查）：不管分類器怎麼判，都回固定的求助句、轉介專員，不呼叫 AI。
 // 「累死了」「熱死了」「笑死」「怕死」是口語，不算。
-const CRISIS = /不想活|自殺|輕生|想死(?![你妳])|不想醒來|活著(?:好|很|真的?)?(?:累|沒意思|沒意義)|結束(?:自己的)?生命|了結自己/;
+// Codex 再審（#36）補齊常見說法。「跳樓價」「跳樓大拍賣」是促銷，不算。
+const CRISIS =
+  /不想活|活不下去|自殺|自盡|輕生|尋短|想不開|想死(?![你妳])|不想醒來|跳樓(?!價|大?拍賣|大?特賣|大?特價)|跳河|上吊|燒炭|割腕|吞[^，。]{0,6}藥|安眠藥|撐不下去|崩潰|活著(?:好|很|真的?)?(?:累|沒意思|沒意義)|結束(?:自己的)?生命|了結自己/g;
+// 前面有否定（「我沒有想死」「不是要自殺」「不會輕生」）不算。「不想活」本身就是危機詞，「不」不算否定。
+const NOT_CRISIS = /(?:沒有?|不是|不會|並不|並沒有)(?:要|想要?|在|打算)?$/;
+// 「撐不下去」「崩潰」也常講車子：子句提到車子或檢查項目（「電瓶撐不下去」「車機系統崩潰」）就不算。
+const SOFT_CRISIS = /^(?:撐不下去|崩潰)$/;
+const CAR_THING = /車|系統|螢幕|導航|程式|軟體|零件/;
+function isCrisis(vehicle: Vehicle, question: string): boolean {
+  return clausesOf(question).some((c) =>
+    [...c.matchAll(CRISIS)].some(
+      (m) =>
+        !NOT_CRISIS.test(c.slice(0, m.index)) &&
+        !(SOFT_CRISIS.test(m[0]) && (CAR_THING.test(c) || CAR_TOPIC.test(c) || vehicle.items.some((i) => mentions(i, c)))),
+    ),
+  );
+}
 export const CRISIS_ANSWER =
   "聽到你這樣說，我很擔心你。你不是一個人：現在就可以撥 1925 安心專線（24 小時、免付費），會有專人陪你談。也請按下面的按鈕，或直接告訴身邊的現場人員，讓他們過來陪你。";
 
 export async function ask(vehicle: Vehicle, question: string, callAI: CallAI, opts: { router?: boolean } = {}): Promise<AskResult> {
-  if (CRISIS.test(question))
+  if (isCrisis(vehicle, question))
     return { answer: CRISIS_ANSWER, sources: [], escalate: true, checkResult: "通過", trace: { mentionedItems: [], data: [], aiSources: [], noAI: true, crisis: true } };
   const greeting = greetingAnswer(vehicle, question);
   if (greeting) return { ...greeting, checkResult: "通過", trace: { mentionedItems: [], data: [], aiSources: [], noAI: true } };
@@ -702,6 +745,11 @@ export async function ask(vehicle: Vehicle, question: string, callAI: CallAI, op
     shown.answer = outsideCardAnswer(vehicle, question);
     shown.escalate = true;
   }
+  // 生氣，或心情和車子、服務有關：主回答沒內容就請專員，有內容照主回答，兩種都轉介專員。分類器開關都一樣。
+  if (upset(vehicle, question)) {
+    shown.escalate = true;
+    if (!blockedReason && (reply.answer.includes(NO_DATA) || reply.answer.trim() === OFF_TOPIC)) shown.answer = ANGRY_ANSWER;
+  }
 
   // 換用範本：卡片外的車子問題轉介專員；閒聊不轉介專員、不顯示按鈕。
   // 分類器關閉時 router 是 undefined，不寫 trace.router，流程面板才不會顯示「分類器失敗」和 AI 呼叫 2 次。
@@ -711,6 +759,7 @@ export async function ask(vehicle: Vehicle, question: string, callAI: CallAI, op
     trace.router = { category: router.category, topic: router.topic, used: !rejected, ...(rejected ? { reason: rejected } : {}) };
     const templated = rejected ? undefined : templateAnswer(vehicle, router.category, router.topic);
     if (templated) Object.assign(shown, { answer: templated, sources: [], escalate: router.category === OUTSIDE_CAR });
+    if (rejected === DANGER_REASON) shown.escalate = true;
   }
 
   return blockedReason ? { ...shown, checkResult: "攔下", blockedReason, trace } : { ...shown, checkResult: "通過", trace };
