@@ -1059,6 +1059,8 @@ function factNumbers(item: InspectionItem): number[] {
   return JSON.stringify(symptomFacts([item])).match(/\d+(?:\.\d+)?/g)?.map(Number) ?? [];
 }
 const UNIT_NUMBER = /(?<![\d.])(\d+(?:\.\d+)?)\s*(?:mm|公釐|毫米|%|％)/g;
+// 「不能延後」「無法延後」「沒辦法延後」是正確說法，不算延後。
+const SYMPTOM_NO_DEFER = /(?:不能|無法|沒辦法|沒有辦法|不可以?|不建議|不行)(?:再)?延後/g;
 // 結論字詞對回結論：「必須換」「可延後」「不用換」。
 const labelConclusion = (w: string): Conclusion => (w.startsWith("必須") ? "必須更換" : w === "可延後" ? "可延後" : "正常");
 // 給了卡片事實的項目：回答的數值、結論字詞要和卡片一致。
@@ -1071,7 +1073,10 @@ function shownProblem(answer: string, shown: InspectionItem[]): string | undefin
   const missed = numbers.length ? shown.find((i) => i.measurement && mentions(i, answer) && !numbers.includes(i.measurement.value)) : undefined;
   if (missed) return `症狀開場的數值和卡片不一致：${missed.name}今天量到 ${missed.measurement!.value} ${missed.measurement!.unit}`;
   const conclusions = new Set(shown.map((i) => judge(i).conclusion));
-  const label = [...answer.matchAll(new RegExp(CARD_LABEL.source, "g"))].map((m) => m[0]).find((w) => !conclusions.has(labelConclusion(w)));
+  // 提到的項目有必須更換：回答不能肯定延後（前題電瓶可延後、本題煞車時，「可延後」也在卡片上，下面的比對擋不住）。
+  const must = shown.find((i) => judge(i).conclusion === "必須更換");
+  if (must && /延後/.test(answer.replace(SYMPTOM_NO_DEFER, ""))) return `${must.name}是必須更換，症狀開場卻說延後`;
+  const label =[...answer.matchAll(new RegExp(CARD_LABEL.source, "g"))].map((m) => m[0]).find((w) => !conclusions.has(labelConclusion(w)));
   return label && `症狀開場的結論字詞「${label}」和卡片不一致`;
 }
 

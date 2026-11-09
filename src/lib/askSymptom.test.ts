@@ -149,6 +149,65 @@ describe("症狀提到卡片項目：給 AI 那幾項的卡片事實", () => {
     expect(r.checkResult).toBe("通過");
   });
 
+  // 上線前補（t38）：前題問電瓶（可延後）、本題問煞車（必須更換），兩個結論字詞都在卡片上，原本的比對擋不住煞車說成可延後。
+  it.each([
+    ["可延後", "今天量到 2 mm，可延後，要請技師確認和怪聲有沒有關係。"],
+    ["延後", "今天量到 2 mm，可以先延後，和怪聲有沒有關係要請技師確認。"],
+    ["點名項目說可延後", "前煞車來令片今天量到 2 mm，可延後，要請技師確認和怪聲有沒有關係。"],
+  ])("攻擊：提到的項目有必須更換，回答說「%s」→ 攔下", async (_, answer) => {
+    const r = await ask(wang, "煞車有怪聲", fakeAI(answer).callAI, { history: ["電瓶還能用多久"] });
+    expect(r.answer).toBe(SYMPTOM_FALLBACK);
+    expect(r.blockedReason).toMatch(/延後/);
+  });
+  it.each(["前煞車來令片今天量到 2 mm，必須更換，不能延後；和怪聲有沒有關係要請技師確認。", "今天量到 2 mm，必須更換，無法延後，要請技師確認。"])(
+    "反例：必須更換說「不能延後」→ 通過：%s",
+    async (answer) => {
+      const r = await ask(wang, "煞車有怪聲", fakeAI(answer).callAI, { history: ["電瓶還能用多久"] });
+      expect(r.blockedReason).toBeUndefined();
+    },
+  );
+
+  // 所有項目通用：依規則引擎的結論判斷，不是只認煞車（使用者要求）。
+  describe("每個項目都適用（林小姐的輪胎必須更換、王先生的電瓶可延後）", () => {
+    const lin = findVehicle("lin")!;
+    it("林小姐「輪胎跑起來有點抖」：照實講 1.4 mm 必須更換 → 通過，AI 收到輪胎的卡片事實", async () => {
+      const answer = "輪胎跑起來會抖一定很不安。今天輪胎胎紋量到 1.4 mm，低於安全門檻 1.6 mm，結論是必須更換；這和抖動有沒有關係要請技師實際確認。";
+      const ai = fakeAI(answer);
+      const r = await ask(lin, "輪胎跑起來有點抖", ai.callAI);
+      expect(ai.calls[0].user).toMatch(/輪胎胎紋.*1\.4 mm.*必須更換/);
+      expect(r.blockedReason).toBeUndefined();
+    });
+    it.each(["今天胎紋量到 1.4 mm，可延後，要請技師確認和抖動有沒有關係。", "輪胎胎紋 1.4 mm，可以先延後，要請技師確認。"])("攻擊：林小姐的輪胎說延後 → 攔下：%s", async (answer) => {
+      const r = await ask(lin, "輪胎跑起來有點抖", fakeAI(answer).callAI);
+      expect(r.answer).toBe(SYMPTOM_FALLBACK);
+      expect(r.blockedReason).toMatch(/延後/);
+    });
+    it("王先生「電池最近發車有點慢」：照實講 60% 可延後 → 通過", async () => {
+      const answer = "發車慢一定很困擾。今天電瓶健康度量到 60%，結論是可延後；這和發車慢有沒有關係要請技師實際確認。";
+      const ai = fakeAI(answer);
+      const r = await ask(wang, "電池最近發車有點慢", ai.callAI);
+      expect(ai.calls[0].user).toMatch(/電瓶.*60 %.*可延後/);
+      expect(r.blockedReason).toBeUndefined();
+    });
+    it.each([
+      ["剎車有怪聲", "前煞車來令片"],
+      ["來令片有異音", "前煞車來令片"],
+      ["胎紋那邊會抖", "輪胎胎紋"],
+      ["車胎會震動", "輪胎胎紋"],
+      ["電池最近發車有點慢", "電瓶"],
+    ])("同義詞「%s」對上卡片的%s", async (q, name) => {
+      const ai = fakeAI(GOOD);
+      await ask(wang, q, ai.callAI);
+      expect(ai.symptomCalled()).toBe(true);
+      expect(ai.calls[0].user).toContain(`"名稱":"${name}"`);
+    });
+    it("反例：「方向盤會抖」沒提卡片項目，不給輪胎資料", async () => {
+      const ai = fakeAI(GOOD);
+      await ask(wang, "方向盤會抖", ai.callAI);
+      expect(ai.calls[0].user).not.toContain("輪胎胎紋");
+    });
+  });
+
   it("反例：沒提卡片項目的症狀（冷氣不冷）不給卡片資料，念數字照舊攔", async () => {
     const ai = fakeAI("冷氣不冷很難受。前煞車來令片 2 mm，我請技師確認。");
     const r = await ask(wang, "我冷氣不冷", ai.callAI);
