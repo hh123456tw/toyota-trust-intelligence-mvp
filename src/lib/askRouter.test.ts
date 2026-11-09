@@ -208,4 +208,11 @@ describe("分類器開關", () => {
     });
     expect(prompts).toHaveLength(1);
   });
+  it("關閉時 trace 沒有分類器資訊，流程面板寫 AI 呼叫 1 次", async () => {
+    const r = await realAsk(findVehicle("wang")!, "我冷氣不冷", async () =>
+      JSON.stringify({ answer: "這張卡上沒有這項資料，可以請專員說明", sources: [], escalate: true, itemConclusions: [] }),
+    );
+    expect(r.trace.router).toBeUndefined();
+    expect(askFlow("我冷氣不冷", 200, r, {}).aiCalls).toBe(1);
+  });
 });

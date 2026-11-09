@@ -613,8 +613,10 @@ export async function ask(vehicle: Vehicle, question: string, callAI: CallAI, op
   }
 
   // 換用候選回答：卡片外的車子問題轉介專員；閒聊不轉介專員、不顯示按鈕。
+  const routerOn = opts.router ?? ROUTER_ENABLED;
   const rejected = rejectCandidate(vehicle, question, router, reply, blockedReason !== undefined);
-  trace.router = !router ? { used: false, reason: rejected } : rejected ? { category: router.category, used: false, reason: rejected } : { category: router.category, used: true };
+  // 分類器關閉時不寫 trace.router，流程面板才不會顯示「分類器失敗」和 AI 呼叫 2 次。
+  if (routerOn) trace.router = !router ? { used: false, reason: rejected } : rejected ? { category: router.category, used: false, reason: rejected } : { category: router.category, used: true };
   if (router && !rejected) Object.assign(shown, { answer: router.reply.trim(), sources: [], escalate: router.category === OUTSIDE_CAR });
 
   return blockedReason ? { ...shown, checkResult: "攔下", blockedReason, trace } : { ...shown, checkResult: "通過", trace };
