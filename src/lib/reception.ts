@@ -20,7 +20,7 @@ export function receptionSummary(vehicle: Vehicle): string[] {
   const { period, shortTripRatio, weeklyStarts } = vehicle.drivingSummary;
   return [
     ...pending,
-    pending.length ? "資料來源：上次中間報告記下的待修項目（回廠服務流程手冊 p.9，示意）" : "",
+    pending.length ? "資料來源：和泰保修紀錄（上次回廠工單的中間報告，示意）" : "",
     ...preferenceLayerLines(vehicle.preferences),
     record
       ? `上次回廠時，${priceQuestionText(record.priceQuestions)}。${wantsPriceFirst(record.priceQuestions) ? "先講價格。" : ""}`
