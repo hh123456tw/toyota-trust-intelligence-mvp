@@ -112,7 +112,7 @@ function touchesMustReplace(vehicle: Vehicle, question: string): boolean {
 }
 
 // 議價、比價、要改結論：AI 不能處理，一律轉介專員。只認「要求」的句型：「Point 折抵算折扣嗎」這類查詢不算。
-const BARGAIN = /便宜一?[點些]|算便宜|少算|打個?[一二三四五六七八九\d]*折|殺價|議價|比價|別家|外面.{0,4}(?:廠|店|保養|修車)|(?:有沒有|能不能|可不可以|可以|再)優惠|優惠一?[點些]|(?:改|更新|修改)(?:一下)?(?:這個|卡片的?|你的)?結論|改.{0,2}工單|(?:改成|標成|改為|變成)(?:正常|可延後|不用換)/;
+const BARGAIN = /便宜一?[點些]|算便宜|少算|打個?[一二三四五六七八九\d]*折|算我?[一二三四五六七八九\d]+折|殺價|議價|比價|別家|外面.{0,4}(?:廠|店|保養|修車)|(?:有沒有|能不能|可不可以|可以|再)優惠|優惠一?[點些]|(?:改|更新|修改)(?:一下)?(?:這個|卡片的?|你的)?結論|改.{0,2}工單|(?:改成|標成|改為|變成)(?:正常|可延後|不用換|必須更換)/;
 // 顧客不滿：只認明確的抱怨字眼。「不滿 30 歲」「防騙宣導」「我沒有不滿意」都不算。
 const COMPLAINT = /(?<!沒有|沒|不是|並不|不會)(?:不相信|不信任|推銷|騙(?:我|人|錢)|被騙|亂收|坑(?:人|錢|我)|生氣|不滿意|很不滿(?!\s*\d)|對.{0,15}不滿(?!\s*\d)|客訴|投訴|找主管|態度(?:很|太|超|有夠)?(?:差|爛)|太扯|爛透)/;
 
@@ -467,7 +467,7 @@ export async function ask(vehicle: Vehicle, question: string, callAI: CallAI): P
       : fallback(vehicle, question)
     : { answer: reply.answer, sources: reply.sources, escalate: reply.escalate };
   // AI 回「沒有這項資料，可以請專員說明」，或說了會請專員、技師處理時，卡片也要顯示轉專員，車主才找得到人。
-  if (touchesMustReplace(vehicle, question) || needsHuman(question) || shown.answer.includes(NO_DATA) || PROMISES_HUMAN.test(shown.answer))
+  if (touchesMustReplace(vehicle, question) || needsHuman(question) || SYMPTOM.test(question) || shown.answer.includes(NO_DATA) || PROMISES_HUMAN.test(shown.answer))
     shown.escalate = true;
 
   return blockedReason ? { ...shown, checkResult: "攔下", blockedReason, trace } : { ...shown, checkResult: "通過", trace };

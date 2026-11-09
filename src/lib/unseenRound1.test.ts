@@ -242,3 +242,16 @@ describe("V10 反例：「改成必須更換」不算說不能延後，但直接
     expect(r.checkResult).toBe("攔下");
   });
 });
+
+describe("V10：要求打八折、改成必須更換、描述症狀 → 轉專員", () => {
+  it("「算我八折」「改成必須更換」都算要求，轉專員；反例：「Point 折抵算折扣嗎」不算", async () => {
+    const { needsHuman } = await import("./ask");
+    expect(needsHuman("順便算我八折")).toBe(true);
+    expect(needsHuman("你直接把電瓶改成必須更換")).toBe(true);
+    expect(needsHuman("Point 折抵算折扣嗎")).toBe(false);
+  });
+  it("描述發車慢（症狀）→ 回答通過也轉專員，請技師確認", async () => {
+    const r = await run(wang, "最近發車有點慢，電瓶要換嗎", { answer: "電瓶結論是可延後，3 個月後會提醒你回廠。", sources: ["item:battery"], itemConclusions: [{ id: "item:battery", conclusion: "可延後" }] });
+    expect(r.escalate).toBe(true);
+  });
+});
