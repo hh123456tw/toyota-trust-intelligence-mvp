@@ -9,7 +9,7 @@ const lin = findVehicle("lin")!;
 const MAIN_HEAD = "你是和泰汽車服務廠的維修說明助理";
 const FACT = "今天定期保養會更換：機油與機油芯";
 // 程式組的定期保養句：主回答沒資料或被攔下時用。期望值照規格手寫。
-const ROUTINE_ANSWER = "機油與機油芯今天定期保養會一起換，示意費用 NT$1,800，實際以服務廠報價為準。有疑問可以按下面的按鈕請專員說明。";
+const ROUTINE_ANSWER = "機油與機油芯今天定期保養會一起換，示意費用 NT$2,500，實際以服務廠報價為準。有疑問可以按下面的按鈕請專員說明。";
 const OUTSIDE = { category: "卡片外的車子問題", topic: "機油" };
 const NO_DATA = { answer: "這張卡上沒有這項資料，可以請專員說明", sources: [], escalate: true, itemConclusions: [] };
 const GOOD = "機油和機油芯今天定期保養會一起換，費用含在這次保養費裡。";
@@ -30,7 +30,7 @@ function fakeAI(main: object, router: object = OUTSIDE) {
 
 describe("決策卡：項目清單後面的定期保養行", () => {
   it("從 routine 產生", () => {
-    expect(routineLine(wang.routine, wang.routineFee)).toBe("本次定期保養：機油與機油芯（示意費用 NT$1,800，實際以服務廠報價為準）");
+    expect(routineLine(wang.routine, wang.routineFee)).toBe("本次定期保養：機油與機油芯（示意費用 NT$2,500，實際以服務廠報價為準）");
     expect(routineLine(["機油與機油芯", "輪胎對調"], 2500)).toBe("本次定期保養：機油與機油芯、輪胎對調（示意費用 NT$2,500，實際以服務廠報價為準）");
   });
   it("沒有定期保養項目 → 不顯示", () => {
@@ -91,7 +91,7 @@ describe("答案檢查：定期保養項目不能說成延後、不用換、另�
     "機油和機油芯是定期保養項目，要另外付費。",
     "機油和機油芯今天會換，是免費的。",
     "機油和機油芯定期保養會換，不用錢。",
-    "機油和機油芯更換約 NT$2,500。",
+    "機油和機油芯更換約 NT$1,800。",
     "機油與機油芯今天會換，費用 1500 元。",
   ])("攔下：%s", async (answer) => {
     const r = await ask(wang, "機油要換嗎", fakeAI(routine(answer)).callAI, { router: true });
@@ -102,7 +102,7 @@ describe("答案檢查：定期保養項目不能說成延後、不用換、另�
   it.each([
     "機油和機油芯今天定期保養會一起換，費用含在這次保養費裡，不用另外付費。",
     "機油和機油芯今天會換，費用含在保養費裡，詳細金額請專員報價。",
-    "機油和機油芯今天定期保養會一起換，示意費用 NT$1,800，實際以服務廠報價為準。",
+    "機油和機油芯今天定期保養會一起換，示意費用 NT$2,500，實際以服務廠報價為準。",
     "機油和機油芯今天會一起換，沒有額外費用。",
     "機油今天會換，不用等下次。",
     "機油濾網今天定期保養會一起換。",

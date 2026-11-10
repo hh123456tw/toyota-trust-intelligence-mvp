@@ -48,9 +48,9 @@ describe("U13：卡片金額的合計不算卡片外的金額", () => {
     expect(r.blockedReason).toMatch(/7,000/);
   });
 
-  it("反例：外面的價格 6,000 不在卡片上，照樣攔下", async () => {
-    const r = await run(wang, "外面輪胎行說四條 6000，原廠是不是坑人？", {
-      answer: "輪胎可延後，3 個月後會提醒你回廠。外面報 NT$6,000，原廠示意費用 NT$11,200。",
+  it("反例：外面的價格 6,100 不在卡片上，照樣攔下", async () => {
+    const r = await run(wang, "外面輪胎行說四條 6100，原廠是不是坑人？", {
+      answer: "輪胎可延後，3 個月後會提醒你回廠。外面報 NT$6,100，原廠示意費用 NT$11,200。",
       sources: ["item:tire"],
       itemConclusions: [{ id: "item:tire", conclusion: "可延後" }],
     });

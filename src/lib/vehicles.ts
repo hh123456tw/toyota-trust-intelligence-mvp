@@ -143,7 +143,7 @@ export const vehicles: Vehicle[] = [
     // 示範：王先生已填好偏好。長期偏好（處理方式、最在意）代表車主檔裡已有的；本次情況（下週要載家人長途）是這次接待確認的。
     preferences: { handling: "定期追蹤，到時再換", priority: "價格", longTrip: "有", recentIssue: "沒有" },
     routine: ["機油與機油芯"],
-    routineFee: 1800,
+    routineFee: 2500,
     nextServiceKm: 5000,
     progress: [
       { stage: "接待完成", time: "10:05" },
@@ -243,7 +243,7 @@ export const vehicles: Vehicle[] = [
       note: "多為高速公路長途行駛，每週約 400 公里。",
     },
     routine: ["機油與機油芯"],
-    routineFee: 1800,
+    routineFee: 2500,
     nextServiceKm: 5000,
     progress: [
       { stage: "接待完成", time: "09:30" },
