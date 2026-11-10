@@ -84,6 +84,12 @@ describe("AI 主回答不能自己加總金額", () => {
     expect(r.answer).toBe("前煞車來令片 NT$3,000、電瓶 NT$3,500，合計 NT$6,500。" + END);
   });
 
+  it("Codex 審查：用單價冒充合計（合計 NT$3,500）→ 攔下", async () => {
+    const ai = fakeAI({ ...brakeAndBattery, answer: "煞車必須更換，電瓶可延後，合計 NT$3,500，實際以服務廠報價為準。" });
+    const r = await ask(wang, "煞車和電瓶各多少錢？", ai.callAI, { router: false });
+    expect(r.checkResult).toBe("攔下");
+  });
+
   it("單一項目的價格照常通過", async () => {
     const ai = fakeAI({ ...brakeAndBattery, answer: "前煞車來令片示意費用 NT$3,000，電瓶示意費用 NT$3,500，實際以服務廠報價為準。" });
     const r = await ask(wang, "煞車和電瓶各多少錢？", ai.callAI, { router: false });

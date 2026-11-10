@@ -93,6 +93,9 @@ describe("答案檢查：定期保養項目不能說成延後、不用換、另�
     "機油和機油芯定期保養會換，不用錢。",
     "機油和機油芯更換約 NT$1,800。",
     "機油與機油芯今天會換，費用 1500 元。",
+    // Codex 審查：主詞跨句
+    "機油與機油芯今天會換。示意費用 NT$3,500。",
+    "機油與機油芯今天會換。免費。",
   ])("攔下：%s", async (answer) => {
     const r = await ask(wang, "機油要換嗎", fakeAI(routine(answer)).callAI, { router: true });
     expect(r.checkResult).toBe("攔下");

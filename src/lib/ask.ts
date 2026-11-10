@@ -599,6 +599,9 @@ function check(
   const { singles, sums: totals } = cardPrices(vehicle);
   const wrong = amounts(reply.answer).find((a) => !singles.has(a) && !(sums && totals.has(a)));
   if (wrong !== undefined) return `回答提到的金額 ${formatPrice(wrong)} 不在卡片上`;
+  // 主回答不能自己寫合計（Codex 審查：「合計 NT$3,500」用的是單價，卻冒充合計）。合計由程式組句。
+  // 「前輪 2 條合計 NT$8,400」是卡片上單一款式的價格，不算。
+  if (!sums && amounts(reply.answer).length && /(?<!條\s?)合計|總共|一共|加起來|總計|總價|總金額/.test(reply.answer)) return "主回答自己寫合計，合計要由程式計算";
 
   if (reply.sources.length === 0 && !noDataReply(vehicle, reply)) return NO_SOURCE;
   const missing = reply.sources.find((s) => sourceLabel(vehicle, s) === undefined);
@@ -803,7 +806,7 @@ function greetingAnswer(vehicle: Vehicle, question: string): Answer | undefined 
 const routineWords = (vehicle: Vehicle) => vehicle.routine.flatMap((n) => [n, ...n.split(/與|和|及|、/)]).filter(Boolean);
 const routineAsked = (vehicle: Vehicle, text: string) => vehicle.routine.length > 0 && hasKeyword(text, routineWords(vehicle));
 // 主回答沒資料或被攔下時，問定期保養項目改用這句（程式組句）。
-const routineAnswer = (vehicle: Vehicle): Answer => ({
+export const routineAnswer = (vehicle: Vehicle): Answer => ({
   answer: `${vehicle.routine.join("、")}今天定期保養會一起換，示意費用 NT$${vehicle.routineFee.toLocaleString("en-US")}，實際以服務廠報價為準。有疑問可以按下面的按鈕請專員說明。`,
   sources: ["routine"],
   escalate: true,
@@ -827,6 +830,11 @@ function routineProblem(vehicle: Vehicle, answer: string): string | undefined {
       if (ROUTINE_FREE.test(clause)) return `定期保養項目費用含在保養費裡，回答卻說免費：${clause.trim()}`;
       if (amounts(clause).some((n) => n !== vehicle.routineFee)) return `定期保養項目的示意費用是 NT$${vehicle.routineFee}，回答的金額不一致：${clause.trim()}`;
     }
+  }
+  // 整則回答只講定期保養、沒點名卡片項目時，主詞跨句沿用（Codex 審查：「機油與機油芯今天會換。示意費用 NT$3,500」「…會換。免費。」）。
+  if (routineAsked(vehicle, answer) && !itemsIn(vehicle, answer).length) {
+    if (ROUTINE_FREE.test(answer)) return "定期保養項目費用含在保養費裡，回答卻說免費";
+    if (amounts(answer).some((n) => n !== vehicle.routineFee)) return `定期保養項目的示意費用是 NT$${vehicle.routineFee}，回答的金額不一致`;
   }
   return undefined;
 }
