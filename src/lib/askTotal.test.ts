@@ -59,6 +59,29 @@ describe("車主問合計：不呼叫 AI，由程式組句", () => {
     expect(r.answer).toBe("電瓶 NT$3,500。空氣濾網檢查正常，目前不用換，沒有費用。" + END);
   });
 
+  it.each([
+    "電瓶先不換，今天總共多少錢？",
+    "除了電瓶，其他加起來多少？",
+    "不換電瓶的話，全部多少錢？",
+    "輪胎選最便宜的，全部多少錢？",
+    "我選米其林輪胎，全部加起來多少",
+  ])("code review：程式聽不懂的組合「%s」→ 只列各項價格、不算合計、轉專員", async (q) => {
+    const ai = fakeAI();
+    const r = await ask(wang, q, ai.callAI, { router: false });
+    expect(r.answer).toBe(
+      "各項示意費用：前煞車來令片 NT$3,000、電瓶 NT$3,500、輪胎胎紋 NT$11,200 起（依款式）、定期保養（機油與機油芯） NT$2,500。要怎麼組合，可以按下面的按鈕請專員幫你算。" + END,
+    );
+    expect(r.answer).not.toMatch(/合計/);
+    expect(r.escalate).toBe(true);
+    expect(ai.calls).toHaveLength(0);
+  });
+
+  it("「總共跑了幾萬公里」不是問錢", async () => {
+    const ai = fakeAI();
+    await ask(wang, "總共跑了幾萬公里要換機油？", ai.callAI, { router: false });
+    expect(ai.calls.length).toBeGreaterThan(0);
+  });
+
   it.each(["電瓶多少錢？", "全部檢查多少項目？", "全部的費用都含工資嗎？", "全部多少錢？可以刷卡嗎？"])("反例：「%s」不是問合計，照常交給 AI", async (q) => {
     const ai = fakeAI();
     await ask(wang, q, ai.callAI, { router: false });

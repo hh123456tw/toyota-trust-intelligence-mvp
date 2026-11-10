@@ -869,7 +869,10 @@ function summedAmount(vehicle: Vehicle, answer: string): number | undefined {
 // 車主問合計（t39b，使用者要求「加總用規則，不要讓 AI 加」）：同一句要有合計字詞和「多少」。
 // 「全部檢查多少項目」不是問錢；「全部的費用都含工資嗎」沒問多少。另一句問別的事（「可以刷卡嗎」）交給 AI。
 const TOTAL_WORDS = /合計|總共|一共|加起來|總計|全部|通通|統統|全都|總價|總金額|總費用/;
-const HOW_MUCH = /多少(?!項|個|次|公里|km|天|小時|分鐘|條|顆|時間)|幾(?:塊|元|千|萬)/;
+const HOW_MUCH = /多少(?!項|個|次|公里|km|天|小時|分鐘|條|顆|時間)|幾(?:塊|元|千|萬)(?!公里|km|里)/;
+// 合計裡有排除或選款式的說法，程式不猜組合。
+const UNSURE_TOTAL = /不換|先不|不要換|不用換|除了|以外|扣掉|扣除|不算|選|款/;
+const ALL_OR_REST = /全部|通通|統統|全都|其他|其餘/;
 function asksTotal(question: string): boolean {
   const sentences = question.split(/[。！？!?\n]/).map((s) => s.trim()).filter(Boolean);
   return sentences.some((s) => TOTAL_WORDS.test(s) && HOW_MUCH.test(s)) && sentences.every((s) => HOW_MUCH.test(s) || PRICE_WORDS.test(s));
@@ -886,6 +889,16 @@ function totalAnswer(vehicle: Vehicle, question: string): Answer {
   const by = (c: Conclusion) => vehicle.items.filter((i) => judge(i).conclusion === c);
   const named = itemsIn(vehicle, question);
   const withRoutine = routineAsked(vehicle, question);
+  // 程式聽不懂的組合（code review：「電瓶先不換，總共多少」被算成只加電瓶）：只列各項示意費用，不算合計，請專員幫忙算。
+  // 有排除字詞、選款式，或「全部／其他」又點名項目時都算聽不懂。
+  if (UNSURE_TOTAL.test(question) || ((named.length || withRoutine) && ALL_OR_REST.test(question))) {
+    const all = [...vehicle.items.filter((i) => judge(i).conclusion !== "正常").map(line), ...routine];
+    return {
+      answer: `各項示意費用：${show(all)}。要怎麼組合，可以按下面的按鈕請專員幫你算。以上都是示意費用，實際以服務廠報價為準。`,
+      sources: all.map((l) => l.source),
+      escalate: true,
+    };
+  }
   let parts: string[];
   let lines: PriceLine[];
   if (named.length || withRoutine) {
