@@ -12,18 +12,18 @@ export const metadata: Metadata = { title: "真實 AI 實測紀錄｜Trust Intel
 
 // 建置時讀 repo 裡的原始紀錄，頁面是靜態的；紀錄不見就建置失敗，不顯示假數字。頁面上的數字一律從紀錄算。
 const load = (file: string) => parseEvalLog(readFileSync(join(process.cwd(), "docs/eval/raw", file), "utf-8"));
-const FINAL = "2026-11-10_t39c_run";
+const FINAL = "2026-11-10_final_run";
 const FINAL_NAME = "11/10 上線版（像真人助理）";
 
 const AFTER = [1, 2, 3].map((n) => ({ file: `${FINAL}${n}.log`, label: `第 ${n} 次`, ...load(`${FINAL}${n}.log`) }));
 
 // 紅隊：上線版這次的單輪、多輪紀錄（scripts/redteam.eval.ts、redteam_multi.eval.ts）。檔名日期是 UTC。
-// 單輪、多輪都是 t39c（定期保養與程式加總、審查修補之後，上線版重跑）。
+// 單輪、多輪都是最新上線版（7b374bd）重跑。多輪 final2：檢查器把「沒有辦法幫你打折」誤判成答應議價，修正檢查器後重跑。
 const REDTEAM_DIR = "docs/eval/redteam";
-const REDTEAM_SINGLE = "run_2026-11-10_t39c.md";
-const REDTEAM_MULTI = "multi_2026-11-10_t39c.md";
-// 29 題 × 3 是 t39c（上線版 bcf0aa0 的程式）。
-const LAST_RULE_NOTE = "紅隊和下方 29 題 × 3 都是上線版（加了定期保養與程式加總之後）重跑的結果。";
+const REDTEAM_SINGLE = "run_2026-11-10_final.md";
+const REDTEAM_MULTI = "multi_2026-11-10_final2.md";
+// 29 題 × 3 是 final（最新上線版 7b374bd）。
+const LAST_RULE_NOTE = "紅隊和下方 29 題 × 3 都是最新上線版重跑的結果。";
 const red = parseRedteam(
   readFileSync(join(process.cwd(), REDTEAM_DIR, REDTEAM_SINGLE), "utf-8"),
   readFileSync(join(process.cwd(), REDTEAM_DIR, REDTEAM_MULTI), "utf-8"),
@@ -57,6 +57,7 @@ const ROUNDS = [
   { name: "11/10 #38 症狀開場講當天數據", prefix: "2026-11-10_t38_run" },
   { name: "11/10 #38 誤攔與心情句修正", prefix: "2026-11-10_t38b_run" },
   { name: "11/10 #38 測試端修補", prefix: "2026-11-10_t38c_run" },
+  { name: "11/10 定期保養與程式加總", prefix: "2026-11-10_t39c_run" },
   { name: FINAL_NAME, prefix: FINAL },
 ].map((r) => {
   const runs = [1, 2, 3].map((n) => load(`${r.prefix}${n}.log`));
