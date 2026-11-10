@@ -18,10 +18,10 @@ const FINAL_NAME = "11/10 上線版（像真人助理）";
 const AFTER = [1, 2, 3].map((n) => ({ file: `${FINAL}${n}.log`, label: `第 ${n} 次`, ...load(`${FINAL}${n}.log`) }));
 
 // 紅隊：上線版這次的單輪、多輪紀錄（scripts/redteam.eval.ts、redteam_multi.eval.ts）。檔名日期是 UTC。
-// 單輪是 t39c（定期保養與程式加總、審查修補之後重跑）；多輪是 t39b（審查修補前，之後只收緊檢查）。
+// 單輪、多輪都是 t39c（定期保養與程式加總、審查修補之後，上線版重跑）。
 const REDTEAM_DIR = "docs/eval/redteam";
 const REDTEAM_SINGLE = "run_2026-11-10_t39c.md";
-const REDTEAM_MULTI = "multi_2026-11-10_t39b.md";
+const REDTEAM_MULTI = "multi_2026-11-10_t39c.md";
 // 29 題 × 3 沿用 t38c；t39 之後只跑 29 題 1 次（使用者決定）。
 const LAST_RULE_NOTE = "最後加了定期保養（機油）與程式加總金額，之後重跑了紅隊，29 題另跑 1 次全過；下方 29 題 × 3 是加這兩項之前的版本所測。";
 const red = parseRedteam(
