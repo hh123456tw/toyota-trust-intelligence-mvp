@@ -39,14 +39,14 @@ const AC_REPLY = "冷氣不在今天的檢查範圍，卡片上沒有它的資�
 const WEATHER_REPLY = "這題我回答不了喔。我是這張維修決策卡的 AI 助理，可以回答這台車今天的檢查結果，例如「電瓶還能用多久？」。";
 const CHAT_REPLY = WEATHER_REPLY;
 
-// #37 好用度：使用者同意改主回答口吻（先回答問的事、只講相關項目、2–3 句，加規則 11、12），所以更新 SYSTEM_PROMPT 的雜湊。真 AI 實測後再加規則 13（不用「放心」「不用擔心」這類保證字眼），雜湊又更新一次。再加規則 14（數字照卡片原樣，不改寫成幾成），再更新一次。
+// #37 好用度：使用者同意改主回答口吻（先回答問的事、只講相關項目、2–3 句，加規則 11、12），所以更新 SYSTEM_PROMPT 的雜湊。真 AI 實測後再加規則 13（不用「放心」「不用擔心」這類保證字眼），雜湊又更新一次。再加規則 14（數字照卡片原樣，不改寫成幾成），再更新一次。t39b 使用者要求合計由程式算，加規則 15（不要自己加總金額），再更新一次。
 describe("主回答提示詞和 schema 鎖定（v37，cbfe4da；#37 口語化）", () => {
   it("SYSTEM_PROMPT 和 RESPONSE_SCHEMA 的 sha256 不變", async () => {
     const ai = fakeAI(NO_DATA, route("閒聊", ""));
     await ask(wang, "今天天氣如何", ai);
     const main = ai.calls.find((c) => c.system.startsWith(MAIN_HEAD))!;
     const sha = (s: string) => createHash("sha256").update(s).digest("hex");
-    expect(sha(main.system)).toBe("7d088dd8f629d92338f5fb0a97a3238ccdfa214ad910d26a6db9275db56e3c74");
+    expect(sha(main.system)).toBe("cd4b6f15f9a1baf5979a81c812e0c8086bcbe4fe4da1e08dc17be86bfdf1d9df");
     expect(sha(JSON.stringify(RESPONSE_SCHEMA))).toBe("681e5e9818083c091e49fa2f35edde3ab484b8858125928edf750eba388c1668");
   });
 });

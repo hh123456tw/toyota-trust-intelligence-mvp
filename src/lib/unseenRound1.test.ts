@@ -19,27 +19,27 @@ const brakeAndBattery = [
   { id: "item:battery", conclusion: "可延後" },
 ];
 
-describe("U13：卡片金額的合計不算卡片外的金額", () => {
-  it("煞車 3,000＋電瓶 3,500＝6,500 通過", async () => {
+// t39b：合計改由程式計算（使用者要求「加總用規則，不要讓 AI 加」），U13 不再交給 AI。詳細測試見 askTotal.test.ts。
+describe("U13：問合計由程式回答，卡片外的金額照樣攔下", () => {
+  it("煞車 3,000＋電瓶 3,500＝6,500：程式組句，不呼叫 AI", async () => {
     const r = await run(wang, "我今天只換煞車來令片和電瓶，卡上合計多少錢？", {
-      answer: "前煞車來令片 NT$3,000，電瓶 NT$3,500，合計 NT$6,500，實際以服務廠報價為準。",
-      sources: ["item:brake-pad", "item:battery"],
-      itemConclusions: brakeAndBattery,
+      answer: "AI 不該被呼叫",
+      sources: [],
+      itemConclusions: [],
     });
-    expect(r.checkResult).toBe("通過");
+    expect(r.answer).toBe("前煞車來令片 NT$3,000、電瓶 NT$3,500，合計 NT$6,500。以上都是示意費用，實際以服務廠報價為準。");
+    expect(r.trace.noAI).toBe(true);
   });
 
-  it("三項全換的合計 17,700 也通過", async () => {
-    const r = await run(wang, "全部換要多少？", {
-      answer: "前煞車來令片 NT$3,000、電瓶 NT$3,500、輪胎 NT$11,200，合計 NT$17,700，實際以服務廠報價為準。",
-      sources: ["item:brake-pad", "item:battery", "item:tire"],
-      itemConclusions: [...brakeAndBattery, { id: "item:tire", conclusion: "可延後" }],
-    });
-    expect(r.checkResult).toBe("通過");
+  it("全部換要多少：程式列今天必須做的和可延後也一起換的總合計", async () => {
+    const r = await run(wang, "全部換要多少？", { answer: "AI 不該被呼叫", sources: [], itemConclusions: [] });
+    expect(r.answer).toBe(
+      "今天必須做的：前煞車來令片 NT$3,000、定期保養（機油與機油芯） NT$2,500，合計 NT$5,500。如果可延後的項目也一起換：電瓶 NT$3,500、輪胎胎紋 NT$11,200 起（依款式），總合計 NT$20,200 起。以上都是示意費用，實際以服務廠報價為準。",
+    );
   });
 
   it("反例：算錯的合計 7,000 照樣攔下", async () => {
-    const r = await run(wang, "我今天只換煞車來令片和電瓶，卡上合計多少錢？", {
+    const r = await run(wang, "煞車和電瓶各多少錢？", {
       answer: "前煞車來令片和電瓶合計 NT$7,000，實際以服務廠報價為準。",
       sources: ["item:brake-pad", "item:battery"],
       itemConclusions: brakeAndBattery,
@@ -102,14 +102,16 @@ describe("U13（正式站重問）：車主自己說今天要換，AI 照著講�
   const U13 = "我今天只換煞車來令片和電瓶，卡上合計多少錢？";
   const reply = (answer: string) => ({ answer, sources: ["item:brake-pad", "item:battery"], itemConclusions: brakeAndBattery });
 
-  it("11/9 正式站被攔的兩種 AI 原文都通過", async () => {
-    for (const answer of [
-      "你今天只換煞車來令片和電瓶可以的。前煞車來令片結論是必須更換，量測 2 mm，低於安全門檻 3 mm，示意費用 NT$3,000；電瓶結論是可延後，3 個月後會提醒你回廠，量測 60 %，示意費用 NT$3,500。卡上合計 NT$6,500，實際以服務廠報價為準。",
-      "你今天只換煞車來令片和電瓶，示意費用為 NT$6,500，實際以服務廠報價為準。前煞車來令片量測 2 mm，低於安全門檻 3 mm，結論是必須更換，示意費用 NT$3,000。電瓶健康度 60%，結論是可延後，3 個月後會提醒你回廠，示意費用 NT$3,500。",
-    ]) {
-      const r = await run(wang, U13, reply(answer));
-      expect(r.checkResult, answer).toBe("通過");
-    }
+  it("U13 原題改由程式回答合計，不呼叫 AI", async () => {
+    const r = await run(wang, U13, reply("AI 不該被呼叫"));
+    expect(r.answer).toBe("前煞車來令片 NT$3,000、電瓶 NT$3,500，合計 NT$6,500。以上都是示意費用，實際以服務廠報價為準。");
+  });
+
+  it("車主說今天只換兩項、問各多少：AI 照著講單項價格通過；自己加總 6,500 攔下", async () => {
+    const q = "我今天只換煞車來令片和電瓶，各多少錢？";
+    const body = "你今天只換煞車來令片和電瓶可以的。前煞車來令片結論是必須更換，量測 2 mm，低於安全門檻 3 mm，示意費用 NT$3,000；電瓶結論是可延後，3 個月後會提醒你回廠，量測 60 %，示意費用 NT$3,500。";
+    expect((await run(wang, q, reply(body))).checkResult).toBe("通過");
+    expect((await run(wang, q, reply(`${body}卡上合計 NT$6,500，實際以服務廠報價為準。`))).checkResult).toBe("攔下");
   });
 
   it("反例：車主沒說要換，AI 主動建議今天換電瓶，照樣攔下", async () => {

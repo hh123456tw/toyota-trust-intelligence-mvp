@@ -147,7 +147,8 @@ const SYSTEM_PROMPT = `你是和泰汽車服務廠的維修說明助理，說話
 11. 只講車主這一題問到的項目，或前幾題正在聊的項目，不要把卡片上每個項目都念一遍。車主沒問的項目不用提。
 12. 車主問結論是「正常」的項目要多少錢：說它今天檢查正常、目前不用換，所以卡片上沒有列費用，想換可以請專員報價。不要回「沒有這項資料」。
 13. 不要用「放心」「不用擔心」「安心」「沒什麼問題」這類保證字眼；正常的項目就說「檢查正常，目前不用換」。
-14. 數字照卡片原樣寫（例如 78%），不要改寫成幾成。`;
+14. 數字照卡片原樣寫（例如 78%），不要改寫成幾成。
+15. 不要自己加總金額；車主問合計時，程式會回答。`;
 
 export const RESPONSE_SCHEMA = {
   type: "OBJECT",
@@ -467,6 +468,7 @@ function check(
   inherited: InspectionItem[] = [],
   deferMust: InspectionItem[] = [],
   asked: InspectionItem[] = [],
+  sums = true,
 ): string | undefined {
   const conclusions = new Map(vehicle.items.map((i) => [`item:${i.id}`, judge(i).conclusion]));
 
@@ -593,21 +595,9 @@ function check(
     if (wrong !== undefined) return `${named[0].name}是 ${formatPrice(named[0].price)}，回答卻寫 ${formatPrice(wrong)}`;
   }
 
-  // 金額只能是卡片上顯示的價格（必須更換、可延後的項目，加上可選款式），或其中幾項的合計。
-  // 合計：每個項目最多算一次（不換、照示意費用、或選其中一款），所以同一項目的兩款不能相加。
-  // 未見過題目 U13：車主問「只換煞車和電瓶合計多少」，AI 算對 6,500 卻被攔下。
-  let prices = new Set([0]);
-  for (const i of vehicle.items.filter((i) => judge(i).conclusion !== "正常")) {
-    const choices = [i.price, ...(visibleOptions(i, judge(i).conclusion) ?? []).map((o) => o.price)];
-    prices = new Set([...prices].flatMap((p) => [p, ...choices.map((c) => p + c)]));
-  }
-  // 定期保養的示意費用也印在卡片上（今天一定會做），可以單獨講，也可以加進合計。
-  if (vehicle.routine.length) prices = new Set([...prices].flatMap((p) => [p, p + vehicle.routineFee]));
-  prices.delete(0);
-  // 款式的「每條」價格也印在卡片上，可以單獨講，但不參與合計。
-  for (const i of vehicle.items.filter((i) => judge(i).conclusion !== "正常"))
-    for (const o of [...(visibleOptions(i, judge(i).conclusion) ?? []), baseOption(i)]) if (o) prices.add(o.unitPrice);
-  const wrong = amounts(reply.answer).find((a) => !prices.has(a));
+  // 金額只能是卡片上顯示的單一價格。檢查結果摘要（sums）另外允許幾項的合計；主回答的合計由程式算（t39b）。
+  const { singles, sums: totals } = cardPrices(vehicle);
+  const wrong = amounts(reply.answer).find((a) => !singles.has(a) && !(sums && totals.has(a)));
   if (wrong !== undefined) return `回答提到的金額 ${formatPrice(wrong)} 不在卡片上`;
 
   if (reply.sources.length === 0 && !noDataReply(vehicle, reply)) return NO_SOURCE;
@@ -839,6 +829,75 @@ function routineProblem(vehicle: Vehicle, answer: string): string | undefined {
     }
   }
   return undefined;
+}
+
+// 卡片上的價格（必須更換、可延後的項目，可選款式，每條價格，定期保養示意費用）。
+// sums：其中幾項的合計，每個項目最多算一次（不換、照示意費用、或選其中一款），所以同一項目的兩款不能相加；每條價格不參與合計。
+function cardPrices(vehicle: Vehicle): { singles: Set<number>; sums: Set<number> } {
+  const priced = vehicle.items.filter((i) => judge(i).conclusion !== "正常");
+  const singles = new Set<number>();
+  let sums = new Set([0]);
+  for (const i of priced) {
+    const options = visibleOptions(i, judge(i).conclusion) ?? [];
+    const choices = [i.price, ...options.map((o) => o.price)];
+    choices.forEach((c) => singles.add(c));
+    for (const o of [...options, baseOption(i)]) if (o) singles.add(o.unitPrice);
+    sums = new Set([...sums].flatMap((p) => [p, ...choices.map((c) => p + c)]));
+  }
+  if (vehicle.routine.length) {
+    singles.add(vehicle.routineFee);
+    sums = new Set([...sums].flatMap((p) => [p, p + vehicle.routineFee]));
+  }
+  sums.delete(0);
+  return { singles, sums };
+}
+
+// 回答裡 AI 自己加總的金額：不是單一價格，但等於卡片上幾項的合計。
+function summedAmount(vehicle: Vehicle, answer: string): number | undefined {
+  const { singles, sums } = cardPrices(vehicle);
+  return amounts(answer).find((a) => !singles.has(a) && sums.has(a));
+}
+
+// 車主問合計（t39b，使用者要求「加總用規則，不要讓 AI 加」）：同一句要有合計字詞和「多少」。
+// 「全部檢查多少項目」不是問錢；「全部的費用都含工資嗎」沒問多少。另一句問別的事（「可以刷卡嗎」）交給 AI。
+const TOTAL_WORDS = /合計|總共|一共|加起來|總計|全部|通通|統統|全都|總價|總金額|總費用/;
+const HOW_MUCH = /多少(?!項|個|次|公里|km|天|小時|分鐘|條|顆|時間)|幾(?:塊|元|千|萬)/;
+function asksTotal(question: string): boolean {
+  const sentences = question.split(/[。！？!?\n]/).map((s) => s.trim()).filter(Boolean);
+  return sentences.some((s) => TOTAL_WORDS.test(s) && HOW_MUCH.test(s)) && sentences.every((s) => HOW_MUCH.test(s) || PRICE_WORDS.test(s));
+}
+
+// 合計句：金額全部取自卡片和規則引擎的結論。有款式的項目用卡片示意費用（最低款），標「起（依款式）」。
+// 點名卡片項目或定期保養時只加總點名的；沒點名就列今天必須做的，再列可延後也一起換的總合計。正常的項目沒有費用，不列入。
+type PriceLine = { name: string; price: number; from: boolean; source: string };
+function totalAnswer(vehicle: Vehicle, question: string): Answer {
+  const line = (i: InspectionItem): PriceLine => ({ name: i.name, price: i.price, from: !!i.options?.length, source: `item:${i.id}` });
+  const routine: PriceLine[] = vehicle.routine.length ? [{ name: `定期保養（${vehicle.routine.join("、")}）`, price: vehicle.routineFee, from: false, source: "routine" }] : [];
+  const show = (lines: PriceLine[]) => lines.map((l) => `${l.name} ${formatPrice(l.price)}${l.from ? " 起（依款式）" : ""}`).join("、");
+  const sum = (lines: PriceLine[]) => `${formatPrice(lines.reduce((t, l) => t + l.price, 0))}${lines.some((l) => l.from) ? " 起" : ""}`;
+  const by = (c: Conclusion) => vehicle.items.filter((i) => judge(i).conclusion === c);
+  const named = itemsIn(vehicle, question);
+  const withRoutine = routineAsked(vehicle, question);
+  let parts: string[];
+  let lines: PriceLine[];
+  if (named.length || withRoutine) {
+    lines = [...named.filter((i) => judge(i).conclusion !== "正常").map(line), ...(withRoutine ? routine : [])];
+    const ok = named.filter((i) => judge(i).conclusion === "正常");
+    parts = [
+      lines.length ? `${show(lines)}${lines.length > 1 ? `，合計 ${sum(lines)}` : ""}。` : "",
+      ok.length ? `${ok.map((i) => i.name).join("、")}檢查正常，目前不用換，沒有費用。` : "",
+    ];
+  } else {
+    const today = [...by("必須更換").map(line), ...routine];
+    const later = by("可延後").map(line);
+    lines = [...today, ...later];
+    parts = [
+      today.length ? `今天必須做的：${show(today)}，合計 ${sum(today)}。` : "今天沒有必須做的項目。",
+      later.length ? `如果可延後的項目也一起換：${show(later)}，總合計 ${sum(lines)}。` : "",
+    ];
+  }
+  const sources = lines.length ? lines.map((l) => l.source) : named.map((i) => `item:${i.id}`);
+  return { answer: `${parts.join("")}以上都是示意費用，實際以服務廠報價為準。`, sources, escalate: false };
 }
 
 // 卡片外的車子主題：AI 回「沒有這項資料」時，用來點名車主問的東西，聽起來像人在回答。
@@ -1222,6 +1281,11 @@ export async function ask(
       ? { answer: ESCALATE_ANSWER, sources: [], escalate: true, checkResult: "攔下", blockedReason, trace }
       : { answer: reply.answer, sources, escalate: true, checkResult: "通過", trace };
   }
+  // 問合計：程式算，不呼叫 AI。議價、抱怨照舊交給 AI 並轉專員。
+  if (asksTotal(question) && !needsHuman(question) && !upset(vehicle, question)) {
+    const total = totalAnswer(vehicle, question);
+    return { ...total, checkResult: "通過", trace: { mentionedItems, data: total.sources, aiSources: total.sources, noAI: true, ...memo } };
+  }
   const listed = optionAnswer(vehicle, question, history);
   if (listed) {
     const { itemId, ...shown } = listed;
@@ -1258,9 +1322,11 @@ export async function ask(
   const asked = vehicle.items.filter((i) => [question, ...history].some((t) => mentions(i, t)));
   // 只回「沒有這項資料」的拒絕句沒有肯定任何事，不套用正向要求；它本來就轉介專員。
   const mustItems = noDataReply(vehicle, reply) ? [] : mustAsked(vehicle, question, history);
+  const summed = summedAmount(vehicle, reply.answer);
   const blockedReason =
+    (summed !== undefined ? `回答自己加總金額 ${formatPrice(summed)}，合計由程式計算` : undefined) ??
     routineProblem(vehicle, reply.answer) ??
-    check(vehicle, reply, chosenByOwner(vehicle, question), inherited, deferMust, asked) ??
+    check(vehicle, reply, chosenByOwner(vehicle, question), inherited, deferMust, asked, false) ??
     budgetMismatch(vehicle, question, reply) ??
     (mustItems.length ? mustNotStated(vehicle, reply.answer, mustItems) : undefined) ??
     symptomBlocked ??
@@ -1268,7 +1334,9 @@ export async function ask(
     (ratioIn(reply.answer) ? `回答把數字改寫成成數「${ratioIn(reply.answer)}」，卡片寫的是百分比` : undefined);
   // 款式建議被攔下時轉專員：常見問題講的是要不要換，答非所問。
   const shown: Answer = blockedReason
-    ? blockedReason === symptomBlocked
+    ? summed !== undefined
+      ? totalAnswer(vehicle, question)
+      : blockedReason === symptomBlocked
       ? { answer: SYMPTOM_ANSWER, sources: [], escalate: true }
       : reply.recommendedOption?.trim()
       ? { answer: ESCALATE_ANSWER, sources: [], escalate: true }
