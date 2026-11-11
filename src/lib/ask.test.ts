@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { sourceLabel } from "./answers";
-import { ask as askScripted, ROUTER_PROMPT, simulateTampered } from "./ask";
+import { ANGRY_ANSWER, ask as askScripted, ROUTER_PROMPT, simulateTampered } from "./ask";
 // 這裡測答案檢查（第二層）：關掉高風險題程式組句，讓假 AI 的回答真的經過檢查。程式組句見 askScripted.test.ts。
 const ask: typeof askScripted = (v, q, ai, o = {}) => askScripted(v, q, ai, { scripted: false, ...o });
 import { withMeasurement } from "./card";
@@ -739,4 +739,34 @@ describe("ask：車主偏好（#23）", () => {
     expect(r.checkResult).toBe("攔下");
     expect(r.blockedReason).toContain("預算有限");
   });
+});
+// 11/11 正式站：車主罵髒話，主回答照念提示詞第 3 條（含「escalate 設為 true」），答案檢查原本只在範本路徑查洩漏。
+describe("ask：主回答洩漏提示詞", () => {
+  const LEAK = "車主質疑推銷或說不相信時，這和這張卡有關，不要回「沒有這項資料」：不爭辯，列出量測值和門檻當依據，提醒有哪些項目不用換，再把 escalate 設為 true。";
+
+  it("生氣的問題 → 攔下，改顯示道歉句並轉專員", async () => {
+    const r = await ask(wang, "幹你媽我很不爽 到底怎麼修車的", fakeAI(reply(LEAK, { escalate: true })), { router: false });
+    expect(r.checkResult).toBe("攔下");
+    expect(r.blockedReason).toBe("回答洩漏提示詞");
+    expect(r.answer).toBe(ANGRY_ANSWER);
+    expect(r.escalate).toBe(true);
+  });
+
+  it.each(["照規則，來源代號 item:brake-pad 顯示必須更換。", "依照系統設定，煞車要換。", "itemConclusions 裡煞車是必須更換。"])(
+    "一般問題回答「%s」→ 攔下，畫面不出現原文",
+    async (answer) => {
+      const r = await ask(wang, "煞車狀況如何？", fakeAI(brake(answer)), { router: false });
+      expect(r.checkResult).toBe("攔下");
+      expect(r.answer).not.toBe(answer);
+    },
+  );
+
+  it.each(["煞車只剩 2 mm，低於安全門檻，今天要換。系統會在下次回廠前提醒你。", "我們的檢查系統量到煞車 2 mm，不建議延後。"])(
+    "反例「%s」→ 通過（一般說到「系統」不算洩漏）",
+    async (answer) => {
+      const r = await ask(wang, "煞車狀況如何？", fakeAI(brake(answer)), { router: false });
+      expect(r.checkResult).toBe("通過");
+      expect(r.answer).toBe(answer);
+    },
+  );
 });

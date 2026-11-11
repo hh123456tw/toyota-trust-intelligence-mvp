@@ -1242,6 +1242,7 @@ export const CHAT_PROMPT = `你是和泰汽車服務廠很有經驗、說話親�
 const KEEP_DRIVING = /(?<!不要|別|不能|不建議|不可以|先別)(?:繼續|照常|直接)開/;
 const AGREES_CHANGE = /(?:幫你|替你)(?:改|調)|改(?:成|為)(?:正常|可延後|不用換|不換)|算你?便宜|少算|給你?優惠|打[一二三四五六七八九\d]+折/;
 const PROMPT_LEAK = /提示詞|itemConclusions|recommendedOption|escalate|來源代號|系統(?:設定|指令)|你是和泰汽車服務廠/;
+const MAIN_LEAK = "回答洩漏提示詞";
 // 回傳 AI 回應，或沒有回應（失敗、不合格，由呼叫端用範本）和原因。
 async function chatReply(vehicle: Vehicle, question: string, history: string[], category: string, callAI: CallAI): Promise<{ answer?: string; reason?: string }> {
   const answer = await shortReply(callAI, CHAT_PROMPT, history, `類別：${category}\n\n車主說：${question}`);
@@ -1352,7 +1353,9 @@ export async function ask(
     (mustItems.length ? mustNotStated(vehicle, reply.answer, mustItems) : undefined) ??
     symptomBlocked ??
     (assureWordIn(reply.answer) ? `回答有保證字眼「${assureWordIn(reply.answer)}」` : undefined) ??
-    (ratioIn(reply.answer) ? `回答把數字改寫成成數「${ratioIn(reply.answer)}」，卡片寫的是百分比` : undefined);
+    (ratioIn(reply.answer) ? `回答把數字改寫成成數「${ratioIn(reply.answer)}」，卡片寫的是百分比` : undefined) ??
+    // 11/11 正式站：車主罵髒話時，主回答照念提示詞第 3 條（含「escalate 設為 true」）。原本只有範本路徑查這條。
+    (PROMPT_LEAK.test(reply.answer) ? MAIN_LEAK : undefined);
   // 款式建議被攔下時轉專員：常見問題講的是要不要換，答非所問。
   const shown: Answer = blockedReason
     ? summed !== undefined
@@ -1379,7 +1382,7 @@ export async function ask(
   // 生氣，或心情和車子、服務有關：主回答沒內容就請專員，有內容照主回答，兩種都轉介專員。分類器開關都一樣。
   if (upset(vehicle, question)) {
     shown.escalate = true;
-    if (!blockedReason && (reply.answer.includes(NO_DATA) || reply.answer.trim() === OFF_TOPIC)) shown.answer = upsetAnswer(question);
+    if (blockedReason === MAIN_LEAK || (!blockedReason && (reply.answer.includes(NO_DATA) || reply.answer.trim() === OFF_TOPIC))) shown.answer = upsetAnswer(question);
   }
 
   // 分類器判症狀、程式沒認出來（「車窗降不下來」）：問題沒提卡片項目時，也改用症狀開場。主回答已經送出，所以 AI 共 3 次。
