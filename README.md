@@ -1,55 +1,104 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Trust Intelligence 維修決策卡
 
-## 規則和 AI 的分工
+TOYOTA 和泰汽車黑客松決賽作品。車主回廠保養時，用手機看懂維修建議，自己決定今天換什麼。
 
-原則：規則列舉得完的用規則；組合太多、要解釋原因的才用 AI。
+**一句話：結論由規則決定，AI 只負責解釋，程式再檢查 AI 說的話。**
 
-- 規則產生（不經 AI）：維修結論、接待摘要（`src/lib/reception.ts`）、摘要最後的車主偏好行、規則版摘要。
-- AI 產生、再過答案檢查：追問回答、檢查結果摘要（`src/lib/ask.ts` 的 `SUMMARY_PROMPT`）。
-- 檢查結果摘要（11/8 補強）：必須更換永遠先講，寫量測值和安全門檻；可延後的項目加一句原因，只能用卡片上的量測趨勢、使用紀錄、行車摘要；依車主偏好調整說法（最在意價格先講今天要付的費用、定期追蹤不建議今天換、近期長途提醒出發前再測）。11/8 QA 後：必須更換和可延後的項目一定寫本次量測值（半年前的數值只當補充）。答案檢查另外攔：漏項、必須更換沒有先講、沒寫本次量測值、可延後被說成今天換或不能延後、金額不在卡片上（含國字金額）。沒通過就改顯示規則版摘要。
-- 只重跑摘要實測：`npx vitest run --config scripts/vitest.eval.config.mts scripts/summary.eval.ts`（需要 `.env.local` 的 `GEMINI_API_KEY`）。紀錄在 `docs/eval/raw/2026-11-08_summary_v3_run1..3.log`（18/18 通過；/eval 的摘要數字讀這 3 份）。
-- 車主偏好分兩層：長期偏好（處理方式、最在意）以車主為鍵，下次回廠沿用；本次情況（近期長途行程、最近有異常）以這次工單為鍵，換工單就不沿用。示意版存在瀏覽器，正式版寫回和泰車主檔。
+- 正式站：https://toyota-trust-intelligence-mvp.vercel.app
+- 實測紀錄頁：https://toyota-trust-intelligence-mvp.vercel.app/eval
 
-## 真實 AI 實測（/eval）
+## 1 分鐘看懂
 
-- 第 21 題（限流）拔掉金鑰跑，不呼叫 Gemini；上限讀 `src/lib/rateLimit.ts` 和 `ASK_LIMIT_PER_IP_PER_MINUTE`，分別驗證每個訪客（20）、無訪客 id（每 IP 60）、每個 IP（預設 300）。細部規則由 `src/lib/rateLimit.test.ts` 涵蓋。
-- 執行：`npm run eval:21`（追問 29 題＋系統 2 題＋檢查結果摘要 6 次；需要 `.env.local` 的 `GEMINI_API_KEY`）。紀錄存在 `docs/eval/raw/`，/eval 在建置時讀紀錄，數字一律從紀錄算。
-- 11/8 誤攔修正後連跑 3 次（`2026-11-08_final_run1..3.log`）：追問 86/87、摘要 18/18，AI 平均 2.2 秒、中位數 1.4 秒、最慢 21.6 秒（含 429 重試）。
-- 這次修正：答案檢查不再把保養週期（「每 48 個月才需要更換」）當成推銷，「現在換比較好」照攔；#15、#26、#28、#30 的驗收字詞接受同義寫法（例如「保養的紀錄」「零件保證」），安全相關的 mustNot 不放寬。
-- /eval 被攔下的題目同時顯示 AI 原文（紀錄裡「AI 原回答」的 JSON）和車主實際看到的替換回答。沒過的題目由 `src/lib/evalLog.ts` 的 `classify` 分成：檢查擋對了、誤攔、驗收太嚴、AI 說錯；判斷不了標「待人工判讀」。
-- 第 3 次第 23 題 AI 寫「建議選擇長效款價格最低的基本款」：實際建議基本款，但說法混亂，碰到「不能建議長效款」的檢查，歸為 AI 說錯。
+主角是王先生：剛過保固，在意價格。他不是不願意修，是無法判斷該不該修。
 
-## Getting Started
+1. **技師檢查**：技師在技師頁輸入量測值，例如煞車來令片 2 mm、輪胎胎紋 2.5 mm。
+2. **規則判斷**：規則引擎依安全門檻給每個檢查項目一個結論：必須更換、可延後、目前不用換。AI 不能改結論。
+3. **AI 解釋**：車主在決策卡上追問，AI 只能引用卡片上的資料回答，並附上來源。
+4. **程式檢查**：AI 的回答送到車主面前前，程式先核對。說錯就攔下，改顯示正確的固定句；碰到安全、議價、要改結論，就轉介專員。
 
-First, run the development server:
+## 上線版有哪些頁面
+
+| 頁面 | 網址 | 給誰看 | 做什麼 |
+|---|---|---|---|
+| 首頁 | `/` | 評審 | 進入王先生、林小姐兩台示範車 |
+| 維修決策卡 | `/card/wang` | 車主 | 三種結論、量測與照片、AI 追問、車主偏好、回廠提醒、交車說明 |
+| 技師頁 | `/tech/wang` | 技師、專員 | 接待摘要、輸入量測值（結論當場重算）、檢查結果摘要 |
+| 實測紀錄 | `/eval` | 評審 | 真實 Gemini 連跑的每一題問題、回答、檢查結果 |
+
+林小姐的車把網址的 `wang` 換成 `lin`。
+
+**現場示範「不是寫死的」**：開 `/tech/wang`，把輪胎胎紋改成 1 mm。結論重算，輪胎變成必須更換。
+
+## 要背的數字（都有紀錄可查）
+
+| 數字 | 意思 | 紀錄在哪 |
+|---|---|---|
+| 417 次攻擊，違規 0 | 其他 AI 扮演奧客出題攻擊（紅隊）：單輪 182 題、多輪 76 組 235 輪。想騙它改結論、打折、保證安全，全部守住 | `docs/eval/redteam/run_2026-11-10_final.md`、`multi_2026-11-10_final2.md` |
+| 87 / 87 | 自己的 29 題追問考卷，用真實 Gemini 連跑 3 次全過 | `docs/eval/raw/2026-11-10_final_run1..3.log`，`/eval` |
+| 18 / 18 | 檢查結果摘要（王先生、林小姐各 3 次 × 3 輪）全部通過答案檢查 | 同上 |
+| 平均 0.8 秒 | AI 回應時間。被問就說「中位數約 1 秒」 | `/eval` |
+| NT$0.18 | 每台車 AI 成本（1 次摘要＋3 題追問，含分類器）。大廠一個月約 NT$67 | `docs/eval/cost.md` |
+
+**為什麼是 29 題**：考卷有 31 題，其中 2 題是預設按鈕，不呼叫 AI。題目從 21 題加到 25 題（車主偏好），再加到 29 題（輪胎款式）。
+
+**被問「零違規能保證安全嗎？」**：不能。這只代表這個版本守住這批攻擊。所以高風險問題由程式組句，其他回答由程式核對，說錯會攔下。
+
+## 規劃、還沒做的
+
+被問到時照實說「這是規劃」：
+
+- 串接 TOYOTA LINE、My TOYOTA App、客休室看板：MVP 是獨立網頁，沒有串接。
+- 串接真實工單和車主資料：MVP 用兩台示範車的假設資料。
+- 偵測「來源互相矛盾」：目前只攔來源代號錯誤。
+- Points 複查獎勵：規則與預算待確認。
+
+## 名詞
+
+專有名詞以 [GLOSSARY.md](GLOSSARY.md) 為準。最常用的：
+
+- **結論**：只有必須更換、可延後、目前不用換三種，由規則決定。
+- **答案檢查**：AI 回答給車主前，程式做的核對。
+- **轉介專員**：碰到安全問題時，AI 先解釋，再請服務專員親自說明。
+- **車主偏好**：只影響說明的重點，不影響結論、門檻和價格。安全標準一致，服務建議因人而異。
+
+## 程式在哪
+
+| 位置 | 內容 |
+|---|---|
+| `src/lib/rules.ts` | 規則引擎：量測值 → 結論 |
+| `src/lib/vehicles.ts` | 兩台示範車的資料 |
+| `src/lib/ask.ts`、`askShared.ts` | 追問：呼叫 AI、答案檢查、轉介專員 |
+| `src/lib/gemini.ts` | 呼叫 Gemini（模型 `gemini-3.5-flash-lite`） |
+| `src/app/card/[id]/` | 維修決策卡畫面 |
+| `src/app/tech/[id]/` | 技師頁畫面 |
+| `scripts/` | 實測腳本與考卷（`測試題_追問AI.md`） |
+| `docs/eval/` | 全部實測紀錄（`README.md` 有每一輪的說明） |
+
+## 自己跑起來
+
+需要 Node.js（建議 20 以上）。
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+打開 http://localhost:3000 。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+AI 追問需要 Gemini API key。在專案根目錄建立 `.env.local`，寫一行 `GEMINI_API_KEY=你的key`。這個檔案不會進 git，不要把 key 貼到任何地方。沒有 key 時，畫面、規則和常見問題按鈕照常運作；AI 追問會顯示「AI 暫時無法回答」，請車主點常見問題或找專員。
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm test
+```
 
-## Learn More
+跑全部單元測試，不呼叫真的 AI。
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run eval:21
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+用真實 Gemini 跑 29 題考卷（要 key，會花一點費用）。
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 狀態
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+決賽前程式凍結（最後版本 commit `1677fa9`）。11/21 決賽前不再修改。
